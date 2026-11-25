@@ -11,19 +11,19 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func healthHandler(w http.ResponseWriter, _ *http.Request) {
+func HealthHandler(w http.ResponseWriter, _ *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]string{"status": "healthy"})
 }
 
-func readyHandler(w http.ResponseWriter, _ *http.Request) {
+func ReadyHandler(w http.ResponseWriter, _ *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]string{"status": "ready"})
 }
 
-func metricsHandler() http.Handler {
+func MetricsHandler() http.Handler {
 	return promhttp.Handler()
 }
 
-func rootHandler(w http.ResponseWriter, r *http.Request) {
+func RootHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
 		return
@@ -43,19 +43,19 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func robotsTxtHandler(w http.ResponseWriter, _ *http.Request) {
+func RobotsTxtHandler(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("User-agent: *\nAllow: /v0.1/\nDisallow: /health\nDisallow: /ready\nDisallow: /metrics\n"))
 }
 
-func securityTxtHandler(w http.ResponseWriter, _ *http.Request) {
+func SecurityTxtHandler(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("Contact: soc@nav.no\nPreferred-Languages: no, en\nCanonical: https://www.nav.no/.well-known/security.txt\nDisclosure: Full\n"))
 }
 
-func faviconHandler(w http.ResponseWriter, _ *http.Request) {
+func FaviconHandler(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -71,7 +71,7 @@ func substituteVariables(data []byte, config *Config) []byte {
 	return []byte(result)
 }
 
-func makeServersListHandler(config *Config) http.HandlerFunc {
+func MakeServersListHandler(config *Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		serversListHandler(w, r, config)
 	}
@@ -128,7 +128,7 @@ func serversListHandler(w http.ResponseWriter, r *http.Request, config *Config) 
 	respondJSON(w, http.StatusOK, response)
 }
 
-func makeServerVersionHandler(config *Config) http.HandlerFunc {
+func MakeServerVersionHandler(config *Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		serverVersionHandler(w, r, config)
 	}

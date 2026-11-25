@@ -15,11 +15,11 @@ const audienceSub = `{"name":"io.github.navikt/aud","description":"Audience test
 // validateAllowlistBytes runs the allowlist.json path: the same decode and
 // validation as validateAllowListFile and Store.Reload.
 func validateAllowlistBytes(b []byte) error {
-	data, err := decodeStaticRegistry(b)
+	data, err := DecodeStaticRegistry(b)
 	if err != nil {
 		return err
 	}
-	return validateRegistry(&data)
+	return ValidateRegistry(&data)
 }
 
 // TestAudience_BothPathsShareOneValidator feeds the same audience to
@@ -54,7 +54,7 @@ func TestAudience_BothPathsShareOneValidator(t *testing.T) {
 				field = `,"audience":` + tc.audience
 			}
 			staticErr := validateAllowlistBytes([]byte(strings.Replace(audienceStatic, "%s", field, 1)))
-			_, _, subErr := validateSubmission([]byte(strings.Replace(audienceSub, "%s", field, 1)))
+			_, _, subErr := ValidateSubmission([]byte(strings.Replace(audienceSub, "%s", field, 1)))
 			if (staticErr == nil) != tc.ok || (subErr == nil) != tc.ok {
 				t.Fatalf("want ok=%v, allowlist err=%v, submission err=%v", tc.ok, staticErr, subErr)
 			}

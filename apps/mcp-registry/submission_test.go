@@ -15,7 +15,7 @@ func TestValidateSubmissionName(t *testing.T) {
 		"a.b/c",
 	}
 	for _, name := range valid {
-		if err := validateName(name, 0); err != nil {
+		if err := ValidateName(name, 0); err != nil {
 			t.Errorf("expected valid name %q, got error: %v", name, err)
 		}
 	}
@@ -39,7 +39,7 @@ func TestValidateSubmissionName(t *testing.T) {
 		strings.Repeat("a", 201) + "/b", // > 200 chars
 	}
 	for _, name := range invalid {
-		if err := validateName(name, 0); err == nil {
+		if err := ValidateName(name, 0); err == nil {
 			t.Errorf("expected name %q to be rejected, but it passed", name)
 		}
 	}
@@ -112,7 +112,7 @@ func TestValidateSubmissionURL(t *testing.T) {
 func TestValidateOwner(t *testing.T) {
 	valid := []string{"team-rocket", "nais", "team1", "mcp-team-dev"}
 	for _, o := range valid {
-		if _, _, err := validateSubmission([]byte(`{"name":"a.b/c","description":"d","version":"1","owner":"` + o + `","remotes":[{"type":"sse","url":"https://mcp.example.com"}]}`)); err != nil {
+		if _, _, err := ValidateSubmission([]byte(`{"name":"a.b/c","description":"d","version":"1","owner":"` + o + `","remotes":[{"type":"sse","url":"https://mcp.example.com"}]}`)); err != nil {
 			t.Errorf("expected valid owner %q, got: %v", o, err)
 		}
 	}
@@ -127,7 +127,7 @@ func TestValidateOwner(t *testing.T) {
 		"team@rocket", // special char
 	}
 	for _, o := range invalid {
-		if _, _, err := validateSubmission([]byte(`{"name":"a.b/c","description":"d","version":"1","owner":"` + o + `","remotes":[{"type":"sse","url":"https://mcp.example.com"}]}`)); err == nil {
+		if _, _, err := ValidateSubmission([]byte(`{"name":"a.b/c","description":"d","version":"1","owner":"` + o + `","remotes":[{"type":"sse","url":"https://mcp.example.com"}]}`)); err == nil {
 			t.Errorf("expected owner %q to be rejected, but it passed", o)
 		}
 	}
@@ -365,7 +365,7 @@ func TestValidateSubmission(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			sub, canonical, err := validateSubmission([]byte(tc.json))
+			sub, canonical, err := ValidateSubmission([]byte(tc.json))
 			if (err != nil) != tc.wantErr {
 				t.Fatalf("validateSubmission() error = %v, wantErr %v", err, tc.wantErr)
 			}
@@ -400,7 +400,7 @@ func TestValidateSubmission_TrimsURLs(t *testing.T) {
 		"remotes": [{"type": "streamable-http", "url": "  https://mcp.example.com/api  "}]
 	}`
 
-	sub, canonical, err := validateSubmission([]byte(raw))
+	sub, canonical, err := ValidateSubmission([]byte(raw))
 	if err != nil {
 		t.Fatalf("validateSubmission() unexpected error: %v", err)
 	}

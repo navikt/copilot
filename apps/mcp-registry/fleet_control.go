@@ -37,9 +37,9 @@ type fleetControlRegistry struct {
 	generation int64
 }
 
-// fleetControlFromEnv returns nil for REGISTRY_SOURCE=git (the default) and
+// FleetControlFromEnv returns nil for REGISTRY_SOURCE=git (the default) and
 // an error for anything it cannot use, so a bad config stops startup.
-func fleetControlFromEnv() (*fleetControlRegistry, error) {
+func FleetControlFromEnv() (*fleetControlRegistry, error) {
 	switch src := strings.TrimSpace(os.Getenv("REGISTRY_SOURCE")); src {
 	case "", registrySourceGit:
 		return nil, nil

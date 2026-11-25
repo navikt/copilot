@@ -74,11 +74,11 @@ func (s *Store) loadStatic() ([]ServerResponse, map[string]bool, error) {
 // from a fleet-control snapshot (#2641).
 func (s *Store) parseStatic(data []byte, updatedAt time.Time) ([]ServerResponse, map[string]bool, error) {
 	// Same validation as startup, so a bad file never replaces the last good set.
-	raw, err := decodeStaticRegistry(data)
+	raw, err := DecodeStaticRegistry(data)
 	if err != nil {
 		return nil, nil, fmt.Errorf("parsing static allowlist JSON: %w", err)
 	}
-	if err = validateRegistry(&raw); err != nil {
+	if err = ValidateRegistry(&raw); err != nil {
 		return nil, nil, fmt.Errorf("validating static allowlist: %w", err)
 	}
 
@@ -86,12 +86,12 @@ func (s *Store) parseStatic(data []byte, updatedAt time.Time) ([]ServerResponse,
 		data = substituteVariables(data, s.config)
 	}
 
-	staticData, err := decodeStaticRegistry(data)
+	staticData, err := DecodeStaticRegistry(data)
 	if err != nil {
 		return nil, nil, fmt.Errorf("parsing static allowlist JSON: %w", err)
 	}
 	if s.config != nil {
-		if err = validateSubstitutedRegistry(&raw, &staticData); err != nil {
+		if err = ValidateSubstitutedRegistry(&raw, &staticData); err != nil {
 			return nil, nil, fmt.Errorf("validating static allowlist after substitution: %w", err)
 		}
 	}
@@ -146,8 +146,8 @@ func serverToResponse(s StaticServerData, defaultUpdatedAt time.Time) ServerResp
 // Reload reloads static entries and approved database entries, merging them.
 // On a static load error the last good static set is kept; on a DB error the
 // last good DB set is kept. The DB error is returned.
-// errDBNotConnected is returned by the loader until the database connects.
-var errDBNotConnected = errors.New("database not connected")
+// ErrDBNotConnected is returned by the loader until the database connects.
+var ErrDBNotConnected = errors.New("database not connected")
 
 func (s *Store) Reload(ctx context.Context) error {
 	s.reloadMu.Lock()
@@ -172,7 +172,7 @@ func (s *Store) Reload(ctx context.Context) error {
 		entries, err := s.loader(loadCtx)
 		cancel()
 		switch {
-		case errors.Is(err, errDBNotConnected):
+		case errors.Is(err, ErrDBNotConnected):
 			// The first reload runs before connectWithRetry finishes; the connect path reloads again.
 			slog.Debug("Database not connected yet, skipping database entries")
 			skipDB = true
@@ -220,7 +220,7 @@ func dbEntriesToResponses(entries []DBEntry) []ServerResponse {
 			recordDBDropped("parse")
 			continue
 		}
-		sub, _, err := validateSubmission(entry.Entry)
+		sub, _, err := ValidateSubmission(entry.Entry)
 		if err == nil && sub.Name != entry.Name {
 			err = fmt.Errorf("entry name %q does not match row name", sub.Name)
 		}

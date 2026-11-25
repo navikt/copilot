@@ -37,7 +37,7 @@ func TestProtocolVersions_BothPathsShareOneValidator(t *testing.T) {
 				field = `,"protocolVersions":` + tc.value
 			}
 			staticErr := validateAllowlistBytes([]byte(strings.Replace(audienceStatic, "%s", field, 1)))
-			_, _, subErr := validateSubmission([]byte(strings.Replace(audienceSub, "%s", field, 1)))
+			_, _, subErr := ValidateSubmission([]byte(strings.Replace(audienceSub, "%s", field, 1)))
 			if (staticErr == nil) != tc.ok || (subErr == nil) != tc.ok {
 				t.Fatalf("want ok=%v, allowlist err=%v, submission err=%v", tc.ok, staticErr, subErr)
 			}

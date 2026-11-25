@@ -61,7 +61,7 @@ func OpenDB(ctx context.Context, dbURL string) (*DB, error) {
 
 var pgEnvReplacer = strings.NewReplacer(`\`, `\\`, `'`, `\'`)
 
-func pgEnvDSN(prefix string) string {
+func PGEnvDSN(prefix string) string {
 	vars := []struct {
 		env string
 		key string
@@ -370,8 +370,8 @@ func (s *DB) PurgeExpired(ctx context.Context) error {
 	return nil
 }
 
-// runRetention calls PurgeExpired on every tick until ctx is done.
-func runRetention(ctx context.Context, db *DB, ticks <-chan time.Time) {
+// RunRetention calls PurgeExpired on every tick until ctx is done.
+func RunRetention(ctx context.Context, db *DB, ticks <-chan time.Time) {
 	for {
 		if err := db.PurgeExpired(ctx); err != nil && ctx.Err() == nil {
 			slog.Warn("Retention purge failed", "error", err)

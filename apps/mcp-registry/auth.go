@@ -26,8 +26,8 @@ type IntrospectionResult struct {
 	Groups   []string `json:"groups,omitempty"`
 }
 
-// principal is an authenticated human caller.
-type principal struct {
+// Principal is an authenticated human caller.
+type Principal struct {
 	// Actor is the caller's NAVident, never the email address.
 	Actor  string
 	Azp    string
@@ -37,8 +37,8 @@ type principal struct {
 // IntrospectFunc defines a function for introspecting an authentication token.
 type IntrospectFunc func(ctx context.Context, token string) (*IntrospectionResult, error)
 
-// newTexasIntrospector returns an IntrospectFunc that calls NAIS Texas introspection endpoint.
-func newTexasIntrospector(endpoint string) IntrospectFunc {
+// NewTexasIntrospector returns an IntrospectFunc that calls NAIS Texas introspection endpoint.
+func NewTexasIntrospector(endpoint string) IntrospectFunc {
 	client := &http.Client{Timeout: 5 * time.Second}
 	return func(ctx context.Context, token string) (*IntrospectionResult, error) {
 		if endpoint == "" {
@@ -79,10 +79,10 @@ func newTexasIntrospector(endpoint string) IntrospectFunc {
 	}
 }
 
-// authenticate extracts the Bearer token from the request, verifies it with introspect,
+// Authenticate extracts the Bearer token from the request, verifies it with introspect,
 // validates required claims (idtyp != 'app', non-empty NAVident), and returns the
 // uppercased NAVident as actor with the token's azp and Entra groups.
-func authenticate(r *http.Request, introspect IntrospectFunc) (*principal, error) {
+func Authenticate(r *http.Request, introspect IntrospectFunc) (*Principal, error) {
 	if introspect == nil {
 		return nil, errors.New("introspector not configured")
 	}
@@ -126,5 +126,5 @@ func authenticate(r *http.Request, introspect IntrospectFunc) (*principal, error
 		return nil, ErrUnauthorized
 	}
 
-	return &principal{Actor: strings.ToUpper(strings.TrimSpace(res.NAVident)), Azp: res.Azp, Groups: res.Groups}, nil
+	return &Principal{Actor: strings.ToUpper(strings.TrimSpace(res.NAVident)), Azp: res.Azp, Groups: res.Groups}, nil
 }

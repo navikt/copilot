@@ -76,7 +76,7 @@ func parseAllowedWriteAZP(raw, preAuthorizedJSON string) []string {
 	return out
 }
 
-func loadConfig() *Config {
+func LoadConfig() *Config {
 	dbURL := getDatabaseURL()
 	config := &Config{
 		Port:            getEnv("PORT", "8080"),
@@ -129,7 +129,7 @@ func getDatabaseURL() string {
 	return os.Getenv("DB_URL")
 }
 
-func getEndpointsList(endpoints map[string]bool) []string {
+func GetEndpointsList(endpoints map[string]bool) []string {
 	list := make([]string, 0, len(endpoints))
 	for endpoint := range endpoints {
 		list = append(list, endpoint)

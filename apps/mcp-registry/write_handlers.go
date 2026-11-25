@@ -64,14 +64,14 @@ type submitPayload struct {
 	Entry json.RawMessage `json:"entry"`
 }
 
-func makeSubmitHandler(config *Config, dbRef *atomic.Pointer[DB], introspect IntrospectFunc) http.HandlerFunc {
+func MakeSubmitHandler(config *Config, dbRef *atomic.Pointer[DB], introspect IntrospectFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
-		caller, authErr := authenticate(r, introspect)
+		caller, authErr := Authenticate(r, introspect)
 		if authErr != nil {
 			slog.Warn("Authentication failed for submit", "error", authErr)
 			respondJSON(w, http.StatusUnauthorized, map[string]string{"error": "Unauthorized"})
@@ -95,9 +95,9 @@ func makeSubmitHandler(config *Config, dbRef *atomic.Pointer[DB], introspect Int
 			return
 		}
 
-		sub, canonicalJSON, valErr := validateSubmission(payload.Entry)
+		sub, canonicalJSON, valErr := ValidateSubmission(payload.Entry)
 		if valErr != nil {
-			msg := submissionErrorMessage(valErr)
+			msg := SubmissionErrorMessage(valErr)
 			slog.Warn("Validation failed for submit", "error", logSafe(msg), "actor", logSafe(actor))
 			respondJSON(w, http.StatusBadRequest, map[string]string{"error": msg})
 			return
@@ -148,7 +148,7 @@ type rejectPayload struct {
 	Reason  string `json:"reason"`
 }
 
-func makeEntryActionHandler(config *Config, dbRef *atomic.Pointer[DB], introspect IntrospectFunc) http.HandlerFunc {
+func MakeEntryActionHandler(config *Config, dbRef *atomic.Pointer[DB], introspect IntrospectFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -170,7 +170,7 @@ func makeEntryActionHandler(config *Config, dbRef *atomic.Pointer[DB], introspec
 			return
 		}
 
-		caller, authErr := authenticate(r, introspect)
+		caller, authErr := Authenticate(r, introspect)
 		if authErr != nil {
 			slog.Warn("Authentication failed for entry action", "action", action, "error", authErr)
 			respondJSON(w, http.StatusUnauthorized, map[string]string{"error": "Unauthorized"})
@@ -183,7 +183,7 @@ func makeEntryActionHandler(config *Config, dbRef *atomic.Pointer[DB], introspec
 		}
 		actor := caller.Actor
 
-		if valErr := validateName(name, 0); valErr != nil {
+		if valErr := ValidateName(name, 0); valErr != nil {
 			respondJSON(w, http.StatusBadRequest, map[string]string{"error": valErr.Error()})
 			return
 		}

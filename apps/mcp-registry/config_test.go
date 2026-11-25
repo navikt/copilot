@@ -11,7 +11,7 @@ func TestLoadConfig_Defaults(t *testing.T) {
 	t.Setenv("LOG_LEVEL", "")
 	t.Setenv("LOGGED_ENDPOINTS", "")
 
-	config := loadConfig()
+	config := LoadConfig()
 
 	if config.Port != "8080" {
 		t.Errorf("expected default port 8080, got %s", config.Port)
@@ -39,7 +39,7 @@ func TestLoadConfig_Defaults(t *testing.T) {
 func TestLoadConfig_CustomPort(t *testing.T) {
 	t.Setenv("PORT", "3000")
 
-	config := loadConfig()
+	config := LoadConfig()
 
 	if config.Port != "3000" {
 		t.Errorf("expected port 3000, got %s", config.Port)
@@ -69,7 +69,7 @@ func TestLoadConfig_LogLevels(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("LOG_LEVEL", tt.envValue)
 
-			config := loadConfig()
+			config := LoadConfig()
 
 			if config.LogLevel != tt.expectedLevel {
 				t.Errorf("expected log level %s, got %s", tt.expectedLevel.String(), config.LogLevel.String())
@@ -144,7 +144,7 @@ func TestLoadConfig_CustomEndpoints(t *testing.T) {
 				t.Setenv("LOGGED_ENDPOINTS", "")
 			}
 
-			config := loadConfig()
+			config := LoadConfig()
 
 			if len(config.LoggedEndpoints) != len(tt.expectedEndpoints) {
 				t.Errorf("expected %d logged endpoints, got %d", len(tt.expectedEndpoints), len(config.LoggedEndpoints))
@@ -242,7 +242,7 @@ func TestGetEndpointsList(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := getEndpointsList(tt.endpoints)
+			result := GetEndpointsList(tt.endpoints)
 
 			if len(result) != tt.expected {
 				t.Errorf("expected %d endpoints, got %d", tt.expected, len(result))

@@ -11,7 +11,7 @@ func TestAllowlistEveryEntryHasOwner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	data, err := decodeStaticRegistry(raw)
+	data, err := DecodeStaticRegistry(raw)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,7 +30,7 @@ func TestStaticOwnerRejectsInvalidTeam(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	data, err := decodeStaticRegistry(raw)
+	data, err := DecodeStaticRegistry(raw)
 	if err != nil {
 		t.Fatal(err)
 	}

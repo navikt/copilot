@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	config := loadConfig()
+	config := LoadConfig()
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: config.LogLevel,
@@ -26,14 +26,14 @@ func main() {
 		"domain_internal", config.DomainInternal,
 		"domain_external", config.DomainExternal,
 		"log_level", config.LogLevel.String(),
-		"logged_endpoints", getEndpointsList(config.LoggedEndpoints),
+		"logged_endpoints", GetEndpointsList(config.LoggedEndpoints),
 	)
 
-	if err := validateAllowListFile(); err != nil {
+	if err := ValidateAllowListFile(); err != nil {
 		slog.Error("Server startup failed - invalid allowlist.json", "error", err)
 		os.Exit(1)
 	}
-	fleet, err := fleetControlFromEnv()
+	fleet, err := FleetControlFromEnv()
 	if err != nil {
 		slog.Error("Server startup failed - invalid fleet-control config", "error", err)
 		os.Exit(1)
@@ -66,7 +66,7 @@ func main() {
 		loader = func(ctx context.Context) ([]DBEntry, error) {
 			d := db.Load()
 			if d == nil {
-				return nil, errDBNotConnected
+				return nil, ErrDBNotConnected
 			}
 			return d.GetApprovedEntries(ctx)
 		}
@@ -101,23 +101,23 @@ func main() {
 			}
 			retentionTicker := time.NewTicker(time.Hour)
 			defer retentionTicker.Stop()
-			runRetention(sigCtx, opened, retentionTicker.C)
+			RunRetention(sigCtx, opened, retentionTicker.C)
 		}()
 	}
 	config.Store = store
 
-	http.HandleFunc("/health", loggingMiddleware(config, healthHandler))
-	http.HandleFunc("/ready", loggingMiddleware(config, readyHandler))
-	http.Handle("/metrics", metricsHandler())
-	http.HandleFunc("/v0.1/servers", loggingMiddleware(config, makeServersListHandler(config)))
-	http.HandleFunc("/v0.1/servers/", loggingMiddleware(config, makeServerVersionHandler(config)))
-	introspect := newTexasIntrospector(config.TexasEndpoint)
-	http.HandleFunc("POST /api/v1/entries", loggingMiddleware(config, makeSubmitHandler(config, &db, introspect)))
-	http.HandleFunc("POST /api/v1/entries/{name...}", loggingMiddleware(config, makeEntryActionHandler(config, &db, introspect)))
-	http.HandleFunc("/robots.txt", robotsTxtHandler)
-	http.HandleFunc("/favicon.ico", faviconHandler)
-	http.HandleFunc("/.well-known/security.txt", securityTxtHandler)
-	http.HandleFunc("/", loggingMiddleware(config, rootHandler))
+	http.HandleFunc("/health", LoggingMiddleware(config, HealthHandler))
+	http.HandleFunc("/ready", LoggingMiddleware(config, ReadyHandler))
+	http.Handle("/metrics", MetricsHandler())
+	http.HandleFunc("/v0.1/servers", LoggingMiddleware(config, MakeServersListHandler(config)))
+	http.HandleFunc("/v0.1/servers/", LoggingMiddleware(config, MakeServerVersionHandler(config)))
+	introspect := NewTexasIntrospector(config.TexasEndpoint)
+	http.HandleFunc("POST /api/v1/entries", LoggingMiddleware(config, MakeSubmitHandler(config, &db, introspect)))
+	http.HandleFunc("POST /api/v1/entries/{name...}", LoggingMiddleware(config, MakeEntryActionHandler(config, &db, introspect)))
+	http.HandleFunc("/robots.txt", RobotsTxtHandler)
+	http.HandleFunc("/favicon.ico", FaviconHandler)
+	http.HandleFunc("/.well-known/security.txt", SecurityTxtHandler)
+	http.HandleFunc("/", LoggingMiddleware(config, RootHandler))
 
 	slog.Info("Allowlist validation passed - registry contains valid server configurations")
 	slog.Info("Server listening", "port", config.Port)
@@ -179,7 +179,7 @@ func openAndMigrate(ctx context.Context, dbURL string) (*DB, error) {
 
 	runtimeDSN := ""
 	if os.Getenv("READWRITE_PGHOST") != "" {
-		runtimeDSN = pgEnvDSN("READWRITE_")
+		runtimeDSN = PGEnvDSN("READWRITE_")
 	}
 	db, err := OpenDB(ctx, runtimeDSN)
 	if err != nil {

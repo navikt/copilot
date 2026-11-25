@@ -22,7 +22,7 @@ var serverNameRegex = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9.-]*/[a-zA-Z0-9]
 var hostRegex = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$`)
 var tagRegex = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 
-func decodeStaticRegistry(data []byte) (StaticRegistryData, error) {
+func DecodeStaticRegistry(data []byte) (StaticRegistryData, error) {
 	var staticData StaticRegistryData
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
@@ -39,25 +39,25 @@ func decodeStaticRegistry(data []byte) (StaticRegistryData, error) {
 	return staticData, nil
 }
 
-func validateAllowListFile() error {
+func ValidateAllowListFile() error {
 	data, err := os.ReadFile("allowlist.json")
 	if err != nil {
 		return fmt.Errorf("cannot read allowlist.json: %v", err)
 	}
 
-	staticData, err := decodeStaticRegistry(data)
+	staticData, err := DecodeStaticRegistry(data)
 	if err != nil {
 		return fmt.Errorf("invalid JSON format: %v", err)
 	}
 
-	return validateRegistry(&staticData)
+	return ValidateRegistry(&staticData)
 }
 
-func validateRegistry(data *StaticRegistryData) error {
+func ValidateRegistry(data *StaticRegistryData) error {
 	return validateRegistryEntries(nil, data)
 }
 
-func validateSubstitutedRegistry(raw, data *StaticRegistryData) error {
+func ValidateSubstitutedRegistry(raw, data *StaticRegistryData) error {
 	if len(data.Servers) != len(raw.Servers) {
 		return fmt.Errorf("server count changed after substitution (%d -> %d)", len(raw.Servers), len(data.Servers))
 	}
@@ -86,7 +86,7 @@ func validateRegistryEntries(raw, data *StaticRegistryData) error {
 }
 
 func validateServerEntry(server, rawServer *StaticServerData, index int, existingNames map[string]bool) error {
-	if err := validateName(server.Name, index); err != nil {
+	if err := ValidateName(server.Name, index); err != nil {
 		return err
 	}
 
@@ -303,7 +303,7 @@ func validateSetupInstruction(instruction *SetupInstruction, serverIndex, instru
 	return nil
 }
 
-func validateName(name string, index int) error {
+func ValidateName(name string, index int) error {
 	if strings.TrimSpace(name) == "" {
 		return fmt.Errorf("server[%d]: 'name' is required and cannot be empty", index)
 	}
@@ -629,9 +629,9 @@ type validationFieldError struct {
 func (e *validationFieldError) Error() string { return e.err.Error() }
 func (e *validationFieldError) Unwrap() error { return e.err }
 
-// submissionErrorMessage returns a generic validation message naming only the
+// SubmissionErrorMessage returns a generic validation message naming only the
 // failing field so rejected input is never echoed in responses or logs.
-func submissionErrorMessage(err error) string {
+func SubmissionErrorMessage(err error) string {
 	var fe *validationFieldError
 	if errors.As(err, &fe) {
 		return "invalid " + fe.field
@@ -697,10 +697,10 @@ func validateProtocolVersions(v []string) error {
 	return nil
 }
 
-// validateSubmission decodes entryJSON strictly into a Submission, validates it
+// ValidateSubmission decodes entryJSON strictly into a Submission, validates it
 // and returns it with its re-marshaled canonical JSON. It guards both the
 // write API and DB rows at reload.
-func validateSubmission(entryJSON []byte) (*Submission, []byte, error) {
+func ValidateSubmission(entryJSON []byte) (*Submission, []byte, error) {
 	dec := json.NewDecoder(bytes.NewReader(entryJSON))
 	dec.DisallowUnknownFields()
 	var sub Submission
@@ -710,7 +710,7 @@ func validateSubmission(entryJSON []byte) (*Submission, []byte, error) {
 	if dec.More() {
 		return nil, nil, &validationFieldError{field: "entry", err: errors.New("unexpected trailing data after JSON entry")}
 	}
-	if err := validateName(sub.Name, 0); err != nil {
+	if err := ValidateName(sub.Name, 0); err != nil {
 		return nil, nil, &validationFieldError{field: "name", err: err}
 	}
 	if err := validateDescription(sub.Description, 0); err != nil {

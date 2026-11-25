@@ -35,7 +35,7 @@ func TestIntrospectorSendsEntraID(t *testing.T) {
 		_, _ = w.Write([]byte(`{"active":true,"azp":"c1","NAVident":"A1","groups":["g1"]}`))
 	}))
 	defer srv.Close()
-	res, err := newTexasIntrospector(srv.URL)(t.Context(), "tok")
+	res, err := NewTexasIntrospector(srv.URL)(t.Context(), "tok")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,7 +150,7 @@ func TestHandlers_Authentication(t *testing.T) {
 	t.Run("actor is the uppercased NAVident", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/entries", nil)
 		req.Header.Set("Authorization", "Bearer valid-user")
-		caller, err := authenticate(req, introspect)
+		caller, err := Authenticate(req, introspect)
 		if err != nil {
 			t.Fatalf("unexpected authenticate error: %v", err)
 		}

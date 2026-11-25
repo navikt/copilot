@@ -84,7 +84,7 @@ func fleetStore(t *testing.T, f *fakeFleetControl) *Store {
 	t.Setenv("FLEET_CONTROL_URL", f.srv.URL)
 	t.Setenv("NAIS_TOKEN_ENDPOINT", f.srv.URL+"/texas")
 	t.Setenv("FLEET_CONTROL_AUDIENCE", "api://dev-gcp.copilot.fleet-control/.default")
-	fleet, err := fleetControlFromEnv()
+	fleet, err := FleetControlFromEnv()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -212,7 +212,7 @@ func TestFleetControlFromEnv(t *testing.T) {
 			if tc.override != "" {
 				t.Setenv("REGISTRY_SOURCE", tc.override)
 			}
-			f, err := fleetControlFromEnv()
+			f, err := FleetControlFromEnv()
 			switch {
 			case tc.wantErr != "":
 				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {

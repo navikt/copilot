@@ -599,7 +599,7 @@ func TestLoadConfig_DatabaseEnabled(t *testing.T) {
 	t.Run("disabled when DB_URL and PGHOST are unset", func(t *testing.T) {
 		t.Setenv("DB_URL", "")
 		t.Setenv("PGHOST", "")
-		if cfg := loadConfig(); cfg.DatabaseEnabled {
+		if cfg := LoadConfig(); cfg.DatabaseEnabled {
 			t.Error("expected DatabaseEnabled to be false")
 		}
 	})
@@ -607,7 +607,7 @@ func TestLoadConfig_DatabaseEnabled(t *testing.T) {
 	t.Run("enabled when DB_URL is set", func(t *testing.T) {
 		t.Setenv("DB_URL", "postgres://localhost/testdb")
 		t.Setenv("PGHOST", "")
-		if cfg := loadConfig(); !cfg.DatabaseEnabled {
+		if cfg := LoadConfig(); !cfg.DatabaseEnabled {
 			t.Error("expected DatabaseEnabled to be true")
 		}
 	})
@@ -615,7 +615,7 @@ func TestLoadConfig_DatabaseEnabled(t *testing.T) {
 	t.Run("enabled when PGHOST is set", func(t *testing.T) {
 		t.Setenv("DB_URL", "")
 		t.Setenv("PGHOST", "127.0.0.1")
-		if cfg := loadConfig(); !cfg.DatabaseEnabled {
+		if cfg := LoadConfig(); !cfg.DatabaseEnabled {
 			t.Error("expected DatabaseEnabled to be true")
 		}
 	})
@@ -627,7 +627,7 @@ func TestReloadBeforeDBConnectedIsQuiet(t *testing.T) {
 	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, nil)))
 	t.Cleanup(func() { slog.SetDefault(prev) })
 
-	loader := func(_ context.Context) ([]DBEntry, error) { return nil, errDBNotConnected }
+	loader := func(_ context.Context) ([]DBEntry, error) { return nil, ErrDBNotConnected }
 	store := NewStore(testConfig(), "allowlist.json", loader)
 	if err := store.Reload(t.Context()); err != nil {
 		t.Fatalf("reload: %v", err)

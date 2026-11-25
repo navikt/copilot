@@ -9,7 +9,7 @@ import (
 )
 
 func TestValidateAllowListFile(t *testing.T) {
-	err := validateAllowListFile()
+	err := ValidateAllowListFile()
 	if err != nil {
 		t.Fatalf("allowlist.json validation failed: %v", err)
 	}
@@ -862,7 +862,7 @@ func TestValidateRegistry_RequiredFields(t *testing.T) {
 			"figma":                 false,
 			"":                      false,
 		} {
-			err := validateRegistry(&StaticRegistryData{Servers: []StaticServerData{{
+			err := ValidateRegistry(&StaticRegistryData{Servers: []StaticServerData{{
 				Name: "io.github.test/server", Description: "Test Description", Version: "1.0.0",
 				SandboxHosts: []string{host},
 			}}})
@@ -894,7 +894,7 @@ func TestValidateRegistry_RequiredFields(t *testing.T) {
 			"localhost with tools":    {server([]string{"read_source"}, nil, "http://127.0.0.1:3846/mcp"), true},
 			"remote without tools":    {server(nil, nil, "https://mcp.example.com/mcp"), true},
 		} {
-			if err := validateRegistry(tc.reg); (err == nil) != tc.ok {
+			if err := ValidateRegistry(tc.reg); (err == nil) != tc.ok {
 				t.Errorf("%s: valid=%v, got %v", name, tc.ok, err)
 			}
 		}
@@ -1004,7 +1004,7 @@ func TestValidateRegistry_RequiredFields(t *testing.T) {
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
-				err := validateRegistry(registryWithInstruction(tt.instruction))
+				err := ValidateRegistry(registryWithInstruction(tt.instruction))
 				if tt.errorMsg == "" {
 					if err != nil {
 						t.Fatalf("expected valid setup instruction, got %v", err)
@@ -1020,7 +1020,7 @@ func TestValidateRegistry_RequiredFields(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateRegistry(tt.data)
+			err := ValidateRegistry(tt.data)
 			if tt.expectError {
 				if err == nil {
 					t.Errorf("expected error containing '%s', got nil", tt.errorMsg)
@@ -1063,7 +1063,7 @@ func TestValidateBroker(t *testing.T) {
 		tc.mut(b)
 		reg := &StaticRegistryData{Servers: []StaticServerData{{Name: "io.github.test/server", Description: "Test", Version: "1.0.0",
 			Tools: []string{"q", "w"}, Meta: &ServerMeta{Broker: b}}}}
-		if err := validateRegistry(reg); (err == nil) != tc.ok {
+		if err := ValidateRegistry(reg); (err == nil) != tc.ok {
 			t.Errorf("%s: valid=%v, got %v", name, tc.ok, err)
 		}
 	}
@@ -1189,7 +1189,7 @@ func TestDecodeStaticRegistry_RejectsUnknownFields(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := decodeStaticRegistry(tc.raw)
+			_, err := DecodeStaticRegistry(tc.raw)
 			if (err != nil) != tc.wantErr {
 				t.Errorf("decodeStaticRegistry(%s) err = %v, wantErr=%v", tc.name, err, tc.wantErr)
 			}

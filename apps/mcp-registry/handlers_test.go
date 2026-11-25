@@ -25,7 +25,7 @@ func TestHealthHandler(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	w := httptest.NewRecorder()
 
-	healthHandler(w, req)
+	HealthHandler(w, req)
 
 	resp := w.Result()
 	defer func() { _ = resp.Body.Close() }()
@@ -53,7 +53,7 @@ func TestReadyHandler(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/ready", nil)
 	w := httptest.NewRecorder()
 
-	readyHandler(w, req)
+	ReadyHandler(w, req)
 
 	resp := w.Result()
 	defer func() { _ = resp.Body.Close() }()
@@ -314,7 +314,7 @@ func TestRootHandler(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	w := httptest.NewRecorder()
 
-	rootHandler(w, req)
+	RootHandler(w, req)
 
 	resp := w.Result()
 	defer func() { _ = resp.Body.Close() }()
@@ -346,7 +346,7 @@ func TestRootHandler_UnknownPath(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/sitemap.xml", nil)
 	w := httptest.NewRecorder()
 
-	rootHandler(w, req)
+	RootHandler(w, req)
 
 	resp := w.Result()
 	defer func() { _ = resp.Body.Close() }()
@@ -360,7 +360,7 @@ func TestRobotsTxtHandler(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/robots.txt", nil)
 	w := httptest.NewRecorder()
 
-	robotsTxtHandler(w, req)
+	RobotsTxtHandler(w, req)
 
 	resp := w.Result()
 	defer func() { _ = resp.Body.Close() }()
@@ -391,7 +391,7 @@ func TestSecurityTxtHandler(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/.well-known/security.txt", nil)
 	w := httptest.NewRecorder()
 
-	securityTxtHandler(w, req)
+	SecurityTxtHandler(w, req)
 
 	resp := w.Result()
 	defer func() { _ = resp.Body.Close() }()
@@ -418,7 +418,7 @@ func TestFaviconHandler(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/favicon.ico", nil)
 	w := httptest.NewRecorder()
 
-	faviconHandler(w, req)
+	FaviconHandler(w, req)
 
 	resp := w.Result()
 	defer func() { _ = resp.Body.Close() }()
