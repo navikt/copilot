@@ -10,7 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/navikt/copilot/apps/mcp-dolly/internal/dolly"
-	"io"
+	"github.com/navikt/copilot/lib/mcpkit"
 	"log/slog"
 	"net/url"
 	"strconv"
@@ -179,7 +179,7 @@ func (s *server) askOrderConfirmation(ctx context.Context, inboundToken, userHas
 	}
 	left, err := s.store.remaining(ctx, userHash, s.now())
 	if err != nil {
-		return toolErrorResult(err.Error())
+		return mcpkit.ToolErrorResult(err.Error())
 	}
 	ctok, _ := s.confirm.issue(userHash, params, s.now())
 	msg := fmt.Sprintf("Bestille %d syntetiske testpersoner i Dolly-gruppe %d, miljø %s?", req.Antall, gruppeID, strings.Join(req.Environments, ", "))
@@ -218,7 +218,7 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, too
 		for _, k := range keys {
 			m[k] = true
 		}
-		fields, rpcErr = decodeArgMap(rawArgs, m)
+		fields, rpcErr = mcpkit.DecodeArgMap(rawArgs, m)
 		return rpcErr == nil
 	}
 	get := func(path string, q url.Values) any {
@@ -286,7 +286,7 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, too
 		if !ok {
 			return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "kind is required"}
 		}
-		kind, e := parseStrictString(kindRaw, "kind")
+		kind, e := mcpkit.ParseStrictString(kindRaw, "kind")
 		if e != nil {
 			return nil, e
 		}
@@ -345,16 +345,16 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, too
 		switch {
 		case el == nil && !s.cfg.TwoStepOrder:
 			// No token is issued or accepted: only the client may confirm with the user.
-			return toolErrorResult(orderNeedsElicitation), nil
+			return mcpkit.ToolErrorResult(orderNeedsElicitation), nil
 		case el != nil && hasTok:
 			// The client confirms with the user; a token from the model is never accepted here.
-			return toolErrorResult("confirmationToken is not accepted from this client; call create_order without it and the user confirms in the client"), nil
+			return mcpkit.ToolErrorResult("confirmationToken is not accepted from this client; call create_order without it and the user confirms in the client"), nil
 		case el != nil && el.state == "":
 			return s.askOrderConfirmation(ctx, inboundToken, userHash, params, gruppeID, orderReq, fields), nil
 		case el != nil:
 			// Spend the state on every outcome, so a declined state cannot be replayed as accepted.
 			if err := s.useToken(ctx, el.state, userHash, params); err != nil {
-				return toolErrorResult(err.Error()), nil
+				return mcpkit.ToolErrorResult(err.Error()), nil
 			}
 			consumed = true
 			ok, answered := el.confirmed()
@@ -375,7 +375,7 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, too
 			}
 			left, err := s.store.remaining(ctx, userHash, s.now())
 			if err != nil {
-				return toolErrorResult(err.Error()), nil
+				return mcpkit.ToolErrorResult(err.Error()), nil
 			}
 			return s.execWithOBO(ctx, inboundToken, func(tok string) (string, error) {
 				if err := s.checkGroupOwner(ctx, tok, gruppeID); err != nil {
@@ -400,21 +400,21 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, too
 			}), nil
 		default:
 			var e *mcpRPCError
-			if token, e = parseStrictString(rawTok, confirmTokenKey); e != nil {
+			if token, e = mcpkit.ParseStrictString(rawTok, confirmTokenKey); e != nil {
 				return nil, e
 			}
 		}
 		if !consumed {
 			if err := s.useToken(ctx, token, userHash, params); err != nil {
-				return toolErrorResult(err.Error()), nil
+				return mcpkit.ToolErrorResult(err.Error()), nil
 			}
 		}
 		release, ok, err := s.store.reserve(ctx, userHash, orderReq.Antall, s.now())
 		if err != nil {
-			return toolErrorResult(err.Error()), nil
+			return mcpkit.ToolErrorResult(err.Error()), nil
 		}
 		if !ok {
-			return toolErrorResult(fmt.Sprintf("quota of %d test persons %s exceeded", dailyPersonQuota, s.quotaPeriodEN())), nil
+			return mcpkit.ToolErrorResult(fmt.Sprintf("quota of %d test persons %s exceeded", dailyPersonQuota, s.quotaPeriodEN())), nil
 		}
 		committed := false
 		defer func() {
@@ -569,7 +569,7 @@ func parseCreateOrder(fields map[string]json.RawMessage, now time.Time) (int64, 
 	if !ok {
 		return 0, dolly.BestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "antall is required"}
 	}
-	antall, e := parseStrictInt(rawAntall, "antall")
+	antall, e := mcpkit.ParseStrictInt(rawAntall, "antall")
 	if e != nil {
 		return 0, dolly.BestillingRequest{}, e
 	}
@@ -591,7 +591,7 @@ func parseCreateOrder(fields map[string]json.RawMessage, now time.Time) (int64, 
 	seenEnvs := make(map[string]bool, len(envItems))
 	envs := make([]string, 0, len(envItems))
 	for _, item := range envItems {
-		env, envErr := parseStrictString(bytes.TrimSpace(item), "environments")
+		env, envErr := mcpkit.ParseStrictString(bytes.TrimSpace(item), "environments")
 		if envErr != nil {
 			return 0, dolly.BestillingRequest{}, envErr
 		}
@@ -620,7 +620,7 @@ func parseCreateOrder(fields map[string]json.RawMessage, now time.Time) (int64, 
 	var minAlder, maxAlder int
 	var hasMin, hasMax bool
 	if rawMin, ok := fields["minAlder"]; ok {
-		minAlder, e = parseStrictInt(rawMin, "minAlder")
+		minAlder, e = mcpkit.ParseStrictInt(rawMin, "minAlder")
 		if e != nil {
 			return 0, dolly.BestillingRequest{}, e
 		}
@@ -630,7 +630,7 @@ func parseCreateOrder(fields map[string]json.RawMessage, now time.Time) (int64, 
 		hasMin = true
 	}
 	if rawMax, ok := fields["maxAlder"]; ok {
-		maxAlder, e = parseStrictInt(rawMax, "maxAlder")
+		maxAlder, e = mcpkit.ParseStrictInt(rawMax, "maxAlder")
 		if e != nil {
 			return 0, dolly.BestillingRequest{}, e
 		}
@@ -652,7 +652,7 @@ func parseCreateOrder(fields map[string]json.RawMessage, now time.Time) (int64, 
 
 	var person *dolly.PersonDTO
 	if rawKjoenn, ok := fields["kjoenn"]; ok {
-		kjoenn, kErr := parseStrictString(rawKjoenn, "kjoenn")
+		kjoenn, kErr := mcpkit.ParseStrictString(rawKjoenn, "kjoenn")
 		if kErr != nil {
 			return 0, dolly.BestillingRequest{}, kErr
 		}
@@ -699,7 +699,7 @@ func parseID(fields map[string]json.RawMessage, field string) (int64, *mcpRPCErr
 func parsePaging(fields map[string]json.RawMessage) (pageNo, pageSize int, rpcErr *mcpRPCError) {
 	pageSize = defaultPageSize
 	if raw, ok := fields["pageNo"]; ok {
-		if pageNo, rpcErr = parseStrictInt(raw, "pageNo"); rpcErr != nil {
+		if pageNo, rpcErr = mcpkit.ParseStrictInt(raw, "pageNo"); rpcErr != nil {
 			return 0, 0, rpcErr
 		}
 		if pageNo < 0 || pageNo > maxPageNo {
@@ -707,7 +707,7 @@ func parsePaging(fields map[string]json.RawMessage) (pageNo, pageSize int, rpcEr
 		}
 	}
 	if raw, ok := fields["pageSize"]; ok {
-		if pageSize, rpcErr = parseStrictInt(raw, "pageSize"); rpcErr != nil {
+		if pageSize, rpcErr = mcpkit.ParseStrictInt(raw, "pageSize"); rpcErr != nil {
 			return 0, 0, rpcErr
 		}
 		if pageSize < 1 || pageSize > maxPageSize {
@@ -722,7 +722,7 @@ func parseFragment(fields map[string]json.RawMessage) (string, *mcpRPCError) {
 	if !ok {
 		return "", &mcpRPCError{Code: mcpCodeInvalidParams, Message: "fragment is required"}
 	}
-	s, rpcErr := parseStrictString(raw, "fragment")
+	s, rpcErr := mcpkit.ParseStrictString(raw, "fragment")
 	if rpcErr != nil {
 		return "", rpcErr
 	}
@@ -744,93 +744,18 @@ func (s *server) execWithOBO(ctx context.Context, inboundToken string, fn func(o
 		case s.upstreamSem <- struct{}{}:
 			defer func() { <-s.upstreamSem }()
 		case <-ctx.Done():
-			return toolErrorResult(ctx.Err().Error())
+			return mcpkit.ToolErrorResult(ctx.Err().Error())
 		}
 	}
 	oboToken, err := s.exchangeToken(ctx, inboundToken)
 	if err != nil {
-		return toolErrorResult(err.Error())
+		return mcpkit.ToolErrorResult(err.Error())
 	}
 	text, err := fn(oboToken)
 	if err != nil {
-		return toolErrorResult(err.Error())
+		return mcpkit.ToolErrorResult(err.Error())
 	}
 	return map[string]any{
 		"content": []map[string]string{{"type": "text", "text": text}},
 	}
-}
-
-func toolErrorResult(msg string) map[string]any {
-	return map[string]any{
-		"content": []map[string]string{{"type": "text", "text": msg}},
-		"isError": true,
-	}
-}
-
-func decodeArgMap(raw json.RawMessage, allowed map[string]bool) (map[string]json.RawMessage, *mcpRPCError) {
-	trimmed := bytes.TrimSpace(raw)
-	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
-		return map[string]json.RawMessage{}, nil
-	}
-	dec := json.NewDecoder(bytes.NewReader(trimmed))
-	tok, err := dec.Token()
-	if err != nil {
-		return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "arguments must be a JSON object"}
-	}
-	delim, ok := tok.(json.Delim)
-	if !ok || delim != '{' {
-		return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "arguments must be a JSON object"}
-	}
-	fields := make(map[string]json.RawMessage)
-	for dec.More() {
-		kTok, keyErr := dec.Token()
-		if keyErr != nil {
-			return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "invalid arguments object"}
-		}
-		key, keyOK := kTok.(string)
-		if !keyOK {
-			return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "invalid argument key"}
-		}
-		if !allowed[key] {
-			return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("unknown argument %q", key)}
-		}
-		if _, dup := fields[key]; dup {
-			return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("duplicate argument %q", key)}
-		}
-		var val json.RawMessage
-		if valErr := dec.Decode(&val); valErr != nil {
-			return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("invalid value for %q", key)}
-		}
-		fields[key] = bytes.TrimSpace(val)
-	}
-	endTok, endErr := dec.Token()
-	if endErr != nil || endTok != json.Delim('}') {
-		return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "invalid arguments object"}
-	}
-	if _, eofErr := dec.Token(); eofErr != io.EOF {
-		return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "trailing data in arguments"}
-	}
-	return fields, nil
-}
-
-func parseStrictString(raw json.RawMessage, field string) (string, *mcpRPCError) {
-	if len(raw) == 0 || raw[0] != '"' {
-		return "", &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("%s must be a string", field)}
-	}
-	var s string
-	if err := json.Unmarshal(raw, &s); err != nil {
-		return "", &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("%s must be a string", field)}
-	}
-	return s, nil
-}
-
-func parseStrictInt(raw json.RawMessage, field string) (int, *mcpRPCError) {
-	if len(raw) == 0 || raw[0] == '"' || bytes.ContainsAny(raw, ".eE") {
-		return 0, &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("%s must be an integer", field)}
-	}
-	v, err := strconv.Atoi(string(raw))
-	if err != nil {
-		return 0, &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("%s must be an integer", field)}
-	}
-	return v, nil
 }

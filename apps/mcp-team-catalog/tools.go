@@ -1,18 +1,17 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/navikt/copilot/lib/mcpkit"
 )
 
 const (
@@ -543,16 +542,16 @@ func (s *server) execWithOBO(ctx context.Context, inboundToken string, fn func(o
 		case s.upstreamSem <- struct{}{}:
 			defer func() { <-s.upstreamSem }()
 		case <-ctx.Done():
-			return toolErrorResult(ctx.Err().Error())
+			return mcpkit.ToolErrorResult(ctx.Err().Error())
 		}
 	}
 	oboToken, err := s.exchangeToken(ctx, inboundToken)
 	if err != nil {
-		return toolErrorResult(err.Error())
+		return mcpkit.ToolErrorResult(err.Error())
 	}
 	text, err := fn(oboToken)
 	if err != nil {
-		return toolErrorResult(err.Error())
+		return mcpkit.ToolErrorResult(err.Error())
 	}
 	return toolResult(text)
 }
@@ -593,81 +592,6 @@ func truncationHint(structured map[string]any, returned, total int, hasTotal boo
 		return fmt.Sprintf("%d of %d shown: output capped at 32 KiB.", returned, total)
 	}
 	return "Output truncated to fit the 32 KiB limit."
-}
-
-func toolErrorResult(msg string) map[string]any {
-	return map[string]any{
-		"content": []map[string]string{{"type": "text", "text": msg}},
-		"isError": true,
-	}
-}
-
-func decodeArgMap(raw json.RawMessage, allowed map[string]bool) (map[string]json.RawMessage, *mcpRPCError) {
-	trimmed := bytes.TrimSpace(raw)
-	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
-		return map[string]json.RawMessage{}, nil
-	}
-	dec := json.NewDecoder(bytes.NewReader(trimmed))
-	tok, err := dec.Token()
-	if err != nil {
-		return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "arguments must be a JSON object"}
-	}
-	delim, ok := tok.(json.Delim)
-	if !ok || delim != '{' {
-		return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "arguments must be a JSON object"}
-	}
-	fields := make(map[string]json.RawMessage)
-	for dec.More() {
-		kTok, keyErr := dec.Token()
-		if keyErr != nil {
-			return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "invalid arguments object"}
-		}
-		key, keyOK := kTok.(string)
-		if !keyOK {
-			return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "invalid argument key"}
-		}
-		if !allowed[key] {
-			return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("unknown argument %q", key)}
-		}
-		if _, dup := fields[key]; dup {
-			return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("duplicate argument %q", key)}
-		}
-		var val json.RawMessage
-		if valErr := dec.Decode(&val); valErr != nil {
-			return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("invalid value for %q", key)}
-		}
-		fields[key] = bytes.TrimSpace(val)
-	}
-	endTok, endErr := dec.Token()
-	if endErr != nil || endTok != json.Delim('}') {
-		return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "invalid arguments object"}
-	}
-	if _, eofErr := dec.Token(); eofErr != io.EOF {
-		return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "trailing data in arguments"}
-	}
-	return fields, nil
-}
-
-func parseStrictString(raw json.RawMessage, field string) (string, *mcpRPCError) {
-	if len(raw) == 0 || raw[0] != '"' {
-		return "", &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("%s must be a string", field)}
-	}
-	var s string
-	if err := json.Unmarshal(raw, &s); err != nil {
-		return "", &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("%s must be a string", field)}
-	}
-	return s, nil
-}
-
-func parseStrictInt(raw json.RawMessage, field string) (int, *mcpRPCError) {
-	if len(raw) == 0 || raw[0] == '"' || bytes.ContainsAny(raw, ".eE") {
-		return 0, &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("%s must be an integer", field)}
-	}
-	v, err := strconv.Atoi(string(raw))
-	if err != nil {
-		return 0, &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("%s must be an integer", field)}
-	}
-	return v, nil
 }
 
 func validateUUID(val, field string) (string, *mcpRPCError) {
@@ -742,13 +666,13 @@ func parseListTeamsArgs(raw json.RawMessage) (listTeamsArgs, *mcpRPCError) {
 		"limit":         true,
 		"offset":        true,
 	}
-	fields, rpcErr := decodeArgMap(raw, allowed)
+	fields, rpcErr := mcpkit.DecodeArgMap(raw, allowed)
 	if rpcErr != nil {
 		return listTeamsArgs{}, rpcErr
 	}
 	out := listTeamsArgs{status: defaultStatus, limit: 25, offset: 0}
 	if v, ok := fields["productAreaId"]; ok {
-		s, err := parseStrictString(v, "productAreaId")
+		s, err := mcpkit.ParseStrictString(v, "productAreaId")
 		if err != nil {
 			return listTeamsArgs{}, err
 		}
@@ -759,7 +683,7 @@ func parseListTeamsArgs(raw json.RawMessage) (listTeamsArgs, *mcpRPCError) {
 		out.productAreaID = norm
 	}
 	if v, ok := fields["clusterId"]; ok {
-		s, err := parseStrictString(v, "clusterId")
+		s, err := mcpkit.ParseStrictString(v, "clusterId")
 		if err != nil {
 			return listTeamsArgs{}, err
 		}
@@ -770,7 +694,7 @@ func parseListTeamsArgs(raw json.RawMessage) (listTeamsArgs, *mcpRPCError) {
 		out.clusterID = norm
 	}
 	if v, ok := fields["status"]; ok {
-		s, err := parseStrictString(v, "status")
+		s, err := mcpkit.ParseStrictString(v, "status")
 		if err != nil {
 			return listTeamsArgs{}, err
 		}
@@ -781,7 +705,7 @@ func parseListTeamsArgs(raw json.RawMessage) (listTeamsArgs, *mcpRPCError) {
 		out.status = norm
 	}
 	if v, ok := fields["filter"]; ok {
-		s, err := parseStrictString(v, "filter")
+		s, err := mcpkit.ParseStrictString(v, "filter")
 		if err != nil {
 			return listTeamsArgs{}, err
 		}
@@ -791,7 +715,7 @@ func parseListTeamsArgs(raw json.RawMessage) (listTeamsArgs, *mcpRPCError) {
 		out.filter = s
 	}
 	if v, ok := fields["limit"]; ok {
-		n, err := parseStrictInt(v, "limit")
+		n, err := mcpkit.ParseStrictInt(v, "limit")
 		if err != nil {
 			return listTeamsArgs{}, err
 		}
@@ -801,7 +725,7 @@ func parseListTeamsArgs(raw json.RawMessage) (listTeamsArgs, *mcpRPCError) {
 		out.limit = n
 	}
 	if v, ok := fields["offset"]; ok {
-		n, err := parseStrictInt(v, "offset")
+		n, err := mcpkit.ParseStrictInt(v, "offset")
 		if err != nil {
 			return listTeamsArgs{}, err
 		}
@@ -827,13 +751,13 @@ func parseListCatalogArgs(raw json.RawMessage) (listCatalogArgs, *mcpRPCError) {
 		"limit":  true,
 		"offset": true,
 	}
-	fields, rpcErr := decodeArgMap(raw, allowed)
+	fields, rpcErr := mcpkit.DecodeArgMap(raw, allowed)
 	if rpcErr != nil {
 		return listCatalogArgs{}, rpcErr
 	}
 	out := listCatalogArgs{status: defaultStatus, limit: 50, offset: 0}
 	if v, ok := fields["status"]; ok {
-		s, err := parseStrictString(v, "status")
+		s, err := mcpkit.ParseStrictString(v, "status")
 		if err != nil {
 			return listCatalogArgs{}, err
 		}
@@ -844,7 +768,7 @@ func parseListCatalogArgs(raw json.RawMessage) (listCatalogArgs, *mcpRPCError) {
 		out.status = norm
 	}
 	if v, ok := fields["filter"]; ok {
-		s, err := parseStrictString(v, "filter")
+		s, err := mcpkit.ParseStrictString(v, "filter")
 		if err != nil {
 			return listCatalogArgs{}, err
 		}
@@ -854,7 +778,7 @@ func parseListCatalogArgs(raw json.RawMessage) (listCatalogArgs, *mcpRPCError) {
 		out.filter = s
 	}
 	if v, ok := fields["limit"]; ok {
-		n, err := parseStrictInt(v, "limit")
+		n, err := mcpkit.ParseStrictInt(v, "limit")
 		if err != nil {
 			return listCatalogArgs{}, err
 		}
@@ -864,7 +788,7 @@ func parseListCatalogArgs(raw json.RawMessage) (listCatalogArgs, *mcpRPCError) {
 		out.limit = n
 	}
 	if v, ok := fields["offset"]; ok {
-		n, err := parseStrictInt(v, "offset")
+		n, err := mcpkit.ParseStrictInt(v, "offset")
 		if err != nil {
 			return listCatalogArgs{}, err
 		}
@@ -883,7 +807,7 @@ type searchArgs struct {
 
 func parseSearchArgs(raw json.RawMessage) (searchArgs, *mcpRPCError) {
 	allowed := map[string]bool{"query": true, "limit": true}
-	fields, rpcErr := decodeArgMap(raw, allowed)
+	fields, rpcErr := mcpkit.DecodeArgMap(raw, allowed)
 	if rpcErr != nil {
 		return searchArgs{}, rpcErr
 	}
@@ -892,7 +816,7 @@ func parseSearchArgs(raw json.RawMessage) (searchArgs, *mcpRPCError) {
 	if !ok {
 		return searchArgs{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "query is required"}
 	}
-	q, err := parseStrictString(qRaw, "query")
+	q, err := mcpkit.ParseStrictString(qRaw, "query")
 	if err != nil {
 		return searchArgs{}, err
 	}
@@ -902,7 +826,7 @@ func parseSearchArgs(raw json.RawMessage) (searchArgs, *mcpRPCError) {
 	out.query = strings.TrimSpace(q)
 
 	if v, ok := fields["limit"]; ok {
-		n, err := parseStrictInt(v, "limit")
+		n, err := mcpkit.ParseStrictInt(v, "limit")
 		if err != nil {
 			return searchArgs{}, err
 		}
@@ -915,7 +839,7 @@ func parseSearchArgs(raw json.RawMessage) (searchArgs, *mcpRPCError) {
 }
 
 func parseUUIDArg(raw json.RawMessage) (string, *mcpRPCError) {
-	fields, rpcErr := decodeArgMap(raw, map[string]bool{"id": true})
+	fields, rpcErr := mcpkit.DecodeArgMap(raw, map[string]bool{"id": true})
 	if rpcErr != nil {
 		return "", rpcErr
 	}
@@ -923,7 +847,7 @@ func parseUUIDArg(raw json.RawMessage) (string, *mcpRPCError) {
 	if !ok {
 		return "", &mcpRPCError{Code: mcpCodeInvalidParams, Message: "id is required"}
 	}
-	s, err := parseStrictString(idRaw, "id")
+	s, err := mcpkit.ParseStrictString(idRaw, "id")
 	if err != nil {
 		return "", err
 	}
@@ -936,7 +860,7 @@ type teamsByNaisTeamArgs struct {
 }
 
 func parseTeamsByNaisTeamArgs(raw json.RawMessage) (teamsByNaisTeamArgs, *mcpRPCError) {
-	fields, rpcErr := decodeArgMap(raw, map[string]bool{"naisTeam": true, "status": true})
+	fields, rpcErr := mcpkit.DecodeArgMap(raw, map[string]bool{"naisTeam": true, "status": true})
 	if rpcErr != nil {
 		return teamsByNaisTeamArgs{}, rpcErr
 	}
@@ -945,7 +869,7 @@ func parseTeamsByNaisTeamArgs(raw json.RawMessage) (teamsByNaisTeamArgs, *mcpRPC
 	if !ok {
 		return teamsByNaisTeamArgs{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "naisTeam is required"}
 	}
-	s, err := parseStrictString(ntRaw, "naisTeam")
+	s, err := mcpkit.ParseStrictString(ntRaw, "naisTeam")
 	if err != nil {
 		return teamsByNaisTeamArgs{}, err
 	}
@@ -955,7 +879,7 @@ func parseTeamsByNaisTeamArgs(raw json.RawMessage) (teamsByNaisTeamArgs, *mcpRPC
 	out.naisTeam = s
 
 	if v, ok := fields["status"]; ok {
-		st, err := parseStrictString(v, "status")
+		st, err := mcpkit.ParseStrictString(v, "status")
 		if err != nil {
 			return teamsByNaisTeamArgs{}, err
 		}
@@ -969,7 +893,7 @@ func parseTeamsByNaisTeamArgs(raw json.RawMessage) (teamsByNaisTeamArgs, *mcpRPC
 }
 
 func parseNavIdentArg(raw json.RawMessage) (string, *mcpRPCError) {
-	fields, rpcErr := decodeArgMap(raw, map[string]bool{"navIdent": true})
+	fields, rpcErr := mcpkit.DecodeArgMap(raw, map[string]bool{"navIdent": true})
 	if rpcErr != nil {
 		return "", rpcErr
 	}
@@ -977,7 +901,7 @@ func parseNavIdentArg(raw json.RawMessage) (string, *mcpRPCError) {
 	if !ok {
 		return "", &mcpRPCError{Code: mcpCodeInvalidParams, Message: "navIdent is required"}
 	}
-	s, err := parseStrictString(v, "navIdent")
+	s, err := mcpkit.ParseStrictString(v, "navIdent")
 	if err != nil {
 		return "", err
 	}
@@ -994,13 +918,13 @@ type naisTeamArgs struct {
 }
 
 func parseNaisTeamArgs(raw json.RawMessage) (naisTeamArgs, *mcpRPCError) {
-	fields, rpcErr := decodeArgMap(raw, map[string]bool{"teamId": true, "query": true, "limit": true})
+	fields, rpcErr := mcpkit.DecodeArgMap(raw, map[string]bool{"teamId": true, "query": true, "limit": true})
 	if rpcErr != nil {
 		return naisTeamArgs{}, rpcErr
 	}
 	out := naisTeamArgs{limit: 25}
 	if v, ok := fields["teamId"]; ok {
-		s, err := parseStrictString(v, "teamId")
+		s, err := mcpkit.ParseStrictString(v, "teamId")
 		if err != nil {
 			return naisTeamArgs{}, err
 		}
@@ -1010,7 +934,7 @@ func parseNaisTeamArgs(raw json.RawMessage) (naisTeamArgs, *mcpRPCError) {
 		out.teamID = s
 	}
 	if v, ok := fields["query"]; ok {
-		s, err := parseStrictString(v, "query")
+		s, err := mcpkit.ParseStrictString(v, "query")
 		if err != nil {
 			return naisTeamArgs{}, err
 		}
@@ -1023,7 +947,7 @@ func parseNaisTeamArgs(raw json.RawMessage) (naisTeamArgs, *mcpRPCError) {
 		return naisTeamArgs{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "provide exactly one of teamId or query"}
 	}
 	if v, ok := fields["limit"]; ok {
-		n, err := parseStrictInt(v, "limit")
+		n, err := mcpkit.ParseStrictInt(v, "limit")
 		if err != nil {
 			return naisTeamArgs{}, err
 		}
