@@ -16,7 +16,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -610,104 +609,6 @@ func randomToken() (string, error) {
 		return "", err
 	}
 	return base64.RawURLEncoding.EncodeToString(buf), nil
-}
-
-type ttlEntry[V any] struct {
-	value     V
-	expiresAt time.Time
-}
-
-type ttlMap[V any] struct {
-	mu      sync.Mutex
-	items   map[string]ttlEntry[V]
-	maxSize int
-	now     func() time.Time
-}
-
-func newTTLMap[V any](maxSize int, now func() time.Time) *ttlMap[V] {
-	if now == nil {
-		now = time.Now
-	}
-	if maxSize <= 0 {
-		maxSize = 1
-	}
-	return &ttlMap[V]{
-		items:   make(map[string]ttlEntry[V]),
-		maxSize: maxSize,
-		now:     now,
-	}
-}
-
-func (m *ttlMap[V]) Set(key string, val V, ttl time.Duration) bool {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	now := m.now()
-	if _, exists := m.items[key]; !exists && len(m.items) >= m.maxSize {
-		m.sweepLocked(now)
-		if len(m.items) >= m.maxSize {
-			return false
-		}
-	}
-	m.items[key] = ttlEntry[V]{value: val, expiresAt: now.Add(ttl)}
-	return true
-}
-
-func (m *ttlMap[V]) Get(key string) (V, bool) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	entry, ok := m.items[key]
-	if !ok {
-		var zero V
-		return zero, false
-	}
-	if !m.now().Before(entry.expiresAt) {
-		delete(m.items, key)
-		var zero V
-		return zero, false
-	}
-	return entry.value, true
-}
-
-func (m *ttlMap[V]) Pop(key string) (V, bool) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	entry, ok := m.items[key]
-	if !ok {
-		var zero V
-		return zero, false
-	}
-	delete(m.items, key)
-	if !m.now().Before(entry.expiresAt) {
-		var zero V
-		return zero, false
-	}
-	return entry.value, true
-}
-
-func (m *ttlMap[V]) Sweep() int {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.sweepLocked(m.now())
-}
-
-func (m *ttlMap[V]) Len() int {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return len(m.items)
-}
-
-func (m *ttlMap[V]) sweepLocked(now time.Time) int {
-	removed := 0
-	for k, entry := range m.items {
-		if !now.Before(entry.expiresAt) {
-			delete(m.items, k)
-			removed++
-		}
-	}
-	return removed
 }
 
 // defaultEntraScope asks Entra for an access token issued to fleet-gateway

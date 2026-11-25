@@ -265,7 +265,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 		// one user cannot fill a route or pod; the route cap comes next so one
 		// slow upstream cannot hold every global slot.
 		userKey := g.mcpSessionUserKey(sess.NAVIdent)
-		releaseUserSlot, ok := g.userInFlight.tryAcquire(userKey)
+		releaseUserSlot, ok := g.userInFlight.TryAcquire(userKey)
 		if !ok {
 			outcome = "user_cap"
 			decision = "deny"
@@ -279,14 +279,14 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 			return
 		}
 		defer releaseUserSlot()
-		releaseRouteSlot, ok := g.routeInFlight.tryAcquire(route.Route)
+		releaseRouteSlot, ok := g.routeInFlight.TryAcquire(route.Route)
 		if !ok {
 			outcome = "over_capacity"
 			writeOverCapacity(w, "MCP requests on this route")
 			return
 		}
 		defer releaseRouteSlot()
-		releaseGlobalSlot, ok := g.inFlight.tryAcquire()
+		releaseGlobalSlot, ok := g.inFlight.TryAcquire()
 		if !ok {
 			outcome = "over_capacity"
 			writeOverCapacity(w, "MCP requests")
@@ -367,7 +367,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 		// A request that accepts SSE holds one until the response proves it JSON.
 		releaseStream, streamReserved := func() {}, false
 		if r.Method == http.MethodGet || acceptsEventStream(r.Header) {
-			releaseUserStream, ok := g.userSSE.tryAcquire(userKey)
+			releaseUserStream, ok := g.userSSE.TryAcquire(userKey)
 			if !ok {
 				outcome = "user_sse_cap"
 				decision = "deny"
@@ -381,7 +381,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 				return
 			}
 			defer releaseUserStream()
-			releaseGlobalStream, ok := g.sseStreams.tryAcquire()
+			releaseGlobalStream, ok := g.sseStreams.TryAcquire()
 			if !ok {
 				// Shed, not a decision: same as over_capacity above.
 				decision, decisionReason = "", ""

@@ -21,8 +21,10 @@ import (
 	"golang.org/x/sync/singleflight"
 
 	"github.com/navikt/copilot/fleet-gateway/internal/audit"
+	"github.com/navikt/copilot/fleet-gateway/internal/inflight"
 	"github.com/navikt/copilot/fleet-gateway/internal/ratelimit"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
+	"github.com/navikt/copilot/fleet-gateway/internal/ttlmap"
 )
 
 // Gateway implements the fleet-gateway OAuth 2.1 authorization server and MCP proxy.
@@ -33,16 +35,16 @@ type Gateway struct {
 	rtKeys        *keyRing
 	lockoutKey    []byte // HMAC key for lockout records (LOCKOUT_KEY); empty disables lockout checks
 	mcpUserKey    []byte // HMAC key for kindMCPSessionUser counters
-	cimdCache     *ttlMap[cachedCIMD]
+	cimdCache     *ttlmap.Map[cachedCIMD]
 	limiters      map[string]*ratelimit.Limiter
 	rateLimitLog  *ratelimit.LogSampler
 	proxyClient   *http.Client
-	refreshWait   time.Duration // how long a concurrent refresh waits for the winner's grace pair
-	inFlight      slots         // buffered MCP calls; bounds memory (see README, Memory and limits)
-	userInFlight  *userSlots    // concurrent buffered MCP calls per user on this pod
-	sseStreams    slots         // open SSE response streams; they buffer nothing, so get their own cap
-	userSSE       *userSlots    // concurrent open SSE response streams per user on this pod
-	routeInFlight *userSlots    // concurrent buffered MCP calls per route on this pod, keyed by route path
+	refreshWait   time.Duration    // how long a concurrent refresh waits for the winner's grace pair
+	inFlight      inflight.Slots   // buffered MCP calls; bounds memory (see README, Memory and limits)
+	userInFlight  *inflight.PerKey // concurrent buffered MCP calls per user on this pod
+	sseStreams    inflight.Slots   // open SSE response streams; they buffer nothing, so get their own cap
+	userSSE       *inflight.PerKey // concurrent open SSE response streams per user on this pod
+	routeInFlight *inflight.PerKey // concurrent buffered MCP calls per route on this pod, keyed by route path
 	routeTable    atomic.Pointer[routing.Table]
 	draining      atomic.Bool // set on SIGTERM so /ready drops the pod before Shutdown
 
@@ -115,7 +117,7 @@ func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 		rtKeys:       rtKeys,
 		lockoutKey:   lockoutKey,
 		mcpUserKey:   mcpUserKey,
-		cimdCache:    newTTLMap[cachedCIMD](cfg.CIMDCap, now),
+		cimdCache:    ttlmap.New[cachedCIMD](cfg.CIMDCap, now),
 		limiters:     limiters,
 		rateLimitLog: ratelimit.NewLogSampler(ratelimit.DefaultLogWindow, ratelimit.DefaultLogCap, now),
 		proxyClient:  newHardenedProxyClient(cfg.ProxyHeaderTimeout),
@@ -220,11 +222,11 @@ func (g *Gateway) routes() http.Handler {
 		mux.HandleFunc("POST /register", g.rateLimitMiddleware(rateLimitEndpointRegister, g.limiters[rateLimitEndpointRegister], g.registerHandler))
 	}
 	// Shared by all MCP routes.
-	g.inFlight = make(slots, g.cfg.MCPMaxInFlight)
-	g.userInFlight = &userSlots{max: min(g.cfg.MCPMaxInFlightPerUser, g.cfg.MCPMaxInFlight)}
-	g.sseStreams = make(slots, g.cfg.MCPMaxSSE)
-	g.userSSE = &userSlots{max: g.cfg.MCPMaxSSEPerUser}
-	g.routeInFlight = &userSlots{max: min(g.cfg.MCPMaxInFlightPerRoute, cap(g.inFlight))}
+	g.inFlight = make(inflight.Slots, g.cfg.MCPMaxInFlight)
+	g.userInFlight = inflight.NewPerKey(min(g.cfg.MCPMaxInFlightPerUser, g.cfg.MCPMaxInFlight))
+	g.sseStreams = make(inflight.Slots, g.cfg.MCPMaxSSE)
+	g.userSSE = inflight.NewPerKey(g.cfg.MCPMaxSSEPerUser)
+	g.routeInFlight = inflight.NewPerKey(min(g.cfg.MCPMaxInFlightPerRoute, cap(g.inFlight)))
 	// Two method-less, disjoint patterns, as before routing.Table: no /mcp/ subtree,
 	// so /mcp, /mcp/ and trailing slashes stay plain 404s and are never redirected.
 	mux.HandleFunc("/mcp/{ns}/{name}", g.routeDispatch)
