@@ -15,6 +15,7 @@ import (
 
 	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
 	"github.com/navikt/copilot/fleet-gateway/internal/oauth"
+	"github.com/navikt/copilot/fleet-gateway/internal/teamtoken"
 )
 
 const (
@@ -581,7 +582,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 			return
 		}
 		outcome = "upstream_error"
-		errCode, aadsts := safeUpstreamErrorDetails(body)
+		errCode, aadsts := teamtoken.SafeUpstreamErrorDetails(body)
 		slog.Warn("upstream refresh failed", "status", status, "error_code", errCode, "aadsts", aadsts)
 		bad(http.StatusBadRequest, "invalid_grant", "upstream refresh failed")
 		return
