@@ -161,7 +161,7 @@ spec:
 {{#if routes_source}}
         - alert: FleetGatewayRouteNeverSynced
           # The age gauge appears on the first successful sync (#2637), so the stale alert cannot see a pod that never synced.
-          # Scoped by the source label too: Mimir evaluates the rule over every cluster in the tenant (#2949).
+          # Evaluated per cluster today; the source selector keeps it correct if deployed in prod or evaluated tenant-wide (#2949).
           expr: fleet_gateway_routes_source_info{namespace="copilot", source="fleet-control"} unless on(pod, k8s_cluster_name) fleet_gateway_route_snapshot_age_seconds{namespace="copilot"}
           for: 15m
           labels:

@@ -46,7 +46,7 @@ var (
 		Help: "Number of MCP routes in the current route table.",
 	})
 
-	// Alerts scope on this, not on the deploy template: Mimir evaluates rules tenant-wide (#2949).
+	// Alerts select on this so they stay correct if deployed in prod or evaluated tenant-wide; today rules run per cluster (#2949).
 	RoutesSource = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "fleet_gateway_routes_source_info",
 		Help: "Always 1; the source label says where this pod reads routes from (git or fleet-control).",
