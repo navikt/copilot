@@ -413,6 +413,14 @@ func TestRealPostgresCatalogShowsOnlyPublished(t *testing.T) {
 	e.want(200, "GET", nsBase+"team-a/mcpservercatalogentries/live", person("B444444"), "")
 	e.want(404, "GET", nsBase+"team-a/mcpservercatalogentries/draft", person("B444444"), "")
 	e.want(404, "GET", nsBase+"team-a/mcpservercatalogentries/gone", person("B444444"), "")
+	// Tool descriptions reach other teams through the catalog; upstream and readme do not.
+	doc := `{"apiVersion":"` + apiGroupVersion + `","kind":"MCPServer","metadata":{"name":"doc","namespace":"team-a"},"spec":{"dataCategory":"Intern","upstream":{"app":"svc","url":"http://svc.team-a/mcp"},"allowedTools":["search"],"readme":"secret","tools":[{"name":"search","description":"Finds things."}]}}`
+	m := decodeServer(t, e.want(201, "POST", nsBase+"team-a/mcpservers", person("A111111"), doc))
+	e.want(200, "POST", nsBase+"team-a/mcpservers/doc/approval", person("A222222"), approval(1, m.Status.Pending.ContentHash))
+	got := e.want(200, "GET", nsBase+"team-a/mcpservercatalogentries/doc", person("B444444"), "")
+	if !strings.Contains(got, `"tools":[{"name":"search","description":"Finds things."}]`) || strings.Contains(got, "secret") || strings.Contains(got, "upstream") {
+		t.Fatalf("catalog entry tools: %s", got)
+	}
 	e.noOidLeak()
 }
 
@@ -516,6 +524,10 @@ func TestRealPostgresAgentProfileV1(t *testing.T) {
 	if p.Status.PublishedGeneration != 1 || condOf(p.Status.Conditions, "Ready").Status != "True" || p.Status.ExpiresAt == nil {
 		t.Fatalf("all grants given must publish: %+v", p.Status)
 	}
+	// Every signed-in person sees which agent profiles use a server, by name only (#2981).
+	if c := e.want(200, "GET", nsBase+"team-b/mcpservercatalogentries/kodeverk", person("P999999"), ""); !strings.Contains(c, `"consumers":[{"namespace":"aksel-studio","name":"assistant"}]`) || strings.Contains(c, seedClientID) {
+		t.Fatalf("catalog consumers: %s", c)
+	}
 	// A server owner sees when the profile expires (#2696).
 	if ex := decodeProfile(t, e.want(200, "GET", base+"/assistant", person("B444444"), "")); ex.Status.ExpiresAt == nil {
 		t.Fatalf("excerpt must show expiresAt: %+v", ex.Status)
@@ -538,6 +550,9 @@ func TestRealPostgresAgentProfileV1(t *testing.T) {
 	// A server owner revokes only its own grant.
 	e.want(200, "POST", base+"/assistant/revocation", person("B444444"), `{"reason":"x","serverRef":{"group":"fleet.nav.no","kind":"MCPServer","namespace":"team-b","name":"kodeverk"}}`)
 	e.want(404, "POST", base+"/assistant/revocation", person("B444444"), `{"reason":"x"}`)
+	if c := e.want(200, "GET", nsBase+"team-b/mcpservercatalogentries/kodeverk", person("P999999"), ""); strings.Contains(c, "consumers") {
+		t.Fatalf("a revoked grant is not a consumer: %s", c)
+	}
 	p = decodeProfile(t, e.want(200, "POST", base+"/assistant/revocation", person("P999999"), `{"reason":"incident"}`))
 	if condOf(p.Status.Conditions, "Revoked").Reason != "RevokedByPlatform" {
 		t.Fatalf("platform revoke: %+v", p.Status.Conditions)

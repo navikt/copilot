@@ -996,12 +996,23 @@ type CatalogEntry struct {
 		DataCategory string          `json:"dataCategory,omitempty"`
 		AllowedTools []string        `json:"allowedTools,omitempty"`
 		Registry     json.RawMessage `json:"registry,omitempty"`
+		// Tools carries the owner team's tool descriptions for other teams.
+		Tools []ToolDoc `json:"tools,omitempty"`
 	} `json:"spec"`
 	Status struct {
 		Route               *RouteStatus `json:"route,omitempty"`
 		PublishedGeneration int          `json:"publishedGeneration"`
 		ApprovedAt          *time.Time   `json:"approvedAt,omitempty"`
+		// Consumers are the live agent profiles with access, by name only
+		// (owner decision 2026-11-25, #2981). Set on the single entry.
+		Consumers []ConsumerRef `json:"consumers,omitempty"`
 	} `json:"status"`
+}
+
+// ConsumerRef names an agent profile and its team. No identity, grants or actors.
+type ConsumerRef struct {
+	Namespace string `json:"namespace"`
+	Name      string `json:"name"`
 }
 
 func listCatalog(w http.ResponseWriter, r *http.Request, _ caller, db *DB) error {
@@ -1021,8 +1032,23 @@ func getCatalogEntry(w http.ResponseWriter, r *http.Request, _ caller, db *DB) e
 	if len(items) == 0 {
 		return errV1NotFound
 	}
+	if items[0].Status.Consumers, err = db.consumers(r.Context(), items[0].Metadata.Namespace+"/"+items[0].Metadata.Name); err != nil {
+		return err
+	}
 	writeObject(w, http.StatusOK, items[0])
 	return nil
+}
+
+// consumers lists live agent profiles whose published generation holds an unrevoked grant on server.
+func (d *DB) consumers(ctx context.Context, server string) ([]ConsumerRef, error) {
+	rows, err := d.pool.Query(ctx, `SELECT r.namespace, r.name FROM agent_profile_resources r
+		JOIN agent_profile_grants g ON g.namespace = r.namespace AND g.name = r.name AND g.generation = r.published_generation
+		WHERE g.server = $1 AND g.revoked_at IS NULL AND NOT r.revoked AND r.published_client_id IS NOT NULL
+		ORDER BY r.namespace, r.name`, server)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, pgx.RowToStructByPos[ConsumerRef])
 }
 
 // catalog lists published, unrevoked servers, optionally for one namespace or name.
@@ -1045,7 +1071,7 @@ func (d *DB) catalog(ctx context.Context, ns, name string) ([]CatalogEntry, erro
 			return e, err
 		}
 		e.APIVersion, e.Kind = apiGroupVersion, "MCPServerCatalogEntry"
-		e.Spec.DataCategory, e.Spec.AllowedTools, e.Spec.Registry = s.DataCategory, s.AllowedTools, s.Registry
+		e.Spec.DataCategory, e.Spec.AllowedTools, e.Spec.Registry, e.Spec.Tools = s.DataCategory, s.AllowedTools, s.Registry, s.Tools
 		if s.Upstream != nil {
 			e.Status.Route = &RouteStatus{Path: "/mcp/" + e.Metadata.Namespace + "/" + e.Metadata.Name}
 		}

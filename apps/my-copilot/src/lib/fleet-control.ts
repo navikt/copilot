@@ -74,8 +74,14 @@ export type List<T> = { items: T[] };
 /** A published MCP server as every team may see it (fleet-control CatalogEntry): no upstream, readme or actors. */
 export type CatalogEntry = {
   metadata: Metadata;
-  spec: Pick<MCPServerSpec, "dataCategory" | "allowedTools" | "registry">;
-  status: { publishedGeneration: number; route?: { path: string }; approvedAt?: string };
+  spec: Pick<MCPServerSpec, "dataCategory" | "allowedTools" | "registry" | "tools">;
+  status: {
+    publishedGeneration: number;
+    route?: { path: string };
+    approvedAt?: string;
+    /** Live agent profiles with access, by name only. Only on the single entry. */
+    consumers?: { namespace: string; name: string }[];
+  };
 };
 
 export type AuditEvent = { at: string; actor: Actor; action: string; generation?: number };

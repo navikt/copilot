@@ -134,11 +134,8 @@ export function TeamSections({ teams }: { teams: TeamData[] }) {
       {teams.map((t) => (
         <section key={t.team} aria-label={t.team}>
           <VStack gap="space-24">
-            <Heading level="2" size="medium">
-              {t.team}
-            </Heading>
             <VStack gap="space-8">
-              <Heading level="3" size="small">
+              <Heading id="mcp-servere" level="2" size="medium">
                 MCP-servere
               </Heading>
               {t.servers.length === 0 ? (
@@ -170,41 +167,44 @@ export function TeamSections({ teams }: { teams: TeamData[] }) {
                 </Table>
               )}
             </VStack>
-            <VStack gap="space-8">
-              <Heading level="3" size="small">
-                Agentprofiler
-              </Heading>
-              {t.agents.length === 0 ? (
-                <BodyShort>{t.team} har ingen agentprofiler ennå.</BodyShort>
-              ) : (
-                <Table size="small" aria-label={`Agentprofilene til ${t.team}`}>
-                  <Table.Header>
-                    <Table.Row>
-                      <Table.HeaderCell scope="col">Navn</Table.HeaderCell>
-                      <Table.HeaderCell scope="col">Status</Table.HeaderCell>
-                      <Table.HeaderCell scope="col">MCP-servere</Table.HeaderCell>
-                    </Table.Row>
-                  </Table.Header>
-                  <Table.Body>
-                    {t.agents.map((a) => (
-                      <Table.Row key={a.metadata.name}>
-                        <Table.DataCell>
-                          <NextLink className={linkClass} href={`/fleet/agenter/${refKey(a.metadata)}`}>
-                            {a.metadata.name}
-                          </NextLink>
-                        </Table.DataCell>
-                        <Table.DataCell>
-                          <StatusTag s={agentStatus(a)} />
-                        </Table.DataCell>
-                        <Table.DataCell>
-                          {(a.spec.grants ?? []).map((g) => refKey(g.serverRef)).join(", ")}
-                        </Table.DataCell>
+            {/* A team with MCP servers and no agent profiles needs no empty section. */}
+            {(t.agents.length > 0 || t.servers.length === 0) && (
+              <VStack gap="space-8">
+                <Heading id="agentprofiler" level="2" size="medium">
+                  Agentprofiler
+                </Heading>
+                {t.agents.length === 0 ? (
+                  <BodyShort>{t.team} har ingen agentprofiler ennå.</BodyShort>
+                ) : (
+                  <Table size="small" aria-label={`Agentprofilene til ${t.team}`}>
+                    <Table.Header>
+                      <Table.Row>
+                        <Table.HeaderCell scope="col">Navn</Table.HeaderCell>
+                        <Table.HeaderCell scope="col">Status</Table.HeaderCell>
+                        <Table.HeaderCell scope="col">MCP-servere</Table.HeaderCell>
                       </Table.Row>
-                    ))}
-                  </Table.Body>
-                </Table>
-              )}
-            </VStack>
+                    </Table.Header>
+                    <Table.Body>
+                      {t.agents.map((a) => (
+                        <Table.Row key={a.metadata.name}>
+                          <Table.DataCell>
+                            <NextLink className={linkClass} href={`/fleet/agenter/${refKey(a.metadata)}`}>
+                              {a.metadata.name}
+                            </NextLink>
+                          </Table.DataCell>
+                          <Table.DataCell>
+                            <StatusTag s={agentStatus(a)} />
+                          </Table.DataCell>
+                          <Table.DataCell>
+                            {(a.spec.grants ?? []).map((g) => refKey(g.serverRef)).join(", ")}
+                          </Table.DataCell>
+                        </Table.Row>
+                      ))}
+                    </Table.Body>
+                  </Table>
+                )}
+              </VStack>
+            )}
           </VStack>
         </section>
       ))}
@@ -297,7 +297,7 @@ function WaitingForAccess({ server, agents }: { server: MCPServer; agents: Agent
 export function PendingInbox({ agents }: { agents: AgentProfile[] }) {
   return (
     <VStack gap="space-8">
-      <Heading level="2" size="medium">
+      <Heading id="til-godkjenning" level="2" size="medium">
         Til godkjenning
       </Heading>
       {agents.length === 0 ? (
@@ -463,7 +463,7 @@ export function ServerDetail({
 }
 
 const specRows = (s?: MCPServerSpec): [string, string][] => [
-  ["Datakategori", s?.dataCategory ?? "–"],
+  ["Datakategori", DATA_CATEGORIES.find((d) => d[0] === s?.dataCategory)?.[1] ?? s?.dataCategory ?? "–"],
   ["App", s?.upstream?.app ?? "–"],
   ["Adresse til appen", s?.upstream?.url ?? "–"],
   ["Verktøy", s?.allowedTools?.join(", ") || "–"],
@@ -807,16 +807,16 @@ export function AccessPolicy({ app }: { app?: string }) {
 }
 
 const DATA_CATEGORIES: [string, string, string][] = [
-  ["Aapen", "Åpen", "Kan deles med alle, også utenfor Nav. For eksempel offentlige kodeverk og regelverk."],
+  ["Aapen", "Åpne data", "Kan deles med alle, også utenfor Nav. For eksempel offentlige kodeverk og regelverk."],
   [
     "Intern",
-    "Intern",
+    "Interne data",
     "For ansatte i Nav. Ikke personopplysninger og ikke taushetsbelagt. For eksempel interne rutiner og systemdokumentasjon.",
   ],
   [
     "Fortrolig",
-    "Fortrolig",
-    "Kan skade personer eller Nav hvis det kommer på avveie, for eksempel personopplysninger. Velg Fortrolig hvis du er i tvil.",
+    "Fortrolige data",
+    "Kan skade personer eller Nav hvis det kommer på avveie, for eksempel personopplysninger. Velg Fortrolige data hvis du er i tvil.",
   ],
 ];
 

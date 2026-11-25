@@ -23,3 +23,6 @@ export function isSameOrigin(h: Headers): boolean {
     return false;
   }
 }
+
+/** Cookie with the last team picked in /fleet. Read on the server, so it must not live in a client module. */
+export const TEAM_COOKIE = "fleet-team";

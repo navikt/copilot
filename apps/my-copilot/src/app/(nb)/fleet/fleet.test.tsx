@@ -1,7 +1,11 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { vi } from "vitest";
 
-vi.mock("next/headers", () => ({ headers: vi.fn() }));
+const cookieJar = new Map<string, string>();
+vi.mock("next/headers", () => ({
+  headers: vi.fn(),
+  cookies: vi.fn(async () => ({ get: (k: string) => (cookieJar.has(k) ? { value: cookieJar.get(k) } : undefined) })),
+}));
 vi.mock("next/navigation", () => ({
   notFound: vi.fn(() => {
     throw new Error("NEXT_NOT_FOUND");
@@ -20,6 +24,7 @@ import FleetPage from "./page";
 import ServerPage from "./mcp-servere/[namespace]/[name]/page";
 import AgentPage from "./agenter/[namespace]/[name]/page";
 import OldRoutePage from "./ruter/[namespace]/[name]/page";
+import CatalogPage from "./katalog/page";
 
 const API = "/apis/fleet.nav.no/v1alpha1";
 const T = "2026-11-20T10:00:00Z";
@@ -69,7 +74,19 @@ const entry = (namespace: string, name: string, dataCategory = "Intern") => ({
 
 const routes: Record<string, unknown> = {
   [`${API}/mcpservercatalogentries`]: { items: [entry("team-a", "docs"), entry("team-b", "saker", "Fortrolig")] },
-  [`${API}/namespaces/team-b/mcpservercatalogentries/saker`]: entry("team-b", "saker", "Fortrolig"),
+  [`${API}/namespaces/team-b/mcpservercatalogentries/saker`]: {
+    ...entry("team-b", "saker", "Fortrolig"),
+    spec: {
+      dataCategory: "Fortrolig",
+      allowedTools: ["hent_sak"],
+      tools: [{ name: "hent_sak", description: "Henter én sak." }],
+    },
+    status: {
+      publishedGeneration: 1,
+      route: { path: "/mcp/team-b/saker" },
+      consumers: [{ namespace: "team-a", name: "studio" }],
+    },
+  },
   [`${API}/whoami`]: { name: "A123456", oid: "x", teams: ["team-a"] },
   [`${API}/namespaces/team-a/mcpservers`]: { items: [server()] },
   [`${API}/namespaces/team-a/mcpservers/docs`]: server(),
@@ -93,7 +110,7 @@ function stub(overrides: Record<string, unknown> = {}, status: Record<string, nu
   );
 }
 
-const sp = (team?: string) => ({ searchParams: Promise.resolve(team ? { team } : {}) });
+const sp = (team?: string) => ({ searchParams: Promise.resolve(team === undefined ? {} : { team }) });
 const params = (namespace: string, name: string) => ({ params: Promise.resolve({ namespace, name }) });
 
 describe("/fleet", () => {
@@ -102,6 +119,7 @@ describe("/fleet", () => {
     vi.unstubAllGlobals();
     vi.stubEnv("NODE_ENV", "development");
     vi.stubEnv("FLEET_CONTROL_URL", "http://fc");
+    cookieJar.clear();
     stub();
   });
 
@@ -129,69 +147,91 @@ describe("/fleet", () => {
     expect(screen.getByText("MCP-server team-a/docs")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "team-a" })).toBeInTheDocument();
     expect(screen.queryByRole("tab")).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Registrer en MCP-server" })).toHaveAttribute("href", "/fleet/registrer");
+    expect(screen.getAllByRole("link", { name: /Registrer/ })).toHaveLength(1);
+    expect(screen.getByRole("link", { name: "Registrer MCP-server" })).toHaveAttribute("href", "/fleet/registrer");
+    expect(screen.getByRole("link", { name: "Registrer MCP-server" })).toHaveClass("aksel-link");
+    expect(screen.getByRole("navigation", { name: "Fleet" })).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: "docs" })[0]).toHaveAttribute("href", "/fleet/mcp-servere/team-a/docs");
     expect(screen.getByText("Ny versjon venter")).toBeInTheDocument();
+    // team-a has an MCP server and no agent profiles: no empty section.
+    expect(screen.queryByText("team-a har ingen agentprofiler ennå.")).not.toBeInTheDocument();
+  });
+
+  it("still says so when a team has nothing at all", async () => {
+    stub({ [`${API}/namespaces/team-a/mcpservers`]: { items: [] } });
+    render(await FleetPage(sp()));
     expect(screen.getByText("team-a har ingen agentprofiler ennå.")).toBeInTheDocument();
   });
 
-  it("explains the empty state for a person with no teams", async () => {
+  it("sends a person with no teams to the catalogue, which explains how to start", async () => {
     stub({ [`${API}/whoami`]: { name: "A123456", teams: [] } });
-    render(await FleetPage(sp()));
+    await expect(FleetPage(sp())).rejects.toThrow("NEXT_REDIRECT /fleet/katalog");
+    render(await CatalogPage());
     expect(screen.getByRole("heading", { name: "Kom i gang" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Nais Console" })).toHaveAttribute(
       "href",
       "https://console.nav.cloud.nais.io/"
     );
-    expect(screen.queryByRole("link", { name: "Registrer en MCP-server" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "saker" })).toHaveAttribute("href", "/fleet/mcp-servere/team-b/saker");
   });
 
-  it("lists published MCP servers from every team in the catalogue", async () => {
-    render(await FleetPage(sp()));
-    const table = screen.getByRole("table", { name: "Publiserte MCP-servere" });
-    expect(table).toHaveTextContent("team-b");
-    expect(table).toHaveTextContent("Fortrolig");
-    expect(screen.getByRole("link", { name: "saker" })).toHaveAttribute("href", "/fleet/mcp-servere/team-b/saker");
+  it("lists published MCP servers from every team, with search and a data category filter", async () => {
+    render(await CatalogPage());
+    const table = () => screen.getByRole("table", { name: "Publiserte MCP-servere" });
+    expect(table()).toHaveTextContent("team-b");
+    expect(table()).toHaveTextContent("Fortrolige data");
+    fireEvent.change(screen.getByRole("textbox", { name: /Søk/ }), { target: { value: "SAK" } });
+    expect(screen.queryByRole("link", { name: "docs" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "saker" })).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("textbox", { name: /Søk/ }), { target: { value: "" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Datakategori" }), { target: { value: "Intern" } });
+    expect(screen.getByRole("link", { name: "docs" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "saker" })).not.toBeInTheDocument();
+    expect(screen.getByText("Viser 1 av 2")).toBeInTheDocument();
   });
 
-  it("hides teams with nothing in Fleet and offers a picker between the rest", async () => {
-    stub({
-      [`${API}/whoami`]: { name: "A123456", teams: ["team-a", "team-c", "team-d"] },
-      [`${API}/namespaces/team-c/mcpservers`]: { items: [] },
-      [`${API}/namespaces/team-c/agentprofiles`]: { items: [] },
-      [`${API}/namespaces/team-d/mcpservers`]: { items: [] },
-      [`${API}/namespaces/team-d/agentprofiles`]: { items: [profile()] },
-    });
-    render(await FleetPage(sp()));
-    expect(screen.queryByRole("heading", { name: "team-c" })).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "team-d" })).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Team" })).toHaveTextContent("team-d");
-    expect(screen.getByRole("combobox", { name: "Team" })).not.toHaveTextContent("team-c");
-  });
+  const threeTeams = {
+    [`${API}/whoami`]: { name: "A123456", teams: ["team-a", "team-d"] },
+    [`${API}/namespaces/team-d/mcpservers`]: { items: [] },
+    [`${API}/namespaces/team-d/agentprofiles`]: { items: [profile()] },
+  };
 
-  it("explains an unknown or invalid team and links back", async () => {
-    for (const team of ["team-x", "Not a label!"]) {
-      const { unmount } = render(await FleetPage(sp(team)));
-      if (team === "team-x") {
-        expect(screen.getByText(/ikke med i teamet/)).toBeInTheDocument();
-        expect(screen.getByRole("link", { name: "Vis alle teamene dine" })).toHaveAttribute("href", "/fleet");
-      } else {
-        expect(screen.getByRole("heading", { name: "team-a" })).toBeInTheDocument();
-      }
-      unmount();
-    }
-  });
-
-  it("shows only the picked team", async () => {
-    stub({
-      [`${API}/whoami`]: { name: "A123456", teams: ["team-a", "team-d"] },
-      [`${API}/namespaces/team-d/mcpservers`]: { items: [] },
-      [`${API}/namespaces/team-d/agentprofiles`]: { items: [profile()] },
-    });
+  it("asks a person in several teams to choose, then remembers the team", async () => {
+    stub(threeTeams);
+    const { unmount } = render(await FleetPage(sp()));
+    expect(screen.getByRole("heading", { name: "Velg team" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "team-d" })).toHaveAttribute("href", "/fleet?team=team-d");
+    expect(screen.getByText("1 MCP-server · 1 venter på godkjenning")).toBeInTheDocument();
+    unmount();
     render(await FleetPage(sp("team-d")));
-    expect(screen.queryByRole("heading", { name: "team-a" })).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "team-d" })).toBeInTheDocument();
+    expect(document.cookie).toContain("fleet-team=team-d");
+    expect(screen.getByRole("combobox", { name: "Team" })).toHaveValue("team-d");
+    cookieJar.set("fleet-team", "team-d");
+    render(await FleetPage(sp()));
+    expect(screen.queryByRole("heading", { name: "Velg team" })).not.toBeInTheDocument();
+  });
+
+  it("ignores a remembered team the person has left, and ?team= empty shows the chooser", async () => {
+    stub(threeTeams);
+    cookieJar.set("fleet-team", "team-x");
+    const { unmount } = render(await FleetPage(sp()));
+    expect(screen.getByRole("heading", { name: "Velg team" })).toBeInTheDocument();
+    expect(screen.queryByText(/ikke med i/)).not.toBeInTheDocument();
+    unmount();
+    cookieJar.set("fleet-team", "team-d");
+    render(await FleetPage(sp("")));
+    expect(screen.getByRole("heading", { name: "Velg team" })).toBeInTheDocument();
+  });
+
+  it("explains an unknown team and offers the chooser; ignores an invalid one", async () => {
+    stub(threeTeams);
+    const { unmount } = render(await FleetPage(sp("team-x")));
+    expect(screen.getByText(/Du er ikke med i team-x/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Velg team" })).toBeInTheDocument();
+    unmount();
+    render(await FleetPage(sp("Not a label!")));
+    expect(screen.getByText(/Du er ikke med i det teamet\./)).toBeInTheDocument();
+    expect(screen.queryByText(/Not a label/)).not.toBeInTheDocument();
   });
 
   it("shows an Alert on 403 and 409, and a retry on 503", async () => {
@@ -306,10 +346,21 @@ describe("/fleet", () => {
 
   it("shows another team's published MCP server read-only, without history or actions", async () => {
     render(await ServerPage(params("team-b", "saker")));
-    expect(screen.getByText("Fortrolig")).toBeInTheDocument();
+    expect(screen.getByText("Fortrolige data")).toBeInTheDocument();
     expect(screen.getByText("/mcp/team-b/saker")).toBeInTheDocument();
     expect(screen.getByText("hent_sak")).toBeInTheDocument();
+    expect(screen.getByText(/Henter én sak\./)).toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Be eierteamet om tilgang" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Nais Console" })).toHaveAttribute(
+      "href",
+      "https://console.nav.cloud.nais.io/team/team-b"
+    );
+    expect(screen.getByRole("heading", { name: "Team med tilgang" })).toBeInTheDocument();
+    const consumers = screen.getByRole("table", { name: "Agentprofiler med tilgang" });
+    expect(consumers).toHaveTextContent("team-a");
+    expect(consumers).toHaveTextContent("studio");
+    expect(screen.getByText("Teamet ditt har tilgang gjennom studio.")).toBeInTheDocument();
     const urls = vi.mocked(fetch).mock.calls.map((c) => String(c[0]));
     expect(urls).toContain(`http://fc${API}/namespaces/team-b/mcpservercatalogentries/saker`);
   });
@@ -443,7 +494,7 @@ describe("/fleet", () => {
   it("explains each data category, preselects none, and shows the accessPolicy snippet", async () => {
     const { default: RegisterPage } = await import("./registrer/page");
     render(await RegisterPage());
-    for (const name of ["Åpen", "Intern", "Fortrolig"]) {
+    for (const name of ["Åpne data", "Interne data", "Fortrolige data"]) {
       const radio = screen.getByRole("radio", { name });
       expect(radio).not.toBeChecked();
       expect(radio).toHaveAccessibleDescription(/\w/);
