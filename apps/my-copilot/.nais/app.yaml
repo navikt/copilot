@@ -247,8 +247,8 @@ spec:
         # so a 5xx share waits for my-copilot's own HTTP metrics (#2952).
         - alert: MyCopilotReplicasUnavailable
           expr: |
-            max by (namespace, deployment) (kube_deployment_status_replicas_available{namespace="copilot", deployment="my-copilot"})
-              < max by (namespace, deployment) (kube_deployment_spec_replicas{namespace="copilot", deployment="my-copilot"})
+            max by (k8s_cluster_name, namespace, deployment) (kube_deployment_status_replicas_available{namespace="copilot", deployment="my-copilot"})
+              < max by (k8s_cluster_name, namespace, deployment) (kube_deployment_spec_replicas{namespace="copilot", deployment="my-copilot"})
           for: 5m
           labels:
             namespace: copilot
