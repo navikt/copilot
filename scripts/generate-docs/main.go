@@ -375,6 +375,7 @@ func countFiles(dir, pattern string) int {
 	count := 0
 	for _, m := range matches {
 		stem := strings.TrimSuffix(filepath.Base(m), filepath.Ext(filepath.Base(m)))
+		// Remove double extension (e.g. "foo.agent" from "foo.agent.md")
 		stem = strings.TrimSuffix(filepath.Base(m), ".agent.md")
 		if stem == filepath.Base(m) {
 			stem = strings.TrimSuffix(filepath.Base(m), ".instructions.md")
