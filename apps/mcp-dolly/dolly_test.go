@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/navikt/copilot/apps/mcp-dolly/internal/dolly"
+	"github.com/navikt/copilot/lib/mcpkit"
 	"io"
 	"log/slog"
 	"net"
@@ -906,7 +907,7 @@ func TestCreateOrderAgeRangeBounds(t *testing.T) {
 			if err != nil {
 				t.Fatalf("marshal args: %v", err)
 			}
-			fields, rpcErr := decodeArgMap(rawArgs, map[string]bool{
+			fields, rpcErr := mcpkit.DecodeArgMap(rawArgs, map[string]bool{
 				"gruppeId": true, "antall": true, "environments": true, "minAlder": true, "maxAlder": true,
 			})
 			if rpcErr != nil {

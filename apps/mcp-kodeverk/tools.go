@@ -6,11 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"regexp"
 	"slices"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -488,74 +486,6 @@ func toolErrorResult(msg string) *mcpkit.CallToolResult {
 	return res
 }
 
-func decodeArgMap(raw json.RawMessage, allowed map[string]bool) (map[string]json.RawMessage, *mcpWireError) {
-	trimmed := bytes.TrimSpace(raw)
-	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
-		return map[string]json.RawMessage{}, nil
-	}
-	dec := json.NewDecoder(bytes.NewReader(trimmed))
-	tok, err := dec.Token()
-	if err != nil {
-		return nil, &mcpWireError{Code: mcpCodeInvalidParams, Message: "arguments must be a JSON object"}
-	}
-	delim, ok := tok.(json.Delim)
-	if !ok || delim != '{' {
-		return nil, &mcpWireError{Code: mcpCodeInvalidParams, Message: "arguments must be a JSON object"}
-	}
-	fields := make(map[string]json.RawMessage)
-	for dec.More() {
-		kTok, keyErr := dec.Token()
-		if keyErr != nil {
-			return nil, &mcpWireError{Code: mcpCodeInvalidParams, Message: "invalid arguments object"}
-		}
-		key, keyOK := kTok.(string)
-		if !keyOK {
-			return nil, &mcpWireError{Code: mcpCodeInvalidParams, Message: "invalid argument key"}
-		}
-		if !allowed[key] {
-			return nil, &mcpWireError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("unknown argument %q", key)}
-		}
-		if _, dup := fields[key]; dup {
-			return nil, &mcpWireError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("duplicate argument %q", key)}
-		}
-		var val json.RawMessage
-		if valErr := dec.Decode(&val); valErr != nil {
-			return nil, &mcpWireError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("invalid value for %q", key)}
-		}
-		fields[key] = bytes.TrimSpace(val)
-	}
-	endTok, endErr := dec.Token()
-	if endErr != nil || endTok != json.Delim('}') {
-		return nil, &mcpWireError{Code: mcpCodeInvalidParams, Message: "invalid arguments object"}
-	}
-	if _, eofErr := dec.Token(); eofErr != io.EOF {
-		return nil, &mcpWireError{Code: mcpCodeInvalidParams, Message: "trailing data in arguments"}
-	}
-	return fields, nil
-}
-
-func parseStrictString(raw json.RawMessage, field string) (string, *mcpWireError) {
-	if len(raw) == 0 || raw[0] != '"' {
-		return "", &mcpWireError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("%s must be a string", field)}
-	}
-	var s string
-	if err := json.Unmarshal(raw, &s); err != nil {
-		return "", &mcpWireError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("%s must be a string", field)}
-	}
-	return s, nil
-}
-
-func parseStrictInt(raw json.RawMessage, field string) (int, *mcpWireError) {
-	if len(raw) == 0 || raw[0] == '"' || bytes.ContainsAny(raw, ".eE") {
-		return 0, &mcpWireError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("%s must be an integer", field)}
-	}
-	v, err := strconv.Atoi(string(raw))
-	if err != nil {
-		return 0, &mcpWireError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("%s must be an integer", field)}
-	}
-	return v, nil
-}
-
 func parseStrictBool(raw json.RawMessage, field string) (bool, *mcpWireError) {
 	if bytes.Equal(raw, []byte("true")) {
 		return true, nil
@@ -576,7 +506,7 @@ func parseStrictStringSlice(raw json.RawMessage, field string) ([]string, *mcpWi
 	}
 	out := make([]string, 0, len(elems))
 	for _, elem := range elems {
-		s, rpcErr := parseStrictString(bytes.TrimSpace(elem), field+" item")
+		s, rpcErr := mcpkit.ParseStrictString(bytes.TrimSpace(elem), field+" item")
 		if rpcErr != nil {
 			return nil, rpcErr
 		}
@@ -633,7 +563,7 @@ func parseListArgs(raw json.RawMessage, requireKodeverksnavn bool) (listArgs, *m
 	if requireKodeverksnavn {
 		allowed["kodeverksnavn"] = true
 	}
-	fields, rpcErr := decodeArgMap(raw, allowed)
+	fields, rpcErr := mcpkit.DecodeArgMap(raw, allowed)
 	if rpcErr != nil {
 		return listArgs{}, rpcErr
 	}
@@ -643,7 +573,7 @@ func parseListArgs(raw json.RawMessage, requireKodeverksnavn bool) (listArgs, *m
 		if !ok {
 			return listArgs{}, &mcpWireError{Code: mcpCodeInvalidParams, Message: "kodeverksnavn is required"}
 		}
-		s, err := parseStrictString(v, "kodeverksnavn")
+		s, err := mcpkit.ParseStrictString(v, "kodeverksnavn")
 		if err != nil {
 			return listArgs{}, err
 		}
@@ -653,7 +583,7 @@ func parseListArgs(raw json.RawMessage, requireKodeverksnavn bool) (listArgs, *m
 		out.navn = s
 	}
 	if v, ok := fields["filter"]; ok {
-		s, err := parseStrictString(v, "filter")
+		s, err := mcpkit.ParseStrictString(v, "filter")
 		if err != nil {
 			return listArgs{}, err
 		}
@@ -663,7 +593,7 @@ func parseListArgs(raw json.RawMessage, requireKodeverksnavn bool) (listArgs, *m
 		out.filter = s
 	}
 	if v, ok := fields["limit"]; ok {
-		n, err := parseStrictInt(v, "limit")
+		n, err := mcpkit.ParseStrictInt(v, "limit")
 		if err != nil {
 			return listArgs{}, err
 		}
@@ -673,7 +603,7 @@ func parseListArgs(raw json.RawMessage, requireKodeverksnavn bool) (listArgs, *m
 		out.limit = n
 	}
 	if v, ok := fields["offset"]; ok {
-		n, err := parseStrictInt(v, "offset")
+		n, err := mcpkit.ParseStrictInt(v, "offset")
 		if err != nil {
 			return listArgs{}, err
 		}
@@ -706,7 +636,7 @@ func parseBetydningerArgs(raw json.RawMessage) (betydningerArgs, *mcpWireError) 
 		"limit":             true,
 		"offset":            true,
 	}
-	fields, rpcErr := decodeArgMap(raw, allowed)
+	fields, rpcErr := mcpkit.DecodeArgMap(raw, allowed)
 	if rpcErr != nil {
 		return betydningerArgs{}, rpcErr
 	}
@@ -719,7 +649,7 @@ func parseBetydningerArgs(raw json.RawMessage) (betydningerArgs, *mcpWireError) 
 	if !ok {
 		return betydningerArgs{}, &mcpWireError{Code: mcpCodeInvalidParams, Message: "kodeverksnavn is required"}
 	}
-	kv, err := parseStrictString(kvRaw, "kodeverksnavn")
+	kv, err := mcpkit.ParseStrictString(kvRaw, "kodeverksnavn")
 	if err != nil {
 		return betydningerArgs{}, err
 	}
@@ -729,7 +659,7 @@ func parseBetydningerArgs(raw json.RawMessage) (betydningerArgs, *mcpWireError) 
 	out.kodeverksnavn = kv
 
 	if v, ok := fields["kode"]; ok {
-		s, err := parseStrictString(v, "kode")
+		s, err := mcpkit.ParseStrictString(v, "kode")
 		if err != nil {
 			return betydningerArgs{}, err
 		}
@@ -750,7 +680,7 @@ func parseBetydningerArgs(raw json.RawMessage) (betydningerArgs, *mcpWireError) 
 		out.ekskluderUgyldige = b
 	}
 	if v, ok := fields["oppslagsdato"]; ok {
-		s, err := parseStrictString(v, "oppslagsdato")
+		s, err := mcpkit.ParseStrictString(v, "oppslagsdato")
 		if err != nil {
 			return betydningerArgs{}, err
 		}
@@ -770,7 +700,7 @@ func parseBetydningerArgs(raw json.RawMessage) (betydningerArgs, *mcpWireError) 
 		out.spraak = sp
 	}
 	if v, ok := fields["limit"]; ok {
-		n, err := parseStrictInt(v, "limit")
+		n, err := mcpkit.ParseStrictInt(v, "limit")
 		if err != nil {
 			return betydningerArgs{}, err
 		}
@@ -780,7 +710,7 @@ func parseBetydningerArgs(raw json.RawMessage) (betydningerArgs, *mcpWireError) 
 		out.limit = n
 	}
 	if v, ok := fields["offset"]; ok {
-		n, err := parseStrictInt(v, "offset")
+		n, err := mcpkit.ParseStrictInt(v, "offset")
 		if err != nil {
 			return betydningerArgs{}, err
 		}
@@ -806,7 +736,7 @@ func parseHierarkiNoderArgs(raw json.RawMessage) (hierarkiNoderArgs, *mcpWireErr
 		"maxDepth":     true,
 		"limit":        true,
 	}
-	fields, rpcErr := decodeArgMap(raw, allowed)
+	fields, rpcErr := mcpkit.DecodeArgMap(raw, allowed)
 	if rpcErr != nil {
 		return hierarkiNoderArgs{}, rpcErr
 	}
@@ -815,7 +745,7 @@ func parseHierarkiNoderArgs(raw json.RawMessage) (hierarkiNoderArgs, *mcpWireErr
 	if !ok {
 		return hierarkiNoderArgs{}, &mcpWireError{Code: mcpCodeInvalidParams, Message: "hierarkinavn is required"}
 	}
-	h, err := parseStrictString(hRaw, "hierarkinavn")
+	h, err := mcpkit.ParseStrictString(hRaw, "hierarkinavn")
 	if err != nil {
 		return hierarkiNoderArgs{}, err
 	}
@@ -835,7 +765,7 @@ func parseHierarkiNoderArgs(raw json.RawMessage) (hierarkiNoderArgs, *mcpWireErr
 		out.spraak = sp
 	}
 	if v, ok := fields["maxDepth"]; ok {
-		n, err := parseStrictInt(v, "maxDepth")
+		n, err := mcpkit.ParseStrictInt(v, "maxDepth")
 		if err != nil {
 			return hierarkiNoderArgs{}, err
 		}
@@ -845,7 +775,7 @@ func parseHierarkiNoderArgs(raw json.RawMessage) (hierarkiNoderArgs, *mcpWireErr
 		out.maxDepth = n
 	}
 	if v, ok := fields["limit"]; ok {
-		n, err := parseStrictInt(v, "limit")
+		n, err := mcpkit.ParseStrictInt(v, "limit")
 		if err != nil {
 			return hierarkiNoderArgs{}, err
 		}
@@ -869,7 +799,7 @@ func parseSearchArgs(raw json.RawMessage) (searchArgs, *mcpWireError) {
 		"kodeverksnavn": true,
 		"limit":         true,
 	}
-	fields, rpcErr := decodeArgMap(raw, allowed)
+	fields, rpcErr := mcpkit.DecodeArgMap(raw, allowed)
 	if rpcErr != nil {
 		return searchArgs{}, rpcErr
 	}
@@ -878,7 +808,7 @@ func parseSearchArgs(raw json.RawMessage) (searchArgs, *mcpWireError) {
 	if !ok {
 		return searchArgs{}, &mcpWireError{Code: mcpCodeInvalidParams, Message: "query is required"}
 	}
-	q, err := parseStrictString(qRaw, "query")
+	q, err := mcpkit.ParseStrictString(qRaw, "query")
 	if err != nil {
 		return searchArgs{}, err
 	}
@@ -888,7 +818,7 @@ func parseSearchArgs(raw json.RawMessage) (searchArgs, *mcpWireError) {
 	out.query = q
 
 	if v, ok := fields["kodeverksnavn"]; ok {
-		kv, err := parseStrictString(v, "kodeverksnavn")
+		kv, err := mcpkit.ParseStrictString(v, "kodeverksnavn")
 		if err != nil {
 			return searchArgs{}, err
 		}
@@ -898,7 +828,7 @@ func parseSearchArgs(raw json.RawMessage) (searchArgs, *mcpWireError) {
 		out.kodeverksnavn = kv
 	}
 	if v, ok := fields["limit"]; ok {
-		n, err := parseStrictInt(v, "limit")
+		n, err := mcpkit.ParseStrictInt(v, "limit")
 		if err != nil {
 			return searchArgs{}, err
 		}
