@@ -12,18 +12,16 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
-
-	"golang.org/x/sync/singleflight"
 
 	"github.com/navikt/copilot/fleet-gateway/internal/audit"
 	"github.com/navikt/copilot/fleet-gateway/internal/config"
 	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
 	"github.com/navikt/copilot/fleet-gateway/internal/inflight"
 	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
+	"github.com/navikt/copilot/fleet-gateway/internal/oauth/entra"
 	"github.com/navikt/copilot/fleet-gateway/internal/ratelimit"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 	"github.com/navikt/copilot/fleet-gateway/internal/ttlmap"
@@ -50,9 +48,7 @@ type Gateway struct {
 	routeTable    atomic.Pointer[routing.Table]
 	draining      atomic.Bool // set on SIGTERM so /ready drops the pod before Shutdown
 
-	wellKnownMu         sync.RWMutex
-	wellKnownGroup      singleflight.Group
-	cachedAuthzEndpoint string
+	entra *entra.Client
 
 	TeamTokens TeamTokenSource
 }
@@ -125,6 +121,17 @@ func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 		proxyClient:  newHardenedProxyClient(cfg.ProxyHeaderTimeout),
 		refreshWait:  5 * time.Second,
 		TeamTokens:   teamTokens,
+		entra: &entra.Client{
+			HTTPClient:      cfg.HTTPClient,
+			ClientID:        cfg.AzureClientID,
+			ClientSecret:    cfg.AzureClientSecret,
+			Scope:           cfg.EntraScope,
+			RedirectURI:     cfg.BaseURL + "/oauth2/callback",
+			TokenEndpoint:   cfg.AzureTokenEndpoint,
+			AuthorizeURL:    cfg.AzureAuthorizeEndpoint,
+			WellKnownURL:    cfg.AzureWellKnownURL,
+			OutboundTimeout: defaultOutboundTimeout,
+		},
 	}
 	gw.routeTable.Store(table)
 	return gw, nil

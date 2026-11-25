@@ -650,7 +650,7 @@ func TestHardening_OIDCNonce_PKCE_Singleflight_Prompt_And_Claims(t *testing.T) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				ep, err := te.gw.entraAuthorizeEndpoint(t.Context())
+				ep, err := te.gw.entra.AuthorizeEndpoint(t.Context())
 				if err != nil || ep != te.entraServer.URL+"/authorize" {
 					t.Errorf("unexpected endpoint %q err=%v", ep, err)
 				}

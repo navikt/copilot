@@ -10,7 +10,6 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"strconv"
 	"time"
 
@@ -553,7 +552,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	out, status, body, err := g.redeemEntraRefreshToken(ctx, payload.EntraRT)
+	out, status, body, err := g.entra.RedeemRefreshToken(ctx, payload.EntraRT)
 	if err != nil || status >= 500 || status == http.StatusTooManyRequests {
 		outcome = "upstream_unavailable"
 		slog.Warn("upstream refresh unavailable", "status", status)
@@ -693,25 +692,6 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		"expires_in":    int(ttl.Seconds()),
 		"refresh_token": newRT,
 	})
-}
-
-func (g *Gateway) redeemEntraRefreshToken(ctx context.Context, entraRT string) (map[string]any, int, []byte, error) {
-	form := url.Values{
-		"client_id":     {g.cfg.AzureClientID},
-		"client_secret": {g.cfg.AzureClientSecret},
-		"grant_type":    {"refresh_token"},
-		"refresh_token": {entraRT},
-		"scope":         {g.cfg.EntraScope},
-	}
-	body, status, err := g.postEntraToken(ctx, form)
-	if err != nil {
-		return nil, status, body, err
-	}
-	var out map[string]any
-	if err := json.Unmarshal(body, &out); err != nil {
-		return nil, status, body, err
-	}
-	return out, status, body, nil
 }
 
 func (g *Gateway) revokeHandler(w http.ResponseWriter, r *http.Request) {
