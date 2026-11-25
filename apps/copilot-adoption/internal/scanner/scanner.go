@@ -11,12 +11,6 @@ import (
 	"github.com/navikt/copilot/apps/copilot-adoption/internal/slack"
 )
 
-// RunScan executes the full adoption scan pipeline:
-// 1. List all org repos
-// 2. Build team→repo map
-// 3. Filter archived repos (record metadata only, skip file scan)
-// 4. Batch GraphQL scans for active repos
-// 5. Combine results and insert to BigQuery
 func RunScan(ctx context.Context, gh interface {
 	adoption.RepoLister
 	adoption.TeamMapper
@@ -32,7 +26,6 @@ func RunScan(ctx context.Context, gh interface {
 		slog.Debug("Criterion", "category", c.Category, "path", c.TreePath, "type", c.CheckType)
 	}
 
-	// Step 1: List all repos
 	slog.Info("Listing repositories...")
 	repos, err := gh.ListRepos(ctx, cfg.OrganizationSlug)
 	if err != nil {
@@ -40,7 +33,6 @@ func RunScan(ctx context.Context, gh interface {
 	}
 	slog.Info("Repositories listed", "total", len(repos))
 
-	// Step 2: Build team map
 	slog.Info("Building team map...")
 	teamMap, err := gh.BuildTeamMap(ctx, cfg.OrganizationSlug)
 	if err != nil {
@@ -48,7 +40,6 @@ func RunScan(ctx context.Context, gh interface {
 		return fmt.Errorf("failed to build team map: %w", err)
 	}
 
-	// Step 3: Split archived vs active
 	var activeRepos []adoption.RepoInfo
 	var archivedRepos []adoption.RepoInfo
 	for _, r := range repos {
@@ -60,14 +51,12 @@ func RunScan(ctx context.Context, gh interface {
 	}
 	slog.Info("Repository split", "active", len(activeRepos), "archived", len(archivedRepos))
 
-	// Step 4: Scan active repos for customization files
 	slog.Info("Scanning active repositories for customizations...")
 	scanOutput, err := gh.ScanRepos(ctx, cfg.OrganizationSlug, activeRepos, criteria)
 	if err != nil {
 		return fmt.Errorf("scan failed: %w", err)
 	}
 
-	// Check error rate — count repos where GraphQL batch failed (nil result)
 	// Note: nil indicates batch failure, vs non-nil map with Exists=false for "no customizations"
 	failedCount := 0
 	for _, res := range scanOutput.Customizations {
@@ -82,11 +71,9 @@ func RunScan(ctx context.Context, gh interface {
 			failedCount, len(activeRepos))
 	}
 
-	// Step 5: Assemble results
 	slog.Info("Assembling results...")
 	var allResults []adoption.RepoScanResult
 
-	// Active repos: full scan results
 	for _, repo := range activeRepos {
 		customizations := scanOutput.Customizations[repo.Name]
 		if customizations == nil {
@@ -98,12 +85,10 @@ func RunScan(ctx context.Context, gh interface {
 		allResults = append(allResults, res)
 	}
 
-	// Archived repos: metadata only, no customization scan
 	for _, repo := range archivedRepos {
 		allResults = append(allResults, AssembleResult(cfg.OrganizationSlug, repo, teamMap[repo.Name], adoption.EmptyResults(criteria), nil))
 	}
 
-	// Step 5b: Resolve source OIDs and compute sync status
 	slog.Info("Resolving source OIDs for sync comparison...")
 	sourceOIDs, err := gh.ResolveSourceOIDs(ctx, criteria)
 	if err != nil {
@@ -117,7 +102,6 @@ func RunScan(ctx context.Context, gh interface {
 		return fmt.Errorf("failed to insert results: %w", err)
 	}
 
-	// Summary
 	withAny := 0
 	for _, r := range allResults {
 		if r.HasAny {
@@ -135,7 +119,6 @@ func RunScan(ctx context.Context, gh interface {
 	return nil
 }
 
-// DryRunScan runs the scan pipeline without BigQuery, returning assembled results.
 func DryRunScan(ctx context.Context, gh interface {
 	adoption.RepoLister
 	adoption.TeamMapper
@@ -148,7 +131,6 @@ func DryRunScan(ctx context.Context, gh interface {
 	criteria := adoption.DefaultCriteria()
 	slog.Info("Search criteria loaded", "count", len(criteria))
 
-	// Step 1: List all repos
 	slog.Info("Listing repositories...")
 	repos, err := gh.ListRepos(ctx, cfg.OrganizationSlug)
 	if err != nil {
@@ -156,7 +138,6 @@ func DryRunScan(ctx context.Context, gh interface {
 	}
 	slog.Info("Repositories listed", "total", len(repos))
 
-	// Step 2: Build team map
 	slog.Info("Building team map...")
 	teamMap, err := gh.BuildTeamMap(ctx, cfg.OrganizationSlug)
 	if err != nil {
@@ -164,7 +145,6 @@ func DryRunScan(ctx context.Context, gh interface {
 		teamMap = make(map[string][]adoption.TeamAccess)
 	}
 
-	// Step 3: Split archived vs active
 	var activeRepos []adoption.RepoInfo
 	var archivedRepos []adoption.RepoInfo
 	for _, r := range repos {
@@ -176,14 +156,12 @@ func DryRunScan(ctx context.Context, gh interface {
 	}
 	slog.Info("Repository split", "active", len(activeRepos), "archived", len(archivedRepos))
 
-	// Step 4: Scan active repos
 	slog.Info("Scanning active repositories for customizations...")
 	scanOutput, err := gh.ScanRepos(ctx, cfg.OrganizationSlug, activeRepos, criteria)
 	if err != nil {
 		return nil, fmt.Errorf("scan failed: %w", err)
 	}
 
-	// Step 5: Assemble results
 	var allResults []adoption.RepoScanResult
 	for _, repo := range activeRepos {
 		customizations := scanOutput.Customizations[repo.Name]
@@ -199,7 +177,6 @@ func DryRunScan(ctx context.Context, gh interface {
 		allResults = append(allResults, AssembleResult(cfg.OrganizationSlug, repo, teamMap[repo.Name], adoption.EmptyResults(criteria), nil))
 	}
 
-	// Step 5b: Resolve source OIDs and compute sync status
 	slog.Info("Resolving source OIDs for sync comparison...")
 	sourceOIDs, err := gh.ResolveSourceOIDs(ctx, criteria)
 	if err != nil {
@@ -208,7 +185,6 @@ func DryRunScan(ctx context.Context, gh interface {
 		ComputeInSync(allResults, sourceOIDs, criteria)
 	}
 
-	// Summary
 	withAny := 0
 	for _, r := range allResults {
 		if r.HasAny {

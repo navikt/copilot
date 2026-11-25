@@ -5,7 +5,6 @@ import (
 	"time"
 )
 
-// RepoInfo contains metadata about a GitHub repository.
 type RepoInfo struct {
 	Name            string
 	DefaultBranch   string
@@ -19,14 +18,12 @@ type RepoInfo struct {
 	OpenIssuesCount int
 }
 
-// TeamAccess represents a team's access to a repository.
 type TeamAccess struct {
 	Slug       string `json:"slug"`
 	Name       string `json:"name"`
 	Permission string `json:"permission"` // "pull", "push", "admin", "maintain", "triage"
 }
 
-// SearchResult holds the outcome of checking a single search criterion against a repo.
 type SearchResult struct {
 	Exists bool     `json:"exists"`
 	Files  []string `json:"files,omitempty"`
@@ -34,7 +31,6 @@ type SearchResult struct {
 	InSync []bool   `json:"in_sync,omitempty"` // Per-file sync status vs source repo, parallel to Files/Oids
 }
 
-// RepoScanResult is the fully assembled result for one repository.
 type RepoScanResult struct {
 	Org                     string
 	Repo                    string
@@ -56,17 +52,14 @@ type RepoScanResult struct {
 	CustomizationCount      int
 }
 
-// RepoLister lists repositories in a GitHub organization.
 type RepoLister interface {
 	ListRepos(ctx context.Context, org string) ([]RepoInfo, error)
 }
 
-// TeamMapper builds a mapping from repository name to teams with access.
 type TeamMapper interface {
 	BuildTeamMap(ctx context.Context, org string) (map[string][]TeamAccess, error)
 }
 
-// ScanOutput holds the combined results of a repository scan batch.
 type ScanOutput struct {
 	Customizations map[string]map[string]SearchResult // repo name → category → result
 	LastCommits    map[string]*time.Time              // repo name → last commit to default branch (nil = unknown)
@@ -74,12 +67,10 @@ type ScanOutput struct {
 	Commits30d     map[string]int                     // repo name → commits on default branch in last 30d
 }
 
-// CustomizationScanner checks repositories for customization files using GraphQL.
 type CustomizationScanner interface {
 	ScanRepos(ctx context.Context, org string, repos []RepoInfo, criteria []SearchCriteria) (*ScanOutput, error)
 }
 
-// AdoptionStore persists scan results to BigQuery.
 type AdoptionStore interface {
 	EnsureTableExists(ctx context.Context) error
 	EnsureViewsExist(ctx context.Context) error
@@ -90,7 +81,6 @@ type AdoptionStore interface {
 // SourceOIDs maps category → (filename → blob OID) for the canonical source repo.
 type SourceOIDs map[string]map[string]string
 
-// SourceOIDResolver fetches the canonical OIDs for customization files from the source repo.
 type SourceOIDResolver interface {
 	ResolveSourceOIDs(ctx context.Context, criteria []SearchCriteria) (SourceOIDs, error)
 }

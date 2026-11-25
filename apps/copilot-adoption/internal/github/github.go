@@ -49,8 +49,6 @@ func NewGitHubClient(cfg *config.Config) (*GitHubClient, error) {
 	}, nil
 }
 
-// --- REST: List Repositories ---
-
 type restRepo struct {
 	Name            string   `json:"name"`
 	DefaultBranch   string   `json:"default_branch"`
@@ -128,8 +126,6 @@ func (c *GitHubClient) fetchRepoPage(ctx context.Context, url string) ([]restRep
 	}
 	return repos, nil
 }
-
-// --- REST: Team Mapping (org-side traversal) ---
 
 type restTeam struct {
 	Slug string `json:"slug"`
@@ -246,23 +242,16 @@ func (c *GitHubClient) listTeamRepos(ctx context.Context, org, teamSlug string) 
 	return all, nil
 }
 
-// --- GraphQL: Customization File Scanning ---
-
-// graphqlRequest is the payload sent to GitHub's GraphQL API.
 type graphqlRequest struct {
 	Query string `json:"query"`
 }
 
-// ScanRepos checks multiple repositories for customization files using batched GraphQL queries.
-// Uses concurrency workers to parallelize batch execution.
-// Returns ScanOutput with customizations per repo and last commit dates.
 func (c *GitHubClient) ScanRepos(ctx context.Context, org string, repos []adoption.RepoInfo, criteria []adoption.SearchCriteria) (*adoption.ScanOutput, error) {
 	type batchJob struct {
 		index int
 		repos []adoption.RepoInfo
 	}
 
-	// Build batch jobs
 	var jobs []batchJob
 	for i := 0; i < len(repos); i += c.batchSize {
 		end := i + c.batchSize
@@ -350,7 +339,6 @@ func (c *GitHubClient) ScanRepos(ctx context.Context, org string, repos []adopti
 	return output, nil
 }
 
-// scanBatch executes a single batched GraphQL query for multiple repos.
 func (c *GitHubClient) scanBatch(ctx context.Context, org string, repos []adoption.RepoInfo, criteria []adoption.SearchCriteria) (map[string]map[string]adoption.SearchResult, map[string]*time.Time, error) {
 	customizations, lastCommits, _, _, err := c.scanBatchWithActivity(ctx, org, repos, criteria)
 	return customizations, lastCommits, err
@@ -391,7 +379,6 @@ func (c *GitHubClient) scanBatchWithActivity(ctx context.Context, org string, re
 	return customizations, lastCommits, commits7d, commits30d, nil
 }
 
-// buildGraphQLQuery constructs a batched query checking all criteria across multiple repos.
 func buildGraphQLQuery(org string, repos []adoption.RepoInfo, criteria []adoption.SearchCriteria) string {
 	var b strings.Builder
 	b.WriteString("query {\n")
@@ -430,8 +417,6 @@ func buildGraphQLQuery(org string, repos []adoption.RepoInfo, criteria []adoptio
 	b.WriteString("}\n")
 	return b.String()
 }
-
-// --- GraphQL response parsing ---
 
 type graphqlResponse struct {
 	Data   map[string]json.RawMessage `json:"data"`
@@ -494,7 +479,6 @@ func parseGraphQLResponseWithActivity(data map[string]json.RawMessage, repos []a
 
 		repoResults := make(map[string]adoption.SearchResult, len(criteria))
 
-		// Extract last commit date and 7d/30d commit counts from defaultBranchRef
 		if branchData, ok := fields["defaultBranchRef"]; ok && string(branchData) != "null" {
 			var branchRef defaultBranchRefResponse
 			if err := json.Unmarshal(branchData, &branchRef); err == nil {
@@ -553,7 +537,6 @@ func parseGraphQLResponseWithActivity(data map[string]json.RawMessage, repos []a
 	return results, lastCommits, commits7d, commits30d
 }
 
-// blobOids returns the OID for a file-level check (single blob).
 func blobOids(obj objectResponse) []string {
 	if obj.OID != "" {
 		return []string{obj.OID}
@@ -577,11 +560,8 @@ func matchedOids(entries []treeEntry, matched []string) []string {
 	return oids
 }
 
-// --- HTTP retry with rate limit handling ---
-
 const maxRetries = 3
 
-// doWithRetry executes an HTTP request with retry logic for rate limits and server errors.
 // Returns the response on success (caller must close the body).
 // Does NOT retry 4xx client errors (except 429 rate limit).
 func (c *GitHubClient) doWithRetry(ctx context.Context, req *http.Request) (*http.Response, error) {
@@ -608,7 +588,6 @@ func (c *GitHubClient) doWithRetry(ctx context.Context, req *http.Request) (*htt
 			}
 		}
 
-		// Reset body for retry
 		if bodyBytes != nil {
 			req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 		}
@@ -619,7 +598,6 @@ func (c *GitHubClient) doWithRetry(ctx context.Context, req *http.Request) (*htt
 			continue
 		}
 
-		// Log rate limit state
 		if remaining := resp.Header.Get("X-RateLimit-Remaining"); remaining != "" {
 			if rem, err := strconv.Atoi(remaining); err == nil && rem < 100 {
 				slog.Warn("GitHub API rate limit low",
@@ -630,7 +608,6 @@ func (c *GitHubClient) doWithRetry(ctx context.Context, req *http.Request) (*htt
 			}
 		}
 
-		// Success
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			return resp, nil
 		}
@@ -640,7 +617,6 @@ func (c *GitHubClient) doWithRetry(ctx context.Context, req *http.Request) (*htt
 
 		// Rate limited — honor Retry-After header or X-RateLimit-Reset
 		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusForbidden {
-			// Check Retry-After header first
 			if retryAfter := resp.Header.Get("Retry-After"); retryAfter != "" {
 				if seconds, err := strconv.Atoi(retryAfter); err == nil {
 					wait := time.Duration(seconds) * time.Second
@@ -662,7 +638,7 @@ func (c *GitHubClient) doWithRetry(ctx context.Context, req *http.Request) (*htt
 				if resetUnix, err := strconv.ParseInt(resetHeader, 10, 64); err == nil {
 					resetTime := time.Unix(resetUnix, 0)
 					wait := time.Until(resetTime) + 5*time.Second // Add buffer
-					if wait > 0 && wait < 15*time.Minute {        // Sanity check
+					if wait > 0 && wait < 15*time.Minute {
 						slog.Warn("Rate limited, waiting until reset", "reset_at", resetTime, "wait", wait)
 						select {
 						case <-ctx.Done():
@@ -683,7 +659,6 @@ func (c *GitHubClient) doWithRetry(ctx context.Context, req *http.Request) (*htt
 			continue
 		}
 
-		// Server error — retry
 		if resp.StatusCode >= 500 {
 			lastErr = fmt.Errorf("status %d: %s", resp.StatusCode, string(body))
 			continue
@@ -724,7 +699,6 @@ func (c *GitHubClient) ResolveSourceOIDs(ctx context.Context, criteria []adoptio
 		oidMap := make(map[string]string)
 		switch c.CheckType {
 		case adoption.CheckFile:
-			// File checks: use TreePath basename as key
 			if len(sr.Oids) > 0 {
 				base := c.TreePath
 				if idx := strings.LastIndex(c.TreePath, "/"); idx >= 0 {

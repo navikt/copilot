@@ -42,7 +42,6 @@ func main() {
 	)
 
 	if *dryRun {
-		// Dry-run: only validate GitHub credentials, skip BigQuery
 		if cfg.GitHubAppID == 0 || cfg.GitHubAppPrivateKey == "" || cfg.GitHubAppInstallationID == 0 {
 			slog.Error("GitHub credentials required for dry-run")
 			exit(1)

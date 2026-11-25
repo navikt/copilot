@@ -49,7 +49,6 @@ func NewSlackNotifier(webhookURL string) *SlackNotifier {
 	}
 }
 
-// NotifyError sends a Slack alert for a fatal error.
 func (s *SlackNotifier) NotifyError(ctx context.Context, message string) {
 	if s == nil {
 		return

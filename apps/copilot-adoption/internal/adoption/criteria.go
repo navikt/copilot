@@ -2,27 +2,23 @@ package adoption
 
 import "path/filepath"
 
-// CheckType determines how a search criterion is evaluated.
 type CheckType string
 
 const (
-	// CheckFile checks for the existence of a single file.
-	CheckFile CheckType = "file"
-	// CheckDirectory lists entries in a directory and filters by pattern.
+	CheckFile      CheckType = "file"
 	CheckDirectory CheckType = "directory"
 )
 
 // SearchCriteria defines what to look for in a repository.
 // Add new entries to DefaultCriteria() to track additional AI/Copilot features.
 type SearchCriteria struct {
-	Category    string    // Unique key, e.g. "agents", "copilot_instructions"
-	Description string    // Human-readable description
+	Category    string // Unique key, e.g. "agents", "copilot_instructions"
+	Description string
 	TreePath    string    // Git tree path, e.g. ".github/agents"
 	CheckType   CheckType // "file" or "directory"
 	FilePattern string    // Glob for filtering directory entries, e.g. "*.agent.md"
 }
 
-// GraphQLAlias returns a safe alias for use in GraphQL queries.
 // GraphQL aliases must start with a letter and contain only [a-zA-Z0-9_].
 func (c SearchCriteria) GraphQLAlias() string {
 	return sanitizeAlias(c.Category)
@@ -131,7 +127,6 @@ func DefaultCriteria() []SearchCriteria {
 			CheckType:   CheckFile,
 		},
 
-		// --- Cursor ---
 		{
 			Category:    "cursorrules",
 			Description: "Cursor AI rules file (legacy root-level)",
@@ -152,7 +147,6 @@ func DefaultCriteria() []SearchCriteria {
 			CheckType:   CheckFile,
 		},
 
-		// --- Claude Code ---
 		{
 			Category:    "claude_md",
 			Description: "Claude Code project instructions",
@@ -166,7 +160,6 @@ func DefaultCriteria() []SearchCriteria {
 			CheckType:   CheckFile,
 		},
 
-		// --- Windsurf (Codeium) ---
 		{
 			Category:    "windsurfrules",
 			Description: "Windsurf AI rules file",
@@ -174,7 +167,6 @@ func DefaultCriteria() []SearchCriteria {
 			CheckType:   CheckFile,
 		},
 
-		// --- GitHub Copilot (review instructions) ---
 		{
 			Category:    "copilot_review_instructions",
 			Description: "Copilot code review instructions for pull requests",
@@ -182,7 +174,6 @@ func DefaultCriteria() []SearchCriteria {
 			CheckType:   CheckFile,
 		},
 
-		// --- GitHub Copilot (newer directory structure) ---
 		{
 			Category:    "copilot_dir",
 			Description: "GitHub Copilot directory (newer config format)",
@@ -191,7 +182,6 @@ func DefaultCriteria() []SearchCriteria {
 			FilePattern: "*",
 		},
 
-		// --- GitHub Copilot (cloud agent setup) ---
 		{
 			Category:    "copilot_setup_steps",
 			Description: "Copilot coding agent environment setup",
@@ -199,7 +189,6 @@ func DefaultCriteria() []SearchCriteria {
 			CheckType:   CheckFile,
 		},
 
-		// --- GitHub Agentic Workflows (github/gh-aw) ---
 		{
 			Category:    "agentic_workflows",
 			Description: "GitHub Agentic Workflows definitions",
@@ -208,7 +197,6 @@ func DefaultCriteria() []SearchCriteria {
 			FilePattern: "*",
 		},
 
-		// --- Installed agent skills (gh skill install) ---
 		{
 			Category:    "agents_skills",
 			Description: "Installed agent skills (gh skill install, agentskills.io spec)",
@@ -217,7 +205,6 @@ func DefaultCriteria() []SearchCriteria {
 			FilePattern: "*",
 		},
 
-		// --- nav-pilot & agentpakke ---
 		{
 			Category:    "nav_pilot_state",
 			Description: "nav-pilot installation state marker",
@@ -243,7 +230,6 @@ func DefaultCriteria() []SearchCriteria {
 			CheckType:   CheckFile,
 		},
 
-		// --- OpenCode ---
 		{
 			Category:    "opencode_json",
 			Description: "OpenCode project configuration (JSON)",
@@ -264,7 +250,6 @@ func DefaultCriteria() []SearchCriteria {
 			FilePattern: "*",
 		},
 
-		// --- Cross-client & IDE MCP configs ---
 		{
 			Category:    "jetbrains_mcp",
 			Description: "MCP server configuration for JetBrains IDEs",
@@ -278,7 +263,6 @@ func DefaultCriteria() []SearchCriteria {
 			CheckType:   CheckFile,
 		},
 
-		// --- Additional Claude Code & Gemini markers ---
 		{
 			Category:    "claude_agents",
 			Description: "Claude Code custom agents",
@@ -307,7 +291,6 @@ func DefaultCriteria() []SearchCriteria {
 			CheckType:   CheckFile,
 		},
 
-		// --- cplt CLI ---
 		{
 			Category:    "cplt_toml",
 			Description: "cplt CLI per-repo sandbox configuration",

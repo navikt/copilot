@@ -104,7 +104,6 @@ func startRun(service string) {
 	}()
 }
 
-// exit ends and flushes the run span, then exits with code.
 func exit(code int) {
 	finishRun(code)
 	os.Exit(code)

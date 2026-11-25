@@ -121,7 +121,6 @@ func desiredSchema() bigquery.Schema {
 	}
 }
 
-// ensureColumns adds any columns present in desiredSchema() but missing from the live table.
 func (c *BigQueryClient) ensureColumns(ctx context.Context, table *bigquery.Table, md *bigquery.TableMetadata) error {
 	existing := make(map[string]bool, len(md.Schema))
 	for _, f := range md.Schema {
@@ -162,7 +161,6 @@ func (c *BigQueryClient) InsertScanResults(ctx context.Context, scanDate time.Ti
 	dateStr := scanDate.Format("2006-01-02")
 	loadedAt := time.Now().UTC()
 
-	// Build rows
 	var rows []*RepoScanRow
 	for _, r := range results {
 		customizationsJSON, err := json.Marshal(r.Customizations)
@@ -206,7 +204,6 @@ func (c *BigQueryClient) InsertScanResults(ctx context.Context, scanDate time.Ti
 	partitionDecorator := scanDate.Format("20060102")
 	table := c.client.Dataset(c.dataset).Table(c.table + "$" + partitionDecorator)
 
-	// Create JSONL data in memory
 	var buf bytes.Buffer
 	for _, row := range rows {
 		jsonMap := map[string]any{
