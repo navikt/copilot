@@ -56,6 +56,11 @@ export default function Sandkassen() {
                 maskinen.
               </BodyLong>
               <BodyLong>
+                Unntak fra 25.11.2026: GitHub Copilot i VS Code og JetBrains kan brukes uten sandkasse ved lett og
+                moderat agentbruk, så lenge du godkjenner terminalkommandoene. Full auto, som Allow all og global
+                auto-godkjenning, er ikke tillatt. Agenter i terminalen skal fortsatt kjøre i cplt.
+              </BodyLong>
+              <BodyLong>
                 <NextLink href="/nyheter/sandboxing-er-pakrevd-pa-nav-utstyr" className={linkClass}>
                   Kortversjonen av kravet
                 </NextLink>{" "}

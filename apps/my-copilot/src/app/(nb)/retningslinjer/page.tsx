@@ -82,9 +82,18 @@ export default function RetningslinjerPage() {
                     .
                   </AllowedItem>
                   <AllowedItem title="Agent mode i editoren">
-                    Du kan bruke Agent mode til autonome redigeringer lokalt. I VS Code skal{" "}
-                    <code>chat.agent.sandbox.enabled</code> være satt til <code>"on"</code>. Du godkjenner
-                    terminalkommandoer og vurderer endringene før commit, med samme ansvar som for all annen kode.
+                    Du kan bruke Agent mode i VS Code og JetBrains (IntelliJ) til lett og moderat agentbruk. Du
+                    godkjenner terminalkommandoer og vurderer endringene før commit. Full auto er ikke tillatt: hold{" "}
+                    <code>chat.tools.global.autoApprove</code> av i VS Code og <strong>Global Auto Approve</strong> av i
+                    JetBrains, og ikke velg <strong>Allow all</strong> eller <strong>Autopilot</strong>. I VS Code
+                    anbefaler vi <code>chat.agent.sandbox.enabled</code> satt til <code>"on"</code>. Se{" "}
+                    <NextLink
+                      href="/nyheter/sandboxing-er-pakrevd-pa-nav-utstyr"
+                      className="text-blue-600 hover:underline"
+                    >
+                      innstillingene per klient
+                    </NextLink>
+                    .
                   </AllowedItem>
                   <AllowedItem title="Copilot CLI, opencode og pi i terminalen">
                     Copilot CLI, opencode og pi, installert med{" "}
@@ -297,6 +306,18 @@ export default function RetningslinjerPage() {
                     </tr>
                   </thead>
                   <tbody>
+                    <tr className="border-b">
+                      <td
+                        className="whitespace-nowrap align-top"
+                        style={{ paddingBlock: "var(--ax-space-8)", paddingRight: "var(--ax-space-16)" }}
+                      >
+                        2026-11-25
+                      </td>
+                      <td style={{ paddingBlock: "var(--ax-space-8)" }}>
+                        Agent mode i VS Code og JetBrains har unntak fra sandbox-kravet ved lett og moderat bruk. Full
+                        auto er ikke tillatt. <code>chat.agent.sandbox.enabled</code> er anbefalt, ikke påkrevd.
+                      </td>
+                    </tr>
                     <tr className="border-b">
                       <td
                         className="whitespace-nowrap align-top"
