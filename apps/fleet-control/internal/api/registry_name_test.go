@@ -37,7 +37,8 @@ func TestRegistryNameAllowed(t *testing.T) {
 // Every seeded name must stay publishable by its namespace under the prod config.
 func TestSeededRegistryNamesStayValid(t *testing.T) {
 	for _, env := range []string{"dev", "prod"} {
-		servers, err := seedServers(readSeedFiles(t, env))
+		routes, allowlist := readSeedFiles(t, env)
+		servers, err := seedServers(env+"-gcp", routes, allowlist)
 		if err != nil {
 			t.Fatal(err)
 		}

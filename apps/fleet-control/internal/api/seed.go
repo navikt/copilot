@@ -19,8 +19,8 @@ import (
 )
 
 var (
-	dnsLabelRegex   = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
-	toolNameRegex   = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,128}$`)
+	dnsLabelRegex   = model.DNSLabel
+	toolNameRegex   = model.ToolName
 	serverNameRegex = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9.-]*/[a-zA-Z0-9][a-zA-Z0-9._-]*$`)
 	// internalHostSuffixes are reachable only inside Nav; the registry is public.
 	internalHostSuffixes = []string{".intern.nav.no", ".intern.dev.nav.no", ".nais.adeo.no", ".adeo.no", ".svc.cluster.local", ".internal", ".local", ".localhost"}
@@ -47,10 +47,10 @@ type routesFile struct {
 
 // seedServers turns today's Git files into servers. Both files are untrusted
 // input: every name, URL and tool is validated, and any error stops the seed.
-func seedServers(routesYAML, allowlistJSON []byte) ([]model.Server, error) {
+func seedServers(cluster string, routesYAML, allowlistJSON []byte) ([]model.Server, error) {
 	byKey := map[string]*model.Server{}
 
-	routes, err := parseRoutes(routesYAML)
+	routes, err := parseRoutes(cluster, routesYAML)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func seedServers(routesYAML, allowlistJSON []byte) ([]model.Server, error) {
 	return out, nil
 }
 
-func parseRoutes(raw []byte) ([]model.Server, error) {
+func parseRoutes(cluster string, raw []byte) ([]model.Server, error) {
 	var doc routesFile
 	dec := yaml.NewDecoder(bytes.NewReader(raw))
 	dec.KnownFields(true)
@@ -121,14 +121,7 @@ func parseRoutes(raw []byte) ([]model.Server, error) {
 		if r.Team != ns {
 			return nil, fmt.Errorf("route %q: team %q must equal namespace %q", r.Route, r.Team, ns)
 		}
-		parts := strings.Split(r.Target, ":")
-		if len(parts) != 3 || parts[0] == "" || parts[1] != ns || !dnsLabelRegex.MatchString(parts[2]) {
-			return nil, fmt.Errorf("route %q: target %q must be <cluster>:%s:<app>", r.Route, r.Target, ns)
-		}
-		if err := validateUpstreamURL(r.UpstreamURL, ns); err != nil {
-			return nil, fmt.Errorf("route %q: upstream_url: %w", r.Route, err)
-		}
-		if err := validateTools(r.Tools); err != nil {
+		if err := model.ValidateRoute(cluster, model.Route{Path: r.Route, Target: r.Target, UpstreamURL: r.UpstreamURL, Tools: r.Tools}); err != nil {
 			return nil, fmt.Errorf("route %q: %w", r.Route, err)
 		}
 		out = append(out, model.Server{Namespace: ns, Name: name, Route: &model.Route{
@@ -137,62 +130,6 @@ func parseRoutes(raw []byte) ([]model.Server, error) {
 		}})
 	}
 	return out, nil
-}
-
-func splitRoutePath(p string) (ns, name string, err error) {
-	segs := strings.Split(strings.TrimPrefix(p, "/mcp/"), "/")
-	if !strings.HasPrefix(p, "/mcp/") || len(segs) != 2 || !dnsLabelRegex.MatchString(segs[0]) || !dnsLabelRegex.MatchString(segs[1]) {
-		return "", "", errors.New("path must be /mcp/<namespace>/<name> with lowercase DNS labels")
-	}
-	return segs[0], segs[1], nil
-}
-
-func validateTools(tools []string) error {
-	if len(tools) == 0 {
-		return errors.New("tools must not be empty")
-	}
-	seen := map[string]bool{}
-	for _, t := range tools {
-		if !toolNameRegex.MatchString(t) {
-			return fmt.Errorf("invalid tool name %q", t)
-		}
-		if seen[t] {
-			return fmt.Errorf("duplicate tool %q", t)
-		}
-		seen[t] = true
-	}
-	return nil
-}
-
-// validateUpstreamURL accepts cluster-internal service DNS in namespace ns
-// (http or https) and Nav internal ingresses over https, like fleet-gateway.
-func validateUpstreamURL(raw, ns string) error {
-	u, err := url.Parse(raw)
-	if err != nil {
-		return err
-	}
-	if u.User != nil || (u.Scheme != "http" && u.Scheme != "https") {
-		return errors.New("must be http(s) without userinfo")
-	}
-	host, err := normalizeHost(u.Hostname())
-	if err != nil {
-		return err
-	}
-	if net.ParseIP(host) != nil || numericTLD(host) {
-		return errors.New("IP addresses are not allowed")
-	}
-	if strings.Contains(host, "xn--") {
-		return errors.New("punycode hosts are not allowed")
-	}
-	for _, suffix := range []string{"." + ns + ".svc.cluster.local", "." + ns} {
-		if app, ok := strings.CutSuffix(host, suffix); ok && dnsLabelRegex.MatchString(app) {
-			return nil
-		}
-	}
-	if u.Scheme == "https" && (strings.HasSuffix(host, ".intern.nav.no") || strings.HasSuffix(host, ".intern.dev.nav.no") || strings.HasSuffix(host, ".nais.adeo.no")) {
-		return nil
-	}
-	return fmt.Errorf("host %q is not an internal service in namespace %q", host, ns)
 }
 
 // parseAllowlist reads apps/mcp-registry/allowlist.json. Entries stay as the
@@ -329,18 +266,9 @@ func validatePublicURL(raw string, allowLoopback bool) error {
 	return nil
 }
 
-// normalizeHost lowercases host and strips one trailing root dot, so
-// "svc.intern.nav.no." is checked as "svc.intern.nav.no".
-func normalizeHost(host string) (string, error) {
-	h := strings.TrimSuffix(strings.ToLower(host), ".")
-	if h == "" || strings.HasSuffix(h, ".") || strings.Contains(h, "..") {
-		return "", fmt.Errorf("invalid host %q", host)
-	}
-	return h, nil
-}
-
-// numericTLD catches IP forms net.ParseIP misses, such as "127.1" or "0x7f.1".
-func numericTLD(host string) bool {
-	tld := host[strings.LastIndex(host, ".")+1:]
-	return strings.Trim(tld, "0123456789abcdefx") == "" && strings.ContainsAny(tld, "0123456789")
-}
+var (
+	splitRoutePath = model.SplitRoutePath
+	validateTools  = model.ValidateTools
+	normalizeHost  = model.NormalizeHost
+	numericTLD     = model.NumericTLD
+)

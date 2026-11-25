@@ -28,7 +28,7 @@ func TestSeedRealFiles(t *testing.T) {
 	for _, env := range []string{"dev", "prod"} {
 		t.Run(env, func(t *testing.T) {
 			routes, allowlist := readSeedFiles(t, env)
-			servers, err := seedServers(routes, allowlist)
+			servers, err := seedServers(env+"-gcp", routes, allowlist)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -86,7 +86,7 @@ func TestSeedRealFiles(t *testing.T) {
 		})
 	}
 	routes, allowlist := readSeedFiles(t, "dev")
-	servers, _ := seedServers(routes, allowlist)
+	servers, _ := seedServers("dev-gcp", routes, allowlist)
 	for _, s := range servers {
 		if s.Key() == "copilot/kodeverk" && s.Route.Enabled {
 			t.Error("kodeverk is disabled in dev")
@@ -98,7 +98,7 @@ func TestSeedRejectsBadInput(t *testing.T) {
 	route := func(body string) []byte { return []byte("version: 2\nroutes:\n" + body) }
 	okRoute := route("  - route: /mcp/copilot/a\n    team: copilot\n    target: dev-gcp:copilot:a\n    upstream_url: http://a.copilot/\n    tools: [x]\n")
 	okList := []byte(`{"servers":[{"name":"io.github.navikt/b","remotes":[{"type":"streamable-http","url":"https://b.nav.no/mcp"}]}]}`)
-	servers, err := seedServers(okRoute, okList)
+	servers, err := seedServers("dev-gcp", okRoute, okList)
 	if err != nil {
 		t.Fatalf("baseline must pass: %v", err)
 	}
@@ -129,12 +129,16 @@ func TestSeedRejectsBadInput(t *testing.T) {
 		"uppercase intern": {okRoute, []byte(`{"servers":[{"name":"a.b/c","remotes":[{"url":"https://C.INTERN.NAV.NO/mcp"}]}]}`)},
 		"short ip":         {okRoute, []byte(`{"servers":[{"name":"a.b/c","remotes":[{"url":"https://127.1/mcp"}]}]}`)},
 		"hex ip":           {okRoute, []byte(`{"servers":[{"name":"a.b/c","remotes":[{"url":"https://0x7f.1/mcp"}]}]}`)},
+		"ingress upstream": {route("  - route: /mcp/copilot/a\n    team: copilot\n    target: dev-gcp:copilot:a\n    upstream_url: https://a.intern.nav.no/\n    tools: [x]\n"), okList},
+		"other app":        {route("  - route: /mcp/copilot/a\n    team: copilot\n    target: dev-gcp:copilot:a\n    upstream_url: http://b.copilot/\n    tools: [x]\n"), okList},
+		"upstream query":   {route("  - route: /mcp/copilot/a\n    team: copilot\n    target: dev-gcp:copilot:a\n    upstream_url: http://a.copilot/?x=1\n    tools: [x]\n"), okList},
+		"other cluster":    {route("  - route: /mcp/copilot/a\n    team: copilot\n    target: prod-gcp:copilot:a\n    upstream_url: http://a.copilot/\n    tools: [x]\n"), okList},
 		"upstream dot":     {route("  - route: /mcp/copilot/a\n    team: copilot\n    target: dev-gcp:copilot:a\n    upstream_url: http://evil.example.com./\n    tools: [x]\n"), okList},
 		"name collision":   {okRoute, []byte(`{"servers":[{"name":"a.b/c","remotes":[{"url":"https://fleet-gateway.{{domain_internal}}/mcp/copilot/c"}]},{"name":"d.e/c","remotes":[{"url":"https://fleet-gateway.{{domain_internal}}/mcp/copilot/c"}]}]}`)},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
-			if _, err := seedServers(c.routes, c.list); err == nil {
+			if _, err := seedServers("dev-gcp", c.routes, c.list); err == nil {
 				t.Error("want error")
 			}
 		})

@@ -8,7 +8,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"slices"
 	"strings"
 	"time"
@@ -38,7 +37,7 @@ type draftSpec struct {
 	} `json:"route,omitempty"`
 }
 
-// validateDraft applies the seed's validation to hostile input and returns
+// validateDraft applies the seed's validation (model.ValidateRoute) to hostile input and returns
 // the server it describes.
 func validateDraft(cluster, ns, name string, spec draftSpec) (model.Server, error) {
 	s := model.Server{Namespace: ns, Name: name}
@@ -46,32 +45,10 @@ func validateDraft(cluster, ns, name string, spec draftSpec) (model.Server, erro
 		return s, errors.New("registry or route is required")
 	}
 	if r := spec.Route; r != nil {
-		parts := strings.Split(r.Target, ":")
-		if len(parts) != 3 || !dnsLabelRegex.MatchString(parts[0]) || parts[1] != ns || !dnsLabelRegex.MatchString(parts[2]) {
-			return s, fmt.Errorf("route.target %q must be <cluster>:%s:<app>", r.Target, ns)
-		}
-		if parts[0] != cluster {
-			return s, fmt.Errorf("route.target must be in cluster %q, where the gateway resolves service DNS", cluster)
-		}
-		if err := validateUpstreamURL(r.UpstreamURL, ns); err != nil {
-			return s, fmt.Errorf("route.upstream_url: %w", err)
-		}
-		// Unlike the seed, the API allows only the target app's own service DNS:
-		// an ingress name proves nothing about which app answers, and the
-		// gateway sends the target's token there. fleet-gateway rejects query
-		// strings and fragments, so they would block the whole snapshot.
-		u, _ := url.Parse(r.UpstreamURL)
-		host, _ := normalizeHost(u.Hostname())
-		if app := parts[2]; host != app+"."+ns && host != app+"."+ns+".svc.cluster.local" {
-			return s, fmt.Errorf("route.upstream_url: host must be %s.%s or %s.%s.svc.cluster.local", app, ns, app, ns)
-		}
-		if u.RawQuery != "" || u.Fragment != "" || u.ForceQuery {
-			return s, errors.New("route.upstream_url: query strings and fragments are not allowed")
-		}
-		if err := validateTools(r.Tools); err != nil {
-			return s, fmt.Errorf("route: %w", err)
-		}
 		s.Route = &model.Route{Path: "/mcp/" + ns + "/" + name, Target: r.Target, UpstreamURL: r.UpstreamURL, Enabled: r.Enabled == nil || *r.Enabled, Tools: r.Tools}
+		if err := model.ValidateRoute(cluster, *s.Route); err != nil {
+			return s, err
+		}
 	}
 	if len(spec.Registry) > 0 {
 		// mcp-registry rejects the whole snapshot without these.
