@@ -106,10 +106,8 @@ spec:
     {{/if}}
   accessPolicy:
     outbound:
-      rules:
-      {{#each outbound_rules}}
-        - { application: {{application}}{{#if namespace}}, namespace: {{namespace}}{{/if}}{{#if cluster}}, cluster: {{cluster}}{{/if}} }
-      {{/each}}
+      # In-cluster egress comes from the NetworkPolicy fleet-gateway-egress
+      # below: Nais drops outbound rules with application "*".
       external:
         - host: login.microsoftonline.com
       {{#each cimd_hosts as |host|}}
@@ -119,6 +117,30 @@ spec:
   {{#each ingresses as |url|}}
     - {{url}}
   {{/each}}
+---
+# Owner decision 2026-11-25 (#2985): the gateway may reach any pod in the
+# cluster, so a new MCP server needs no change here. Security rests on the
+# receiver: its inbound accessPolicy (default deny) and Entra azp validation.
+# naiserator skips outbound rules with application "*" (networkpolicy.go,
+# egressRulesFromAccessPolicy), so this is a plain NetworkPolicy. Policies are
+# additive: it widens the egress the Application already gets.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: fleet-gateway-egress
+  namespace: copilot
+  labels:
+    team: copilot
+spec:
+  podSelector:
+    matchLabels:
+      app: fleet-gateway
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector: {}
+          podSelector: {}
 ---
 # Alerts for fleet-gateway. The 5xx and token rules need some traffic before they
 # can fire, so a quiet dev cluster stays silent. stream_error from an idle SSE

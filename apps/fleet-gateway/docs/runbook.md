@@ -149,6 +149,17 @@ Remove the `client_id` from `ALLOWED_CLIENT_IDS` in `.nais/<env>-gcp.yaml` and d
 
 The deploy that hashes the store keys for authorization codes, consent ids and Entra `state` (#2454) can fail one login per user during the rolling update: the login starts on a new pod and finishes on an old one, which cannot find the hashed row. The user logs in again. Nothing to do after the rollout. Remove the plaintext-key fallback in `store_gateway.go` (`shortcut:` comment) once a pending/code TTL has passed.
 
+## Receivers must be closed by default
+
+The gateway may reach any pod in the cluster (NetworkPolicy `fleet-gateway-egress` in `.nais/app.yaml`, owner decision 2026-11-25, #2985). Adding an MCP server needs no change to the gateway manifest. The network no longer limits what the gateway can call, so each receiver must close itself. Before a route goes live, check the receiver:
+
+1. `accessPolicy.inbound.rules` lists `fleet-gateway` in namespace `copilot`, and no `application: "*"` or other broad rule.
+2. It validates the Entra token on every request: signature, issuer, audience is the receiver's own client ID, and expiry.
+3. It checks that `azp` is the fleet-gateway client ID and rejects app-only tokens (no `NAVident`).
+4. It applies its own access control from claims such as groups.
+
+A receiver that fails a check stays out of `pilot-routes.<env>.yaml` and fleet-control until fixed.
+
 ## Post-deploy smoke (three steps)
 
 1. `curl -s -o /dev/null -w '%{http_code}\n' $URL/.well-known/oauth-protected-resource/mcp/<namespace>/<name>` prints `200`.
@@ -186,7 +197,7 @@ With `ROUTES_SOURCE=git` and `ROUTES_SHADOW_SOURCE=fleet-control` the gateway al
 - `fleet_gateway_routes_shadow_failures_total`: failed or rejected shadow fetches. A failure never changes what the gateway serves.
 - Log line `fleet-control shadow diff` with the differing route paths, at the first snapshot and whenever the set changes.
 
-Enable it with `routes_shadow_source: fleet-control`, `fleet_control_audience` and the `fleet-control` outbound rule in the environment file. The values must not be combined with `routes_source: fleet-control`; the gateway refuses to start.
+Enable it with `routes_shadow_source: fleet-control`, and `fleet_control_audience` in the environment file. The values must not be combined with `routes_source: fleet-control`; the gateway refuses to start.
 
 ### Dev rehearsal
 
@@ -202,9 +213,9 @@ Dev runs on fleet-control. Rehearse shadow mode, the switch and the rollback the
 
 1. Check every gate above.
 2. Deploy fleet-control prod. Its log shows `seed` with `imported` true and the server count. Time: ____
-3. Preparation PR, deployed before the watch starts. In `.nais/prod-gcp.yaml` add the `fleet-control` outbound rule, `fleet_control_audience: "api://prod-gcp.copilot.fleet-control/.default"` and `routes_shadow_source: fleet-control`. Shadow mode cannot fetch without the rule and the audience. After the deploy, the first `fleet-control shadow diff` log line must appear on every pod; `fleet_gateway_routes_shadow_failures_total` growing means the rule or inbound is missing. Merged: ____ First shadow log: ____
+3. Preparation PR, deployed before the watch starts. In `.nais/prod-gcp.yaml` add `fleet_control_audience: "api://prod-gcp.copilot.fleet-control/.default"` and `routes_shadow_source: fleet-control`. Shadow mode cannot fetch without the audience. After the deploy, the first `fleet-control shadow diff` log line must appear on every pod; `fleet_gateway_routes_shadow_failures_total` growing means the audience or fleet-control's inbound rule is missing. Merged: ____ First shadow log: ____
 4. Watch for 24 h: `fleet_gateway_routes_shadow_diff` stays at 0 on every pod and `fleet_gateway_routes_shadow_failures_total` does not grow. Any non-zero diff resets the clock. Start: ____ End: ____
-5. Switch PR: replace `routes_shadow_source` with `routes_source: fleet-control`; the outbound rule and audience stay. Merge and watch the deploy job. Merged: ____ Rollout complete: ____
+5. Switch PR: replace `routes_shadow_source` with `routes_source: fleet-control`; the audience stays. Merge and watch the deploy job. Merged: ____ Rollout complete: ____
 6. Verify: `/ready` 200 on every pod, snapshot age under 120 s, no `fleet-control routes not updated` in the logs, and the post-deploy smoke on each prod route (PRM 200, then one tool call). Done: ____
 
 ### Roll back to the Git file (under 5 min)
