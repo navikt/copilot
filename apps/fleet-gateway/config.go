@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/navikt/copilot/fleet-gateway/internal/config"
+	"github.com/navikt/copilot/fleet-gateway/internal/ratelimit"
 	"log/slog"
 	"net/http"
 	"os"
@@ -53,9 +54,9 @@ const (
 	defaultDCRRateLimitWindow               = time.Hour
 	maxDCRBodyBytes                         = 16 * 1024
 	defaultRateLimitCap                     = 4096
-	defaultRateLimitRequests                = 30
-	defaultRateLimitGlobalRequests          = 300
-	defaultRateLimitWindow                  = time.Minute
+	defaultRateLimitRequests                = ratelimit.DefaultRequests
+	defaultRateLimitGlobalRequests          = ratelimit.DefaultGlobalRequests
+	defaultRateLimitWindow                  = ratelimit.DefaultWindow
 	defaultSweepInterval                    = 30 * time.Second
 	defaultSSEMaxDuration                   = 10 * time.Minute
 	defaultSSEIdleTimeout                   = 60 * time.Second

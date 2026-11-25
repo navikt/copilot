@@ -1,20 +1,21 @@
-package main
+package ratelimit
 
 import (
 	"sync"
 	"time"
 )
 
+// Defaults for the rate-limit log sampler.
 const (
-	defaultRateLimitLogCap       = 4096
-	defaultRateLimitLogGlobalCap = 100
-	defaultRateLimitLogWindow    = time.Minute
+	DefaultLogCap       = 4096
+	DefaultLogGlobalCap = 100
+	DefaultLogWindow    = time.Minute
 )
 
-// rateLimitLogSampler samples rate-limit warnings so each client IP emits at
+// LogSampler samples rate-limit warnings so each client IP emits at
 // most one log line per window and total warnings per window are globally
 // capped, while keeping memory bounded.
-type rateLimitLogSampler struct {
+type LogSampler struct {
 	mu          sync.Mutex
 	lastSeen    map[string]time.Time
 	window      time.Duration
@@ -25,27 +26,28 @@ type rateLimitLogSampler struct {
 	now         func() time.Time
 }
 
-func newRateLimitLogSampler(window time.Duration, maxSize int, now func() time.Time) *rateLimitLogSampler {
+// NewLogSampler returns a LogSampler with one line per key per window.
+func NewLogSampler(window time.Duration, maxSize int, now func() time.Time) *LogSampler {
 	if now == nil {
 		now = time.Now
 	}
 	if window <= 0 {
-		window = defaultRateLimitLogWindow
+		window = DefaultLogWindow
 	}
 	if maxSize <= 0 {
 		maxSize = 1
 	}
-	return &rateLimitLogSampler{
+	return &LogSampler{
 		lastSeen:  make(map[string]time.Time),
 		window:    window,
 		maxSize:   maxSize,
-		globalMax: defaultRateLimitLogGlobalCap,
+		globalMax: DefaultLogGlobalCap,
 		now:       now,
 	}
 }
 
 // Allow reports whether a rate-limit warning should be logged for ip at the current time.
-func (s *rateLimitLogSampler) Allow(ip string) bool {
+func (s *LogSampler) Allow(ip string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -71,7 +73,7 @@ func (s *rateLimitLogSampler) Allow(ip string) bool {
 }
 
 // Sweep removes expired entries from the sampler map and returns how many were removed.
-func (s *rateLimitLogSampler) Sweep() int {
+func (s *LogSampler) Sweep() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -86,7 +88,7 @@ func (s *rateLimitLogSampler) Sweep() int {
 	return removed
 }
 
-func (s *rateLimitLogSampler) evictOldestLocked() {
+func (s *LogSampler) evictOldestLocked() {
 	var oldestIP string
 	var oldestTime time.Time
 	first := true
