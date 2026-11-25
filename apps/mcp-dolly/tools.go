@@ -462,7 +462,6 @@ func (s *server) quotaPeriodEN() string {
 	return "per 24 hours"
 }
 
-// useToken verifies a confirmation token and spends it in the store.
 func (s *server) useToken(ctx context.Context, token, userHash, params string) error {
 	now := s.now() // one clock read, so verify and consume agree on expiry
 	sig, exp, err := s.confirm.verify(token, userHash, params, now)
@@ -739,8 +738,6 @@ func parseFragment(fields map[string]json.RawMessage) (string, *mcpRPCError) {
 	return s, nil
 }
 
-// --- Shared helpers (from mcp-kodeverk) ---
-
 func (s *server) execWithOBO(ctx context.Context, inboundToken string, fn func(oboToken string) (string, error)) map[string]any {
 	if s.upstreamSem != nil {
 		select {
@@ -769,8 +766,6 @@ func toolErrorResult(msg string) map[string]any {
 		"isError": true,
 	}
 }
-
-// --- Argument parsing & validation ---
 
 func decodeArgMap(raw json.RawMessage, allowed map[string]bool) (map[string]json.RawMessage, *mcpRPCError) {
 	trimmed := bytes.TrimSpace(raw)

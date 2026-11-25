@@ -99,7 +99,6 @@ func (c *orderConfirm) consume(token, userHash, params string, now time.Time) er
 	return c.markUsed(userHash, sig, exp, now)
 }
 
-// verify checks signature and expiry and returns the signature and expiry.
 func (c *orderConfirm) verify(token, userHash, params string, now time.Time) (string, time.Time, error) {
 	i := strings.LastIndex(token, ".")
 	if i < 0 {
@@ -128,7 +127,6 @@ func (c *orderConfirm) verify(token, userHash, params string, now time.Time) (st
 // between pods, so a token that still verifies somewhere is never forgotten.
 const spentGrace = confirmTTL + time.Minute
 
-// markUsed records a verified token in the per-pod set.
 func (c *orderConfirm) markUsed(userHash, sig string, exp, now time.Time) error {
 	if !now.Before(exp) {
 		return errConfirm
