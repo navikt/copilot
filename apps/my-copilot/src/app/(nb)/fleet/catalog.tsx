@@ -17,6 +17,7 @@ import {
   TextField,
   VStack,
 } from "@navikt/ds-react";
+import { ExternalLinkIcon } from "@navikt/aksel-icons";
 import type { CatalogEntry } from "@/lib/fleet-control";
 import { isName, refKey } from "@/lib/fleet-names";
 import { KortFortalt } from "./fleet-ui";
@@ -182,7 +183,15 @@ export function NoTeam() {
 }
 
 /** What another team sees of an MCP server: the catalogue entry, no drafts, history or actions. */
-export function ServerReadOnly({ entry, myTeams = [] }: { entry: CatalogEntry; myTeams?: string[] }) {
+export function ServerReadOnly({
+  entry,
+  myTeams = [],
+  grafanaUrl,
+}: {
+  entry: CatalogEntry;
+  myTeams?: string[];
+  grafanaUrl?: string;
+}) {
   const owner = entry.metadata.namespace;
   const docs = new Map((entry.spec.tools ?? []).map((t) => [t.name, t.description]));
   const tools = entry.spec.allowedTools ?? [];
@@ -226,6 +235,13 @@ export function ServerReadOnly({ entry, myTeams = [] }: { entry: CatalogEntry; m
           )}
         </VStack>
       </dl>
+      {grafanaUrl && (
+        <BodyShort>
+          <Link href={grafanaUrl} target="_blank" rel="noopener noreferrer">
+            Se bruk i Grafana <ExternalLinkIcon fontSize="1rem" title="åpnes i ny fane" />
+          </Link>
+        </BodyShort>
+      )}
       <section aria-labelledby="be-om-tilgang">
         <VStack gap="space-8">
           <Heading id="be-om-tilgang" level="2" size="small">

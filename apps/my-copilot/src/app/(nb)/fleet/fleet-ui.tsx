@@ -28,6 +28,7 @@ import {
   TextField,
   VStack,
 } from "@navikt/ds-react";
+import { ExternalLinkIcon } from "@navikt/aksel-icons";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { hasCondition, refKey } from "@/lib/fleet-names";
@@ -420,6 +421,7 @@ export function ServerDetail({
   owner = false,
   agents = [],
   agentsFailed = false,
+  grafanaUrl,
 }: {
   server: MCPServer;
   events: AuditEvent[];
@@ -428,6 +430,7 @@ export function ServerDetail({
   owner?: boolean;
   agents?: AgentProfile[];
   agentsFailed?: boolean;
+  grafanaUrl?: string;
 }) {
   return (
     <VStack gap="space-16">
@@ -446,6 +449,13 @@ export function ServerDetail({
           ["Versjon som venter på godkjenning", server.status.pending?.generation ?? "–"],
         ]}
       />
+      {grafanaUrl && (
+        <BodyShort>
+          <Link href={grafanaUrl} target="_blank" rel="noopener noreferrer">
+            Se bruk i Grafana <ExternalLinkIcon fontSize="1rem" title="åpnes i ny fane" />
+          </Link>
+        </BodyShort>
+      )}
       {agentsFailed ? (
         <Alert variant="warning" size="small">
           Vi fikk ikke hentet agentprofilene som venter på tilgang. Last inn siden på nytt.
