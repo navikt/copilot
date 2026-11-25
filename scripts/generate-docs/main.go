@@ -124,7 +124,6 @@ func readMetadata(path string) metadata {
 	return m
 }
 
-// titleCase converts "nais-agent" → "Nais Agent"
 func titleCase(s string) string {
 	words := strings.Split(s, "-")
 	for i, w := range words {
@@ -135,7 +134,6 @@ func titleCase(s string) string {
 	return strings.Join(words, " ")
 }
 
-// escapeTableCell escapes pipe characters in markdown table cell content
 func escapeTableCell(s string) string {
 	return strings.ReplaceAll(s, "|", "\\|")
 }
