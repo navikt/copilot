@@ -182,6 +182,9 @@ func validateServerEntry(server, rawServer *StaticServerData, index int, existin
 		}
 	}
 
+	if server.Owner != "" && !ownerRegex.MatchString(server.Owner) {
+		return fmt.Errorf("server[%d].owner %q is invalid: must be a Nais team matching ^[a-z0-9-]+$", index, server.Owner)
+	}
 	if err := validateAudience(server.Audience); err != nil {
 		return fmt.Errorf("server[%d].%w", index, err)
 	}

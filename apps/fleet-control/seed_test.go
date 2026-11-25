@@ -45,8 +45,14 @@ func TestSeedRealFiles(t *testing.T) {
 					registry++
 				}
 			}
-			if registry != len(doc.Servers) {
-				t.Errorf("seeded %d registry entries, allowlist has %d", registry, len(doc.Servers))
+			gateway := 0
+			for _, raw := range doc.Servers {
+				if strings.Contains(string(raw), gatewayRemotePrefix) {
+					gateway++
+				}
+			}
+			if gateway == 0 || registry != gateway {
+				t.Errorf("seeded %d registry entries, allowlist has %d gateway entries", registry, gateway)
 			}
 
 			onboarding := byKey["copilot/onboarding"]
@@ -59,8 +65,16 @@ func TestSeedRealFiles(t *testing.T) {
 			if !strings.Contains(string(onboarding.Registry), gatewayRemotePrefix+"/mcp/copilot/onboarding") {
 				t.Error("gateway remote must be kept")
 			}
-			if byKey["copilot/figma-mcp"].RegistryName != "com.figma/figma-mcp" {
-				t.Error("non-gateway entries map to (copilot, last name segment)")
+			for _, s := range servers {
+				if s.Registry != nil && !strings.Contains(string(s.Registry), gatewayRemotePrefix) {
+					t.Errorf("%s: only fleet-gateway entries are seeded", s.Key())
+				}
+			}
+			if _, ok := byKey["copilot/figma-mcp"]; ok {
+				t.Error("non-gateway entry figma-mcp must not be seeded")
+			}
+			if _, ok := byKey["copilot/test"]; env == "dev" && !ok {
+				t.Error("pilot route test must still be seeded")
 			}
 			for _, s := range servers {
 				if s.Status != "published" {
@@ -82,8 +96,12 @@ func TestSeedRejectsBadInput(t *testing.T) {
 	route := func(body string) []byte { return []byte("version: 2\nroutes:\n" + body) }
 	okRoute := route("  - route: /mcp/copilot/a\n    team: copilot\n    target: dev-gcp:copilot:a\n    upstream_url: http://a.copilot/\n    tools: [x]\n")
 	okList := []byte(`{"servers":[{"name":"io.github.navikt/b","remotes":[{"type":"streamable-http","url":"https://b.nav.no/mcp"}]}]}`)
-	if _, err := seedServers(okRoute, okList); err != nil {
+	servers, err := seedServers(okRoute, okList)
+	if err != nil {
 		t.Fatalf("baseline must pass: %v", err)
+	}
+	if len(servers) != 1 || servers[0].Key() != "copilot/a" {
+		t.Errorf("non-gateway allowlist entry must not be seeded: %+v", servers)
 	}
 	cases := map[string]struct{ routes, list []byte }{
 		"public upstream":  {route("  - route: /mcp/copilot/a\n    team: copilot\n    target: dev-gcp:copilot:a\n    upstream_url: https://evil.example.com/\n    tools: [x]\n"), okList},
@@ -110,8 +128,7 @@ func TestSeedRejectsBadInput(t *testing.T) {
 		"short ip":         {okRoute, []byte(`{"servers":[{"name":"a.b/c","remotes":[{"url":"https://127.1/mcp"}]}]}`)},
 		"hex ip":           {okRoute, []byte(`{"servers":[{"name":"a.b/c","remotes":[{"url":"https://0x7f.1/mcp"}]}]}`)},
 		"upstream dot":     {route("  - route: /mcp/copilot/a\n    team: copilot\n    target: dev-gcp:copilot:a\n    upstream_url: http://evil.example.com./\n    tools: [x]\n"), okList},
-		"join by name":     {okRoute, []byte(`{"servers":[{"name":"io.github.navikt/a","remotes":[{"url":"https://a.nav.no/mcp"}]}]}`)},
-		"name collision":   {okRoute, []byte(`{"servers":[{"name":"a.b/c"},{"name":"d.e/c"}]}`)},
+		"name collision":   {okRoute, []byte(`{"servers":[{"name":"a.b/c","remotes":[{"url":"https://fleet-gateway.{{domain_internal}}/mcp/copilot/c"}]},{"name":"d.e/c","remotes":[{"url":"https://fleet-gateway.{{domain_internal}}/mcp/copilot/c"}]}]}`)},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
