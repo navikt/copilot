@@ -103,16 +103,32 @@ spec:
     - name: FLEET_CONTROL_AUDIENCE
       value: "{{fleet_control_audience}}"
 {{/if}}
+{{#if probe_allowed_azp}}
+    # Probe (#2985). NAIS_CLUSTER_NAME and NAIS_SERVICE_ACCOUNT_TOKEN_PATH come from Nais.
+    - name: PROBE_ENABLED
+      value: "true"
+    - name: PROBE_ALLOWED_AZP
+      value: "{{probe_allowed_azp}}"
+{{/if}}
 {{#if pilot_routes_file}}
     - name: PILOT_ROUTES_FILE
       value: "{{pilot_routes_file}}"
 {{/if}}
   accessPolicy:
+{{#if probe_allowed_azp}}
+    inbound:
+      rules:
+        # my-copilot calls /probe/v1/tools with an OBO token for this app (#2985).
+        - application: my-copilot
+{{/if}}
     outbound:
       # In-cluster egress comes from the NetworkPolicy fleet-gateway-egress
       # below: Nais drops outbound rules with application "*".
       external:
         - host: login.microsoftonline.com
+{{#if probe_allowed_azp}}
+        - host: console.nav.cloud.nais.io # probe team lookup (#2985)
+{{/if}}
 {{#each cimd_hosts as |host|}}
         - host: "{{host}}"
 {{/each}}
