@@ -79,7 +79,7 @@ func TestDCR_RegisterAndAuthorize(t *testing.T) {
 		t.Fatalf("register status %d: %v", code, out)
 	}
 	clientID, _ := out["client_id"].(string)
-	if !strings.HasPrefix(clientID, server.DCRClientIDPrefix) || len(clientID) < 40 {
+	if !strings.HasPrefix(clientID, dcrClientIDPrefix) || len(clientID) < 40 {
 		t.Fatalf("client_id not opaque random: %q", clientID)
 	}
 	if out["token_endpoint_auth_method"] != "none" {
@@ -140,7 +140,7 @@ func TestDCR_UnknownOrExpiredClientRejected(t *testing.T) {
 	te := newTestEnv(t)
 	enableDCR(te, 10, 10)
 	verifier := "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
-	u := te.authorizeURL(map[string]string{"client_id": server.DCRClientIDPrefix + "made-up", "redirect_uri": "http://127.0.0.1:40001/mcp/oauth/callback"}, verifier)
+	u := te.authorizeURL(map[string]string{"client_id": dcrClientIDPrefix + "made-up", "redirect_uri": "http://127.0.0.1:40001/mcp/oauth/callback"}, verifier)
 	rec := httptest.NewRecorder()
 	te.handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, u, nil))
 	if rec.Code != http.StatusBadRequest {
@@ -426,7 +426,7 @@ func TestDCR_AuthorizeRequiresRegisteredCodeGrant(t *testing.T) {
 	te := newTestEnv(t)
 	enableDCR(te, 10, 10)
 	// A registration stored before grant_types were enforced.
-	id := server.DCRClientIDPrefix + "legacy"
+	id := dcrClientIDPrefix + "legacy"
 	raw, _ := json.Marshal(server.ClientMetadata{ClientID: id, RedirectURIs: []string{"http://127.0.0.1/mcp/oauth/callback"}, GrantTypes: []string{"refresh_token"}})
 	if err := te.gw.store.Put(t.Context(), kindDCRClient, id, raw, time.Hour); err != nil {
 		t.Fatal(err)

@@ -18,8 +18,8 @@ import (
 const (
 	// PendingTTL bounds a pending authorization and its state cookies.
 	PendingTTL = 10 * time.Minute
-	// CodeTTL bounds a single-use authorization code.
-	CodeTTL = 60 * time.Second
+	// codeTTL bounds a single-use authorization code.
+	codeTTL = 60 * time.Second
 )
 
 // PendingAuth is an /authorize request waiting for the Entra login or consent.
@@ -105,7 +105,7 @@ func PutCode(ctx context.Context, store session.Store, code string, c *IssuedCod
 	if err != nil {
 		return err
 	}
-	return store.Put(ctx, session.KindCode, HashToken(code), raw, CodeTTL)
+	return store.Put(ctx, session.KindCode, HashToken(code), raw, codeTTL)
 }
 
 // PopCode reads and deletes the code, so it is single use.
@@ -124,7 +124,7 @@ func PopCode(ctx context.Context, store session.Store, code string) (*IssuedCode
 func popHashed(ctx context.Context, store session.Store, kind, key string) ([]byte, bool, error) {
 	raw, ok, err := store.Pop(ctx, kind, HashToken(key))
 	if err == nil && !ok {
-		// shortcut: plaintext-key fallback for rows written before this change; remove after one pending/code TTL (PendingTTL/CodeTTL) has passed since deploy
+		// shortcut: plaintext-key fallback for rows written before this change; remove after one pending/code TTL (PendingTTL/codeTTL) has passed since deploy
 		raw, ok, err = store.Pop(ctx, kind, key)
 	}
 	return raw, ok, err

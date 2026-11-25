@@ -29,20 +29,20 @@ import (
 	"github.com/navikt/copilot/fleet-gateway/internal/session"
 )
 
-// EntraStateCookieName prefixes the per-login cookie that binds the Entra state.
-const EntraStateCookieName = "__Host-fleet_entra_state"
+// entraStateCookieName prefixes the per-login cookie that binds the Entra state.
+const entraStateCookieName = "__Host-fleet_entra_state"
 
 // MaxEntraStateCookies caps the state cookies a browser holds, so abandoned
 // logins cannot grow the Cookie header until requests are refused (431).
 const MaxEntraStateCookies = 8
 
-// EntraStateCookieFor names the per-login state cookie, so parallel logins
+// entraStateCookieFor names the per-login state cookie, so parallel logins
 // (several gateway routes authenticating at once) don't overwrite each other.
 // The set is bounded by MaxAge (oauth.PendingTTL): cookies expire on their own,
 // and the callback clears its own. Each is ~100 bytes.
-func EntraStateCookieFor(state string) string {
+func entraStateCookieFor(state string) string {
 	h := sha256.Sum256([]byte(state))
-	return EntraStateCookieName + "_" + hex.EncodeToString(h[:4])
+	return entraStateCookieName + "_" + hex.EncodeToString(h[:4])
 }
 
 // ClientMetadata is a client's CIMD document or DCR registration.
@@ -358,7 +358,7 @@ func (g *Server) redirectToEntra(w http.ResponseWriter, r *http.Request, p *oaut
 	// are dropped (in-flight logins beyond the cap must restart); upgrade by signing issuedAt.
 	var stale []string
 	for _, c := range r.Cookies() {
-		if strings.HasPrefix(c.Name, EntraStateCookieName+"_") {
+		if strings.HasPrefix(c.Name, entraStateCookieName+"_") {
 			stale = append(stale, c.Name)
 		}
 	}
@@ -369,7 +369,7 @@ func (g *Server) redirectToEntra(w http.ResponseWriter, r *http.Request, p *oaut
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     EntraStateCookieFor(entraState),
+		Name:     entraStateCookieFor(entraState),
 		Value:    g.SignEntraState(entraState),
 		Path:     "/",
 		HttpOnly: true,
@@ -385,7 +385,7 @@ func (g *Server) redirectToEntra(w http.ResponseWriter, r *http.Request, p *oaut
 		"response_mode":         {"query"},
 		"state":                 {entraState},
 		"scope":                 {g.cfg.EntraScope},
-		"code_challenge":        {PKCES256(entraVerifier)},
+		"code_challenge":        {pkceS256(entraVerifier)},
 		"code_challenge_method": {"S256"},
 	}
 	if entraNonce != "" {
@@ -406,16 +406,16 @@ func (g *Server) Callback(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	queryState := q.Get("state")
 
-	name := EntraStateCookieFor(queryState)
+	name := entraStateCookieFor(queryState)
 	cookie, err := r.Cookie(name)
 	if err != nil {
 		// Rollout compat: logins started before the per-login cookie used a fixed name.
-		name = EntraStateCookieName
+		name = entraStateCookieName
 		cookie, err = r.Cookie(name)
 	}
-	clearEntraStateCookie(w, EntraStateCookieFor(queryState))
-	if err == nil && name == EntraStateCookieName {
-		clearEntraStateCookie(w, EntraStateCookieName)
+	clearEntraStateCookie(w, entraStateCookieFor(queryState))
+	if err == nil && name == entraStateCookieName {
+		clearEntraStateCookie(w, entraStateCookieName)
 	}
 	if err != nil || !g.VerifyEntraStateCookie(cookie.Value, queryState) {
 		http.Error(w, "state binding cookie missing or invalid; start the login again", http.StatusForbidden)
@@ -451,7 +451,7 @@ func (g *Server) Callback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if errCode := q.Get("error"); errCode != "" {
-		slog.Info("audit login", "outcome", "entra_error", "error", TruncateLogValue(errCode, MaxLogErrorLen), "client_id", sanitizeLogValue(p.ClientID), "resource", sanitizeLogValue(p.Resource))
+		slog.Info("audit login", "outcome", "entra_error", "error", truncateLogValue(errCode, MaxLogErrorLen), "client_id", sanitizeLogValue(p.ClientID), "resource", sanitizeLogValue(p.Resource))
 		back(url.Values{
 			"error":             {errCode},
 			"error_description": {sanitizeUpstreamDesc(q.Get("error_description"))},

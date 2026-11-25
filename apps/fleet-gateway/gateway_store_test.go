@@ -672,7 +672,7 @@ func TestPendingAndCode_HashedKeysAndPlaintextFallback(t *testing.T) {
 		if err != nil {
 			t.Fatalf("marshal: %v", err)
 		}
-		if putErr := te.gw.store.Put(ctx, kindCode, code, raw, oauth.CodeTTL); putErr != nil {
+		if putErr := te.gw.store.Put(ctx, kindCode, code, raw, time.Minute); putErr != nil {
 			t.Fatalf("store.Put: %v", putErr)
 		}
 
