@@ -68,6 +68,19 @@ func auditTools(t *testing.T, method string, tools map[string]bool, body string)
 
 func auditToolsHeaders(t *testing.T, method string, tools map[string]bool, body string, hdrs http.Header) (map[string]any, []byte, int) {
 	t.Helper()
+	audit, got, code, _ := auditRequest(t, method, body, hdrs, func(gw *Gateway) { gw.cfg.Routes[0].AllowedTools = tools }, nil)
+	return audit, got, code
+}
+
+// auditRisk posts body after setup configures the gateway; beforeSend runs
+// just before the request. It also returns the response body.
+func auditRisk(t *testing.T, body string, setup func(*Gateway), beforeSend func()) (map[string]any, []byte, int, string) {
+	t.Helper()
+	return auditRequest(t, http.MethodPost, body, nil, setup, beforeSend)
+}
+
+func auditRequest(t *testing.T, method, body string, hdrs http.Header, setup func(*Gateway), beforeSend func()) (map[string]any, []byte, int, string) {
+	t.Helper()
 	var logBuf bytes.Buffer
 	old := slog.Default()
 	slog.SetDefault(slog.New(slog.NewJSONHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelInfo})))
@@ -86,7 +99,7 @@ func auditToolsHeaders(t *testing.T, method string, tools map[string]bool, body 
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"jsonrpc":"2.0","id":1,"result":{}}`))
 	})
-	te.gw.cfg.Routes[0].AllowedTools = tools
+	setup(te.gw)
 	te.gw.routeTable.Store(routing.NewTable(te.gw.cfg.Routes))
 	te.handler = te.gw.routes()
 	gwToken := te.obtainAccessTokenForResource(te.resource)
@@ -96,6 +109,9 @@ func auditToolsHeaders(t *testing.T, method string, tools map[string]bool, body 
 	req.Header.Set("Content-Type", "application/json")
 	for k, v := range hdrs {
 		req.Header[k] = v
+	}
+	if beforeSend != nil {
+		beforeSend()
 	}
 	rec := httptest.NewRecorder()
 	te.handler.ServeHTTP(rec, req)
@@ -115,7 +131,7 @@ func auditToolsHeaders(t *testing.T, method string, tools map[string]bool, body 
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	return audit, got, rec.Code
+	return audit, got, rec.Code, rec.Body.String()
 }
 
 func TestAuditMCP_LogsToolName_ForwardsBodyUnchanged(t *testing.T) {

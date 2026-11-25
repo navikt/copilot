@@ -373,6 +373,9 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 			// TODO(#2964): the gateway does not identify agent profiles yet, so
 			// every caller is a logged-in human and nothing would be refused.
 			rc := policy.Caller{}
+			if g.riskCaller != nil {
+				rc = g.riskCaller(r)
+			}
 			r, rd, refuse := policy.CheckRisk(route.ToolRisk, pd.RawTool, rc, g.cfg.RiskEnforcement == "enforce")
 			risk, riskDecision = r.String(), rd
 			metrics.ObserveRiskDecision(route, pd.RawTool, r, rc.Kind(), rd)

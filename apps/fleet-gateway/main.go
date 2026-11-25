@@ -22,6 +22,7 @@ import (
 	"github.com/navikt/copilot/fleet-gateway/internal/inflight"
 	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
 	"github.com/navikt/copilot/fleet-gateway/internal/oauth/entra"
+	"github.com/navikt/copilot/fleet-gateway/internal/policy"
 	"github.com/navikt/copilot/fleet-gateway/internal/ratelimit"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 	"github.com/navikt/copilot/fleet-gateway/internal/ttlmap"
@@ -29,7 +30,10 @@ import (
 
 // Gateway implements the fleet-gateway OAuth 2.1 authorization server and MCP proxy.
 type Gateway struct {
-	cfg           *Config
+	cfg *Config
+	// riskCaller identifies the tools/call caller for the risk check; nil means a
+	// logged-in human. Tests set it until agent profiles are identified (#2964).
+	riskCaller    func(*http.Request) policy.Caller
 	now           func() time.Time
 	store         SessionStore
 	rtKeys        *keyRing
