@@ -209,7 +209,7 @@ Severity warning. No successful snapshot build of one kind for 10 minutes (`flee
 
 ## Backup and restore
 
-Nais Postgres ([doc.nais.io](https://doc.nais.io/persistence/postgres/reference/recovery-window/)) takes a nightly base backup and archives the write-ahead log continuously, into a bucket in the team's project. That gives point-in-time recovery to any second in the window. `.nais/postgres.yaml` sets `backup.retentionDays: 7` (Nais default 2, range 2 to 30). The file is applied by hand, not by CI: run `nais apply -t copilot -e <env> .nais/postgres.yaml` after changing it. Cost at 5Gi is about 5 x 8 x 0.02 = 0.80 EUR a month.
+Nais Postgres ([doc.nais.io](https://doc.nais.io/persistence/postgres/reference/recovery-window/)) takes a nightly base backup and archives the write-ahead log continuously, into a bucket in the team's project. That gives point-in-time recovery to any second in the window. `.nais/postgres.yaml` sets `backup.retentionDays: 7` (Nais default 2, range 2 to 30). CI deploys the file with the app (`nais-resource` in `.github/workflows/fleet-control.yaml`). Cost at 5Gi is about 5 x 8 x 0.02 = 0.80 EUR a month.
 
 - RPO: seconds (WAL archive), within 7 days.
 - RTO: clone time plus one deploy, about 5 minutes in the dev drill below.
