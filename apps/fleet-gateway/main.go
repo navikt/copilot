@@ -43,6 +43,7 @@ type Gateway struct {
 	userSSE       *userSlots    // concurrent open SSE response streams per user on this pod
 	routeInFlight *userSlots    // concurrent buffered MCP calls per route on this pod, keyed by route path
 	routeTable    atomic.Pointer[RouteTable]
+	draining      atomic.Bool // set on SIGTERM so /ready drops the pod before Shutdown
 
 	wellKnownMu         sync.RWMutex
 	wellKnownGroup      singleflight.Group
@@ -275,6 +276,10 @@ func healthHandler(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (g *Gateway) readyHandler(w http.ResponseWriter, r *http.Request) {
+	if g.draining.Load() {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "not_ready", "reason": "shutting_down"})
+		return
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
 	if err := g.store.Ping(ctx); err != nil {
@@ -359,6 +364,16 @@ const serverReadTimeout = 10 * time.Second
 // SSE clears its own deadline.
 func mcpWriteTimeout(read, token, upstream, margin time.Duration) time.Duration {
 	return read + token + 2*upstream + margin
+}
+
+// maxShutdownDrain stays under terminationGracePeriodSeconds (180, the Nais
+// maximum) in .nais/app.yaml, leaving room for the preStop sleep.
+const maxShutdownDrain = 170 * time.Second
+
+// shutdownDrain is how long Shutdown waits for in-flight calls: the longest a
+// non-SSE call may run (WriteTimeout), capped by the pod's grace period.
+func shutdownDrain(writeTimeout time.Duration) time.Duration {
+	return min(writeTimeout, maxShutdownDrain)
 }
 
 type statusResponseWriter struct {
@@ -624,9 +639,11 @@ func main() {
 	}()
 
 	<-ctx.Done()
-	slog.Info("Shutting down gracefully...")
+	gw.draining.Store(true)
+	drain := shutdownDrain(server.WriteTimeout)
+	slog.Info("Shutting down gracefully...", "drain", drain)
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), drain)
 	defer cancel()
 	_ = metrics.Shutdown(shutdownCtx)
 	if err := server.Shutdown(shutdownCtx); err != nil {

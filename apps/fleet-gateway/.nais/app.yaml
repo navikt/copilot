@@ -27,6 +27,8 @@ spec:
     enabled: true
     path: /metrics
     port: "9090"
+  # Covers fleet-gateway's shutdown drain (maxShutdownDrain, 170 s) plus the preStop sleep.
+  terminationGracePeriodSeconds: 180
   liveness:
     path: /health
     initialDelay: 10
