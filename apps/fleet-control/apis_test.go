@@ -696,3 +696,50 @@ func TestRealPostgresApproveNeedsApproverOid(t *testing.T) {
 		t.Fatalf("approver without oid: %v", err)
 	}
 }
+
+// spec.toolRisk survives the Postgres round trip into the routes snapshot. A
+// legacy version without it has no tool_risk (every tool counts as write), and
+// a malformed stored value fails the build and keeps the previous snapshot.
+func TestRealPostgresToolRiskSnapshot(t *testing.T) {
+	e := newApisEnv(t)
+	ctx := context.Background()
+	body := strings.Replace(serverJSON("team-a", "svc", "", "a", "b"), `"allowedTools"`, `"toolRisk":{"a":"read"},"allowedTools"`, 1)
+	m := decodeServer(t, e.want(201, "POST", nsBase+"team-a/mcpservers", person("A111111"), body))
+	e.want(200, "POST", nsBase+"team-a/mcpservers/svc/approval", person("A222222"), approval(1, m.Status.Pending.ContentHash))
+	e.publish("team-a", "legacy", "A111111", "A222222", "c")
+	if _, err := e.db.pool.Exec(ctx, `UPDATE server_versions SET spec = spec - 'toolRisk' WHERE name = 'legacy'`); err != nil {
+		t.Fatal(err)
+	}
+	snap, err := e.srv.resolve(ctx, "routes")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var items []struct {
+		Path     string            `json:"path"`
+		ToolRisk map[string]string `json:"tool_risk"`
+	}
+	if err = json.Unmarshal(snap.Items, &items); err != nil {
+		t.Fatalf("%v: %s", err, snap.Items)
+	}
+	got := map[string]map[string]string{}
+	for _, it := range items {
+		got[it.Path] = it.ToolRisk
+	}
+	if r, ok := got["/mcp/team-a/svc"]; !ok || len(r) != 1 || r["a"] != "read" {
+		t.Errorf("svc toolRisk lost: %s", snap.Items)
+	}
+	if r, ok := got["/mcp/team-a/legacy"]; !ok || r != nil {
+		t.Errorf("legacy row must have no tool_risk: %s", snap.Items)
+	}
+
+	if _, err = e.db.pool.Exec(ctx, `UPDATE server_versions SET spec = jsonb_set(spec, '{toolRisk}', '"read"') WHERE name = 'svc'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = e.db.Publish(ctx, "routes", buildSnapshot); err == nil || !strings.Contains(err.Error(), "spec.toolRisk") {
+		t.Errorf("malformed toolRisk must fail the build: %v", err)
+	}
+	kept, err := e.srv.resolve(ctx, "routes")
+	if err != nil || kept.Generation != snap.Generation || kept.ETag != snap.ETag {
+		t.Errorf("previous snapshot must be kept: %v %+v", err, kept)
+	}
+}

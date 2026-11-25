@@ -78,6 +78,7 @@ func snapshotItems(kind string, servers []Server) (items []snapshotItem, revoked
 			// revoked rows from before this change cannot push an existing
 			// snapshot past the gateway's size limit.
 			r.Tools = r.Tools[:min(len(r.Tools), 1)]
+			r.ToolRisk = nil
 			// The gateway never calls a disabled route's upstream, but still
 			// validates it; the target's app in its namespace passes and stays short.
 			r.UpstreamURL = "http://" + r.Target[strings.LastIndex(r.Target, ":")+1:] + "." + s.Namespace

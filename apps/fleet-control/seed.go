@@ -23,6 +23,8 @@ type Route struct {
 	UpstreamURL string   `json:"upstream_url"`
 	Enabled     bool     `json:"enabled"`
 	Tools       []string `json:"tools"`
+	// ToolRisk is spec.toolRisk; a tool without an entry is write (#2903).
+	ToolRisk map[string]string `json:"tool_risk,omitempty"`
 }
 
 // Server is one published server version: a registry entry, a route, or both.
