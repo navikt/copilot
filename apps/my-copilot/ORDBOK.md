@@ -113,3 +113,4 @@ Fastsatt av eier 23. november 2026, se [#2748](https://github.com/navikt/copilot
 - **Tall**: Bruk norsk tallformat med mellomrom som tusenskilletegn: «151 354».
 - **Sesjon**: Skriv «sesjon» og «sesjoner», ikke «økt» eller «session».
 - **Prosent**: Skriv «20–40 %» med mellomrom før prosenttegnet.
+- **Føderert**: Ikke skriv «føderert», «federert», «fødererte» eller «føderer». Skriv hva som skjer: «tillit mellom Google og Entra», «Entra stoler på tokenet fra Google». Produktnavnene *workload identity federation* og *federated identity credential* beholdes på engelsk, med en norsk forklaring første gang.
