@@ -64,10 +64,12 @@ regexes = ['''0123456789abcdef0123456789abcdef''']
 # Falsk positiv: plugins/nav-design-beta/.generated.json lister SHA-256 av
 # genererte filer. generic-api-key slår ut på filnavnet "tokens-styling.md"
 # kombinert med entropien i hashen. Filen genereres og sjekkes av
-# hack/check.sh og inneholder bare filstier og hasher.
+# hack/check.sh og inneholder bare filstier og hasher. Begge regexene er
+# ankret. En hemmelighet på 64 hex-tegn som verdi for en *.md-nøkkel i
+# akkurat denne filen skjules fortsatt; den fanges av drift-sjekken.
 [[allowlists]]
 description = "SHA-256-hasher i nav-design-beta sitt genereringsmanifest"
 condition = "AND"
 regexTarget = "line"
-paths = ['''plugins/nav-design-beta/\.generated\.json''']
-regexes = ['''"[a-zA-Z0-9_./\-]+\.md":\s*"[0-9a-f]{64}"''']
+paths = ['''^plugins/nav-design-beta/\.generated\.json$''']
+regexes = ['''^\s*"[a-zA-Z0-9_./\-]+\.md":\s*"[0-9a-f]{64}",?\s*$''']
