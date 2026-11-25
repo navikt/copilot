@@ -161,7 +161,7 @@ spec:
 {{#if routes_source}}
         - alert: FleetGatewayRouteNeverSynced
           # The age gauge appears on the first successful sync (#2637), so the stale alert cannot see a pod that never synced.
-          expr: fleet_gateway_routes_loaded{namespace="copilot"} unless on(pod) fleet_gateway_route_snapshot_age_seconds{namespace="copilot"}
+          expr: fleet_gateway_routes_loaded{namespace="copilot"} unless on(pod, k8s_cluster_name) fleet_gateway_route_snapshot_age_seconds{namespace="copilot"}
           for: 15m
           labels:
             namespace: copilot
