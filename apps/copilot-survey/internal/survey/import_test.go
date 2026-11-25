@@ -1,23 +1,17 @@
 package survey
 
 import (
-	"bytes"
 	"encoding/json"
-	"os"
 	"reflect"
-	"slices"
 	"strings"
 	"testing"
-	"time"
-
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // syntheticCSV builds an export with the mapped headers, in mapping order.
 func syntheticCSV(t *testing.T, rows ...map[string]string) string {
 	t.Helper()
-	raw, _ := importFiles.ReadFile("imports/q2-2026.json")
-	var m importMapping
+	raw, _ := ImportFiles.ReadFile("imports/q2-2026.json")
+	var m ImportMapping
 	if err := json.Unmarshal(raw, &m); err != nil {
 		t.Fatal(err)
 	}
@@ -51,15 +45,15 @@ var importRows = []map[string]string{
 }
 
 func TestConvertImport(t *testing.T) {
-	defs, _ := loadSurveyDir(surveyFiles)
-	var s survey
+	defs, _ := LoadSurveyDir(SurveyFiles)
+	var s Survey
 	for _, d := range defs {
 		if d.ID == "q2-2026" {
 			s = d
 		}
 	}
-	raw, _ := importFiles.ReadFile("imports/q2-2026.json")
-	var m importMapping
+	raw, _ := ImportFiles.ReadFile("imports/q2-2026.json")
+	var m ImportMapping
 	_ = json.Unmarshal(raw, &m)
 	rows, stats, err := convertImport(s, m, strings.NewReader(syntheticCSV(t, importRows...)))
 	if err != nil {
@@ -83,47 +77,5 @@ func TestConvertImport(t *testing.T) {
 	_, _, err = convertImport(s, m, strings.NewReader("Email\nx@nav.no\n"))
 	if err == nil || strings.Contains(err.Error(), "x@nav.no") {
 		t.Fatalf("unmapped column: %v", err)
-	}
-}
-
-// TestImportPostgres runs against COPILOT_SURVEY_TEST_DB_URL, as TestSurveyStore.
-func TestImportPostgres(t *testing.T) {
-	url := os.Getenv("COPILOT_SURVEY_TEST_DB_URL")
-	if url == "" {
-		t.Skip("COPILOT_SURVEY_TEST_DB_URL not set")
-	}
-	csv := syntheticCSV(t, importRows...)
-	now := time.Date(2026, 10, 13, 0, 0, 0, 0, time.UTC)
-	for range 2 { // twice: a rerun replaces, never duplicates
-		var out bytes.Buffer
-		if err := RunImport([]string{"--survey", "q2-2026"}, strings.NewReader(csv), &out, url, now); err != nil {
-			t.Fatal(err)
-		}
-	}
-	pool, err := pgxpool.New(t.Context(), url)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer pool.Close()
-	var n, parts int
-	var ctx, after string
-	err = pool.QueryRow(t.Context(), `SELECT count(*), min(context::text), min(delete_after::text),
-		(SELECT count(*) FROM survey_participation WHERE survey_id = 'q2-2026')
-		FROM survey_answers WHERE survey_id = 'q2-2026'`).Scan(&n, &ctx, &after, &parts)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if n != len(importRows) || ctx != `{"client": "forms"}` || after != "2028-04-30" || parts != 0 {
-		t.Fatalf("rows %d, context %s, delete_after %s, participation %d", n, ctx, after, parts)
-	}
-	// No identity: the only keys stored are question ids and their other texts.
-	rows, _ := pool.Query(t.Context(), `SELECT DISTINCT jsonb_object_keys(answers) FROM survey_answers WHERE survey_id = 'q2-2026'`)
-	defer rows.Close()
-	for rows.Next() {
-		var k string
-		_ = rows.Scan(&k)
-		if !slices.Contains(strings.Fields("erfaring verktoy verktoy.other verdi tilfredshet eierskap en-endring en-endring.other opplevelse"), k) {
-			t.Errorf("unexpected key %q", k)
-		}
 	}
 }

@@ -14,7 +14,7 @@ import (
 
 func compileSchema(t *testing.T) *jsonschema.Schema {
 	t.Helper()
-	raw, err := fs.ReadFile(surveyFiles, schemaFile)
+	raw, err := fs.ReadFile(SurveyFiles, SchemaFile)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,11 +38,11 @@ func compileSchema(t *testing.T) *jsonschema.Schema {
 // trusts the schema can read what copilot-survey serves.
 func TestShippedSurveysMatchSchema(t *testing.T) {
 	s := compileSchema(t)
-	names, _ := fs.Glob(surveyFiles, "surveys/*.json")
+	names, _ := fs.Glob(SurveyFiles, "surveys/*.json")
 	var docs []string
 	for _, name := range names {
-		if name != schemaFile {
-			raw, _ := fs.ReadFile(surveyFiles, name)
+		if name != SchemaFile {
+			raw, _ := fs.ReadFile(SurveyFiles, name)
 			docs = append(docs, string(raw))
 		}
 	}
@@ -78,7 +78,7 @@ func TestSchemaMatchesStructs(t *testing.T) {
 			Item     struct{ Properties map[string]any } `json:"item"`
 		} `json:"$defs"`
 	}
-	raw, _ := fs.ReadFile(surveyFiles, schemaFile)
+	raw, _ := fs.ReadFile(SurveyFiles, SchemaFile)
 	if err := json.Unmarshal(raw, &doc); err != nil || doc.Version < 1 {
 		t.Fatalf("schema_version missing: %v", err)
 	}
@@ -86,9 +86,9 @@ func TestSchemaMatchesStructs(t *testing.T) {
 		typ   reflect.Type
 		props map[string]any
 	}{
-		{reflect.TypeFor[survey](), doc.Properties},
-		{reflect.TypeFor[question](), doc.Defs.Question.Properties},
-		{reflect.TypeFor[matrixItem](), doc.Defs.Item.Properties},
+		{reflect.TypeFor[Survey](), doc.Properties},
+		{reflect.TypeFor[Question](), doc.Defs.Question.Properties},
+		{reflect.TypeFor[MatrixItem](), doc.Defs.Item.Properties},
 	} {
 		var tags []string
 		for f := range c.typ.Fields() {
@@ -103,13 +103,5 @@ func TestSchemaMatchesStructs(t *testing.T) {
 		if !slices.Equal(tags, props) {
 			t.Errorf("%s: fields %v, schema %v", c.typ.Name(), tags, props)
 		}
-	}
-}
-
-func TestSchemaIsPublic(t *testing.T) {
-	h, _ := testRouter(t)
-	rec := do(h, "GET", "/api/v1/surveys/schema", "", "")
-	if rec.Code != 200 || rec.Header().Get("Content-Type") != "application/schema+json" || !strings.Contains(rec.Body.String(), `"schema_version"`) {
-		t.Fatalf("%d %s", rec.Code, rec.Header())
 	}
 }

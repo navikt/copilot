@@ -1,10 +1,11 @@
-package survey
+package api
 
 import (
 	"net/http"
 	"slices"
 	"strconv"
 
+	"github.com/navikt/copilot/apps/copilot-survey/internal/survey"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
@@ -56,7 +57,7 @@ func makeRouter(auth *authenticator, surveys *surveyAPI) http.Handler {
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		submit(rec, r)
 		label := "unknown"
-		if id := r.PathValue("id"); slices.ContainsFunc(surveys.surveys, func(s survey) bool { return s.ID == id }) {
+		if id := r.PathValue("id"); slices.ContainsFunc(surveys.surveys, func(s survey.Survey) bool { return s.ID == id }) {
 			label = id
 		}
 		submissions.WithLabelValues(label, strconv.Itoa(rec.status)).Inc()

@@ -1,9 +1,11 @@
-package survey
+package store
 
 import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/navikt/copilot/apps/copilot-survey/internal/survey"
 )
 
 // TestSurveyStore runs the real SQL against Postgres when
@@ -14,31 +16,31 @@ func TestSurveyStore(t *testing.T) {
 	if url == "" {
 		t.Skip("COPILOT_SURVEY_TEST_DB_URL not set")
 	}
-	s, err := openSurveyStore(t.Context(), url)
+	s, err := Open(t.Context(), url)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer s.pool.Close()
-	_, _ = s.pool.Exec(t.Context(), `DELETE FROM survey_participation; DELETE FROM survey_answers`)
+	defer s.Pool.Close()
+	_, _ = s.Pool.Exec(t.Context(), `DELETE FROM survey_participation; DELETE FROM survey_answers`)
 	count := func(table string) (n int) {
-		_ = s.pool.QueryRow(t.Context(), `SELECT count(*) FROM `+table).Scan(&n)
+		_ = s.Pool.QueryRow(t.Context(), `SELECT count(*) FROM `+table).Scan(&n)
 		return n
 	}
 	day := func(d int) time.Time { return time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, d) }
-	r := response{SurveyID: "s", Answers: map[string]any{"q": 1}, QuestionVersions: map[string]int{"q": 1},
-		Context: techContext{Version: "1.2", OS: "linux", Client: "pi"}, DeleteAfter: day(100)}
-	submit := func(survey, hash string, closes time.Time) bool {
+	r := survey.Response{SurveyID: "s", Answers: map[string]any{"q": 1}, QuestionVersions: map[string]int{"q": 1},
+		Context: survey.TechContext{Version: "1.2", OS: "linux", Client: "pi"}, DeleteAfter: day(100)}
+	submit := func(id, hash string, closes time.Time) bool {
 		t.Helper()
-		ok, err := s.submit(t.Context(), survey, hash, closes, r)
+		ok, err := s.Submit(t.Context(), id, hash, closes, r)
 		if err != nil {
 			t.Fatal(err)
 		}
 		return ok
 	}
 
-	answered := func(survey, hash string) bool {
+	answered := func(id, hash string) bool {
 		t.Helper()
-		ok, err := s.answered(t.Context(), survey, hash)
+		ok, err := s.Answered(t.Context(), id, hash)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -71,12 +73,12 @@ func TestSurveyStore(t *testing.T) {
 	// answer again once the database is back.
 	exec := func(q string) {
 		t.Helper()
-		if _, err := s.pool.Exec(t.Context(), q); err != nil {
+		if _, err := s.Pool.Exec(t.Context(), q); err != nil {
 			t.Fatal(err)
 		}
 	}
 	exec(`ALTER TABLE survey_answers RENAME TO survey_answers_gone`)
-	ok, lateErr := s.submit(t.Context(), "s", "late", day(10), r)
+	ok, lateErr := s.Submit(t.Context(), "s", "late", day(10), r)
 	exec(`ALTER TABLE survey_answers_gone RENAME TO survey_answers`)
 	if ok || lateErr == nil {
 		t.Fatalf("a failed write was acknowledged: ok=%v err=%v", ok, lateErr)
@@ -89,7 +91,7 @@ func TestSurveyStore(t *testing.T) {
 	}
 
 	// Close-out: participation of closed surveys goes, answers stay.
-	s.retain(t.Context(), day(2))
+	s.Retain(t.Context(), day(2))
 	if count("survey_answers") != 4 {
 		t.Fatalf("answers after close-out = %d, want 4", count("survey_answers"))
 	}

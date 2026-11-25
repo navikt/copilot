@@ -1,4 +1,6 @@
-package survey
+// Package store is the Postgres storage behind api.Store: submissions,
+// free-text hiding and coding, close-out aggregates and retention.
+package store
 
 import (
 	"context"
@@ -9,6 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/navikt/copilot/apps/copilot-survey/internal/survey"
 )
 
 // The data model: two tables with nothing in common but the survey id.
@@ -89,18 +92,20 @@ CREATE TABLE IF NOT EXISTS survey_freetext_decisions (
 	decided_at timestamptz NOT NULL
 )`
 
-type surveyStore struct {
-	pool *pgxpool.Pool
-	defs []survey // for closeOut: final aggregates and next-round retention
-	// codebooks by series: purge writes the coding counts before rows go.
-	codebooks map[string]codebook
+// Store is the Postgres storage behind api.Store.
+type Store struct {
+	Pool *pgxpool.Pool
+	Defs []survey.Survey // for CloseOut: final aggregates and next-round retention
+	// Codebooks by series: purge writes the coding counts before rows go.
+	Codebooks map[string]survey.Codebook
 	// purgeHook, in tests only, runs after purge decides that a survey's
 	// expired rows may go and has written their coding counts, and before
 	// it deletes them.
 	purgeHook func(surveyID string)
 }
 
-func openSurveyStore(ctx context.Context, dbURL string) (*surveyStore, error) {
+// Open connects and creates the schema if it is missing.
+func Open(ctx context.Context, dbURL string) (*Store, error) {
 	pool, err := pgxpool.New(ctx, dbURL)
 	if err != nil {
 		return nil, fmt.Errorf("connecting to postgres: %w", err)
@@ -109,13 +114,13 @@ func openSurveyStore(ctx context.Context, dbURL string) (*surveyStore, error) {
 		pool.Close()
 		return nil, fmt.Errorf("creating schema: %w", err)
 	}
-	return &surveyStore{pool: pool}, nil
+	return &Store{Pool: pool}, nil
 }
 
-// submit writes one submission in a single transaction. false means hash
+// Submit writes one submission in a single transaction. false means hash
 // already answered. When the write fails, the transaction rolls back and the
 // error is returned so the sender can send the answer again.
-func (s *surveyStore) submit(ctx context.Context, surveyID, hash string, closesOn time.Time, r response) (bool, error) {
+func (s *Store) Submit(ctx context.Context, surveyID, hash string, closesOn time.Time, r survey.Response) (bool, error) {
 	answers, err1 := json.Marshal(r.Answers)
 	versions, err2 := json.Marshal(r.QuestionVersions)
 	techCtx, err3 := json.Marshal(r.Context)
@@ -123,7 +128,7 @@ func (s *surveyStore) submit(ctx context.Context, surveyID, hash string, closesO
 		return false, fmt.Errorf("encoding answers")
 	}
 	fresh := false
-	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, s.Pool, func(tx pgx.Tx) error {
 		tag, err := tx.Exec(ctx,
 			`INSERT INTO survey_participation (survey_id, participant_hash, closes_on) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
 			surveyID, hash, closesOn)
@@ -142,18 +147,19 @@ func (s *surveyStore) submit(ctx context.Context, surveyID, hash string, closesO
 	return fresh, err
 }
 
-func (s *surveyStore) answered(ctx context.Context, surveyID, hash string) (bool, error) {
+// Answered tells whether hash has answered the survey.
+func (s *Store) Answered(ctx context.Context, surveyID, hash string) (bool, error) {
 	var seen bool
-	err := s.pool.QueryRow(ctx,
+	err := s.Pool.QueryRow(ctx,
 		`SELECT EXISTS (SELECT 1 FROM survey_participation WHERE survey_id = $1 AND participant_hash = $2)`,
 		surveyID, hash).Scan(&seen)
 	return seen, err
 }
 
-// purgeExpired runs retain once at start and then daily.
-func (s *surveyStore) purgeExpired(ctx context.Context, now func() time.Time) {
+// PurgeExpired runs retain once at start and then daily.
+func (s *Store) PurgeExpired(ctx context.Context, now func() time.Time) {
 	for {
-		s.retain(ctx, now())
+		s.Retain(ctx, now())
 		select {
 		case <-ctx.Done():
 			return
@@ -162,16 +168,16 @@ func (s *surveyStore) purgeExpired(ctx context.Context, now func() time.Time) {
 	}
 }
 
-// retain closes out surveys that no longer take answers: writes their final
-// aggregates (closeOut) and then deletes their participation rows (their keys
+// Retain closes out surveys that no longer take answers: writes their final
+// aggregates (CloseOut) and then deletes their participation rows (their keys
 // are deleted by hand, see README). It also deletes answers past retention.
-func (s *surveyStore) retain(parent context.Context, now time.Time) {
+func (s *Store) Retain(parent context.Context, now time.Time) {
 	ctx, cancel := context.WithTimeout(parent, time.Minute)
 	defer cancel()
-	s.closeOut(ctx, now)
+	s.CloseOut(ctx, now)
 	today := now.UTC().Truncate(24 * time.Hour)
-	ids := make([]string, len(s.defs))
-	for i, d := range s.defs {
+	ids := make([]string, len(s.Defs))
+	for i, d := range s.Defs {
 		ids[i] = d.ID
 		n, err := s.purge(ctx, d, today)
 		if err != nil {
@@ -192,7 +198,7 @@ func (s *surveyStore) retain(parent context.Context, now time.Time) {
 		{`DELETE FROM survey_freetext_codes c WHERE NOT EXISTS (SELECT 1 FROM survey_answers a WHERE a.survey_id = c.survey_id)`, nil},
 		{`DELETE FROM survey_freetext_decisions d WHERE NOT EXISTS (SELECT 1 FROM survey_answers a WHERE a.survey_id = d.survey_id)`, nil},
 	} {
-		tag, err := s.pool.Exec(ctx, q.sql, q.args...)
+		tag, err := s.Pool.Exec(ctx, q.sql, q.args...)
 		if err != nil {
 			slog.Error("survey retention step failed", "error_type", fmt.Sprintf("%T", err))
 		} else if tag.RowsAffected() > 0 {
@@ -206,11 +212,11 @@ func (s *surveyStore) retain(parent context.Context, now time.Time) {
 // losing the counts. While every row is there it first writes the coding
 // counts (writeCodingResults), so they are as coded on the day the rows go.
 // Decision, counts and delete run in one transaction under the
-// lock finalize and writeImport take, so an import cannot replace the rows
+// lock finalize and WriteImport take, so an import cannot replace the rows
 // in between. Each of the three takes only this one lock: no deadlock.
-func (s *surveyStore) purge(ctx context.Context, d survey, today time.Time) (int64, error) {
+func (s *Store) purge(ctx context.Context, d survey.Survey, today time.Time) (int64, error) {
 	var n int64
-	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, s.Pool, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext('survey_results:' || $1))`, d.ID); err != nil {
 			return err
 		}
@@ -235,7 +241,7 @@ func (s *surveyStore) purge(ctx context.Context, d survey, today time.Time) (int
 // counts cover every skip_if in the definitions, or its rows no longer
 // match its total (partly deleted: the counts can no longer be written).
 // Otherwise it logs that the rows are kept.
-func (s *surveyStore) deletable(ctx context.Context, tx pgx.Tx, d survey) (bool, error) {
+func (s *Store) deletable(ctx context.Context, tx pgx.Tx, d survey.Survey) (bool, error) {
 	var total *int
 	var rows int
 	if err := tx.QueryRow(ctx, `SELECT (SELECT count FROM survey_results WHERE survey_id = $1 AND kind = 'total'),
@@ -254,7 +260,7 @@ func (s *surveyStore) deletable(ctx context.Context, tx pgx.Tx, d survey) (bool,
 	if _, err := pgx.ForEachRow(res, []any{&set, &k}, func() error { have[[2]string{set, k}] = true; return nil }); err != nil {
 		return false, err
 	}
-	for id, set := range skipSets(s.defs) {
+	for id, set := range survey.SkipSets(s.Defs) {
 		for _, k := range set.Keys {
 			if !have[[2]string{id, k}] {
 				slog.Warn("survey: rows kept until skip counts are written", "survey", d.ID)
@@ -267,8 +273,8 @@ func (s *surveyStore) deletable(ctx context.Context, tx pgx.Tx, d survey) (bool,
 
 // writeCoding writes d's coding counts when it has a codebook, rows about
 // to expire, and every row it was aggregated with.
-func (s *surveyStore) writeCoding(ctx context.Context, tx pgx.Tx, d survey, today time.Time) error {
-	cb, ok := s.codebooks[d.Series]
+func (s *Store) writeCoding(ctx context.Context, tx pgx.Tx, d survey.Survey, today time.Time) error {
+	cb, ok := s.Codebooks[d.Series]
 	if !ok || d.Series == "" {
 		return nil
 	}
@@ -285,17 +291,17 @@ func (s *surveyStore) writeCoding(ctx context.Context, tx pgx.Tx, d survey, toda
 	return writeCodingResults(ctx, tx, cb, d, rows)
 }
 
-// answers returns a survey's written rows: answers, question versions and
+// Answers returns a survey's written rows: answers, question versions and
 // context, nothing else. Submissions still queued are not included.
-func (s *surveyStore) answers(ctx context.Context, surveyID string) ([]storedAnswer, error) {
-	rows, err := s.pool.Query(ctx, `SELECT answers, question_versions, context FROM survey_answers WHERE survey_id = $1`, surveyID)
+func (s *Store) Answers(ctx context.Context, surveyID string) ([]survey.StoredAnswer, error) {
+	rows, err := s.Pool.Query(ctx, `SELECT answers, question_versions, context FROM survey_answers WHERE survey_id = $1`, surveyID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []storedAnswer
+	var out []survey.StoredAnswer
 	for rows.Next() {
-		var a storedAnswer
+		var a survey.StoredAnswer
 		if err := rows.Scan(&a.Answers, &a.QuestionVersions, &a.Context); err != nil {
 			return nil, err
 		}

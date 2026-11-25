@@ -6,14 +6,9 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log/slog"
 	"slices"
 	"strconv"
 	"time"
-
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // Final aggregates (#1774). When a survey closes, its counts go to
@@ -21,32 +16,34 @@ import (
 //
 //   - total:   key "", option "", count = respondents.
 //   - channel: key "", option = context.client, count = respondents for
-//     that client (unmerged, so finalized results match live tallyRows).
+//     that client (unmerged, so finalized results match live TallyRows).
 //   - answer:  key = question id or matrix item id; count per option, n =
 //     respondents for that version, mean for scale and matrix items. Free
 //     text is never read.
 //   - context: key = client, os, version, local_models; option = value,
-//     with values held by fewer than minSegment rows merged into «annet»
-//     (the export's rule, suppressSmallSegments).
+//     with values held by fewer than MinSegment rows merged into «annet»
+//     (the export's rule, SuppressSmallSegments).
 //
 // The admin results read these for a closed survey, so the individual
 // answers can go. They are kept until the next wave of the same series has
 // closed, or the survey's own retention if that is later (see
 // extendRetention).
 
-type verTally struct {
+// VerTally is the counts for one version of an answer key.
+type VerTally struct {
 	N      int
 	Counts map[string]int
 }
 
-type surveyTally struct {
+// Tally is a survey's counts: per answer key and version, and per context.
+type Tally struct {
 	Responses int
-	Keys      map[string]map[int]*verTally // answer key → version
+	Keys      map[string]map[int]*VerTally // answer key → version
 	Channels  map[string]int
 }
 
-func tallyKey(id string, rows []storedAnswer) map[int]*verTally {
-	t := map[int]*verTally{}
+func tallyKey(id string, rows []StoredAnswer) map[int]*VerTally {
+	t := map[int]*VerTally{}
 	for _, row := range rows {
 		v, ok := row.Answers[id]
 		if !ok || v == nil {
@@ -54,7 +51,7 @@ func tallyKey(id string, rows []storedAnswer) map[int]*verTally {
 		}
 		ver := row.QuestionVersions[id]
 		if t[ver] == nil {
-			t[ver] = &verTally{Counts: map[string]int{}}
+			t[ver] = &VerTally{Counts: map[string]int{}}
 		}
 		t[ver].N++
 		switch v := v.(type) {
@@ -71,8 +68,8 @@ func tallyKey(id string, rows []storedAnswer) map[int]*verTally {
 	return t
 }
 
-// answerKeys are the keys counted for s, with whether each is on a scale.
-func answerKeys(s survey) map[string]bool {
+// AnswerKeys are the keys counted for s, with whether each is on a scale.
+func AnswerKeys(s Survey) map[string]bool {
 	keys := map[string]bool{}
 	for _, q := range s.Questions {
 		switch q.Type {
@@ -88,9 +85,10 @@ func answerKeys(s survey) map[string]bool {
 	return keys
 }
 
-func tallyRows(s survey, rows []storedAnswer) surveyTally {
-	t := surveyTally{Responses: len(rows), Keys: map[string]map[int]*verTally{}, Channels: map[string]int{}}
-	for k := range answerKeys(s) {
+// TallyRows counts rows for s.
+func TallyRows(s Survey, rows []StoredAnswer) Tally {
+	t := Tally{Responses: len(rows), Keys: map[string]map[int]*VerTally{}, Channels: map[string]int{}}
+	for k := range AnswerKeys(s) {
 		t.Keys[k] = tallyKey(k, rows)
 	}
 	for _, row := range rows {
@@ -101,137 +99,8 @@ func tallyRows(s survey, rows []storedAnswer) surveyTally {
 	return t
 }
 
-// finalize writes s's aggregates from its rows in survey_answers, replacing
-// any earlier ones, in one transaction that also extends the rows' retention.
-// Unless replace is set, a survey that already has aggregates is left alone:
-// its rows may be partly deleted by then. No rows: nothing is written, so an
-// import that comes later still gets aggregated. Returns respondents.
-func finalize(ctx context.Context, pool *pgxpool.Pool, defs []survey, s survey, now time.Time, replace bool) (int, error) {
-	var n int
-	err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
-		// Serialises close-out and the aggregate command for this survey.
-		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext('survey_results:' || $1))`, s.ID); err != nil {
-			return err
-		}
-		rows, ctxRows, err := readRows(ctx, tx, s.ID)
-		if err != nil || len(rows) == 0 {
-			return err
-		}
-		if !replace {
-			var total int
-			err := tx.QueryRow(ctx, `SELECT count FROM survey_results WHERE survey_id = $1 AND kind = 'total'`, s.ID).Scan(&total)
-			if err == nil {
-				// Aggregated already: redo only the skip counts, for skip_if
-				// defined since, and only while every row is still there.
-				if total != len(rows) {
-					return nil
-				}
-				return writeSkipped(ctx, tx, skipSets(defs), s, rows)
-			}
-			if !errors.Is(err, pgx.ErrNoRows) {
-				return err
-			}
-		}
-		n = len(rows)
-		batch := &pgx.Batch{}
-		batch.Queue(`DELETE FROM survey_results WHERE survey_id = $1 AND kind NOT IN ('freetext', 'freetext_onske')`, s.ID)
-		insert := `INSERT INTO survey_results (survey_id, kind, key, version, option, count, n, mean) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
-		batch.Queue(insert, s.ID, "total", "", 0, "", n, n, nil)
-		t := tallyRows(s, rows)
-		for cl, c := range t.Channels {
-			batch.Queue(insert, s.ID, "channel", "", 0, cl, c, n, nil)
-		}
-		scale := answerKeys(s)
-		for k, vers := range t.Keys {
-			for ver, vt := range vers {
-				var mean *float64
-				if scale[k] {
-					sum, cnt := 0.0, 0
-					for o, c := range vt.Counts {
-						if f, err := strconv.ParseFloat(o, 64); err == nil { // unsure is not a step
-							sum, cnt = sum+f*float64(c), cnt+c
-						}
-					}
-					if cnt > 0 {
-						m := sum / float64(cnt)
-						mean = &m
-					}
-				}
-				for o, c := range vt.Counts {
-					batch.Queue(insert, s.ID, "answer", k, ver, o, c, vt.N, mean)
-				}
-			}
-		}
-		suppressSmallSegments(ctxRows)
-		ctxCounts := map[[2]string]int{}
-		for _, r := range ctxRows {
-			for k, v := range r.Context {
-				ctxCounts[[2]string{k, v}]++
-			}
-		}
-		for kv, c := range ctxCounts {
-			batch.Queue(insert, s.ID, "context", kv[0], 0, kv[1], c, n, nil)
-		}
-		if err := tx.SendBatch(ctx, batch).Close(); err != nil {
-			return err
-		}
-		if err := writeSkipped(ctx, tx, skipSets(defs), s, rows); err != nil {
-			return err
-		}
-		return extendRetention(ctx, tx, defs, s, now)
-	})
-	return n, err
-}
-
-// writeSkipped replaces s's survey_skip_results: for every skip_if rule
-// set and every answer key a definition skips with it, the counts among the
-// respondents the set skips (any of its rules, each respondent once), as
-// compare subtracts them (#2227). With survey_results that is the cross
-// table compare already shows as excluded and kept counts; nothing per row.
-// Version -1, option ”: the pair is counted, count = respondents it skips
-// who answered the key.
-func writeSkipped(ctx context.Context, tx pgx.Tx, sets map[string]skipSet, s survey, rows []storedAnswer) error {
-	batch := &pgx.Batch{}
-	batch.Queue(`DELETE FROM survey_skip_results WHERE survey_id = $1`, s.ID)
-	insert := `INSERT INTO survey_skip_results (survey_id, skip_rules, key, version, option, count, n) VALUES ($1, $2, $3, $4, $5, $6, $7)`
-	t := rowsTally(s, rows, sets)
-	for id, set := range sets {
-		for _, k := range set.Keys {
-			excluded := 0
-			for ver, vt := range t.Skipped[id][k] {
-				excluded += vt.N
-				for o, c := range vt.Counts {
-					batch.Queue(insert, s.ID, id, k, ver, o, c, vt.N)
-				}
-			}
-			batch.Queue(insert, s.ID, id, k, -1, "", excluded, 0)
-		}
-	}
-	return tx.SendBatch(ctx, batch).Close()
-}
-
-func readRows(ctx context.Context, tx pgx.Tx, id string) ([]storedAnswer, []exportRow, error) {
-	res, err := tx.Query(ctx, `SELECT answers, question_versions, context FROM survey_answers WHERE survey_id = $1`, id)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer res.Close()
-	var rows []storedAnswer
-	var ctxRows []exportRow
-	for res.Next() {
-		var a storedAnswer
-		var c map[string]any
-		if err := res.Scan(&a.Answers, &a.QuestionVersions, &c); err != nil {
-			return nil, nil, err
-		}
-		a.Client, _ = c["client"].(string)
-		rows = append(rows, a)
-		ctxRows = append(ctxRows, exportRow{Context: contextStrings(c)})
-	}
-	return rows, ctxRows, res.Err()
-}
-
-func contextStrings(c map[string]any) map[string]string {
+// ContextStrings is c with its string values only.
+func ContextStrings(c map[string]any) map[string]string {
 	out := map[string]string{}
 	for k, v := range c {
 		if b, ok := v.(bool); ok {
@@ -243,218 +112,50 @@ func contextStrings(c map[string]any) map[string]string {
 	return out
 }
 
-// nextRoundEnd is the last day of the next wave of s's series (by start
+// NextRoundEnd is the last day of the next wave of s's series (by start
 // date) that has closed. false: none has closed yet, or s has no series.
-func nextRoundEnd(defs []survey, s survey, now time.Time) (time.Time, bool) {
-	var next *survey
+func NextRoundEnd(defs []Survey, s Survey, now time.Time) (time.Time, bool) {
+	var next *Survey
 	for i, d := range defs {
 		if s.Series != "" && d.Series == s.Series && d.Starts > s.Starts && (next == nil || d.Starts < next.Starts) {
 			next = &defs[i]
 		}
 	}
-	if next == nil || next.closesOn().After(now) {
+	if next == nil || next.ClosesOn().After(now) {
 		return time.Time{}, false
 	}
 	end, err := time.Parse(time.DateOnly, next.Ends)
 	return end, err == nil
 }
 
-// extendRetention keeps an aggregated survey's rows until the next wave has
-// closed (owner, 2026-10-13): delete_after becomes the next wave's last day,
-// but never earlier than it is (retention_days, e.g. q2-2026's 730, wins
-// when it is longer). Before the next wave closes delete_after is unchanged.
-func extendRetention(ctx context.Context, db interface {
-	Exec(context.Context, string, ...any) (pgconn.CommandTag, error)
-}, defs []survey, s survey, now time.Time) error {
-	end, ok := nextRoundEnd(defs, s, now)
-	if !ok {
-		return nil
-	}
-	_, err := db.Exec(ctx, `UPDATE survey_answers SET delete_after = $2 WHERE survey_id = $1 AND delete_after < $2
-		AND EXISTS (SELECT 1 FROM survey_results WHERE survey_id = $1)`, s.ID, end)
-	return err
-}
-
-// closeOut aggregates every closed survey without aggregates and extends
-// the retention of those with them. Runs in retain, before rows expire.
-func (s *surveyStore) closeOut(ctx context.Context, now time.Time) {
-	for _, d := range s.defs {
-		if d.closesOn().After(now) {
-			continue
-		}
-		if n, err := finalize(ctx, s.pool, s.defs, d, now, false); err != nil {
-			slog.Error("survey: writing final aggregates failed", "survey", d.ID, "error_type", fmt.Sprintf("%T", err))
-		} else if n > 0 {
-			slog.Info("survey: final aggregates written", "survey", d.ID, "responses", n)
-		}
-		if err := extendRetention(ctx, s.pool, s.defs, d, now); err != nil {
-			slog.Error("survey: extending retention failed", "survey", d.ID, "error_type", fmt.Sprintf("%T", err))
-		}
-	}
-}
-
-// final reads a survey's aggregates; nil when it has none.
-func (s *surveyStore) final(ctx context.Context, id string) (*surveyTally, error) {
-	rows, err := s.pool.Query(ctx, `SELECT kind, key, version, option, count, n FROM survey_results WHERE survey_id = $1 AND kind IN ('total', 'answer', 'channel', 'context')`, id)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var t *surveyTally
-	channels := map[string]int{}
-	ctxClients := map[string]int{}
-	for rows.Next() {
-		var kind, key, opt string
-		var ver, count, n int
-		if err = rows.Scan(&kind, &key, &ver, &opt, &count, &n); err != nil {
-			return nil, err
-		}
-		if t == nil {
-			t = &surveyTally{Keys: map[string]map[int]*verTally{}, Channels: map[string]int{}}
-		}
-		switch kind {
-		case "total":
-			t.Responses = count
-		case "channel":
-			if opt != "" {
-				channels[opt] = count
-			}
-		case "context":
-			if key == "client" && opt != "" {
-				ctxClients[opt] = count
-			}
-		case "answer":
-			if t.Keys[key] == nil {
-				t.Keys[key] = map[int]*verTally{}
-			}
-			if t.Keys[key][ver] == nil {
-				t.Keys[key][ver] = &verTally{N: n, Counts: map[string]int{}}
-			}
-			t.Keys[key][ver].Counts[opt] = count
-		}
-	}
-	if err = rows.Err(); err != nil || t == nil {
-		return t, err
-	}
-	if len(channels) > 0 {
-		t.Channels = channels
-		return t, nil
-	}
-	// Surveys finalized before kind='channel' existed: reconstruct from
-	// survey_answers if all rows are still present; otherwise fall back to
-	// the suppressed context counts (which include «annet» for merged rows).
-	cRows, err := s.pool.Query(ctx, `SELECT coalesce(context->>'client', ''), count(*) FROM survey_answers WHERE survey_id = $1 GROUP BY 1`, id)
-	if err != nil {
-		return nil, err
-	}
-	defer cRows.Close()
-	liveClients := map[string]int{}
-	liveTotal := 0
-	for cRows.Next() {
-		var cl string
-		var c int
-		if err = cRows.Scan(&cl, &c); err != nil {
-			return nil, err
-		}
-		liveTotal += c
-		if cl != "" {
-			liveClients[cl] = c
-		}
-	}
-	if err = cRows.Err(); err != nil {
-		return nil, err
-	}
-	if liveTotal == t.Responses && len(liveClients) > 0 {
-		t.Channels = liveClients
-	} else {
-		t.Channels = ctxClients
-	}
-	return t, nil
-}
-
-// finalCompare reads what compare needs from a survey's aggregates; nil
-// when it has none. Channels are the stored context.client counts, merged as
-// the export merges them, with the rest under "" as mergeClients gives them.
-func (s *surveyStore) finalCompare(ctx context.Context, id string) (*waveTally, error) {
-	f, err := s.final(ctx, id)
-	if err != nil || f == nil {
-		return nil, err
-	}
-	t := &waveTally{Responses: f.Responses, Channels: map[string]int{}, Keys: f.Keys, Skipped: map[string]map[string]map[int]*verTally{}}
-	var set, key, opt string
-	var ver, count, n int
-	rows, err := s.pool.Query(ctx, `SELECT option, count FROM survey_results WHERE survey_id = $1 AND kind = 'context' AND key = 'client'`, id)
-	if err != nil {
-		return nil, err
-	}
-	rest := t.Responses
-	if _, err = pgx.ForEachRow(rows, []any{&opt, &count}, func() error {
-		t.Channels[opt] += count
-		rest -= count
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-	if rest > 0 {
-		t.Channels[""] += rest
-	}
-	rows, err = s.pool.Query(ctx, `SELECT skip_rules, key, version, option, count, n FROM survey_skip_results WHERE survey_id = $1`, id)
-	if err != nil {
-		return nil, err
-	}
-	_, err = pgx.ForEachRow(rows, []any{&set, &key, &ver, &opt, &count, &n}, func() error {
-		if t.Skipped[set] == nil {
-			t.Skipped[set] = map[string]map[int]*verTally{}
-		}
-		keys := t.Skipped[set]
-		if keys[key] == nil {
-			keys[key] = map[int]*verTally{}
-		}
-		if ver == -1 {
-			return nil
-		}
-		if keys[key][ver] == nil {
-			keys[key][ver] = &verTally{N: n, Counts: map[string]int{}}
-		}
-		keys[key][ver].Counts[opt] = count
-		return nil
-	})
-	return t, err
-}
+// Aggregator writes a closed survey's final aggregates (store.Aggregate) and
+// returns the number of responses.
+type Aggregator func(ctx context.Context, dbURL string, defs []Survey, s Survey, now time.Time) (int, error)
 
 // RunAggregate is `copilot-survey aggregate --survey <id>`: (re)writes a
 // closed survey's aggregates from its rows, for a survey that had no
 // close-out in this service (an import such as q2-2026), or to redo one.
-func RunAggregate(args []string, out io.Writer, dbURL string, now time.Time) error {
+func RunAggregate(args []string, out io.Writer, dbURL string, now time.Time, aggregate Aggregator) error {
 	fs := flag.NewFlagSet("aggregate", flag.ContinueOnError)
 	id := fs.String("survey", "", "survey id, e.g. q2-2026")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	defs, err := loadSurveyDir(surveyFiles)
+	defs, err := LoadSurveyDir(SurveyFiles)
 	if err != nil {
 		return err
 	}
-	i := slices.IndexFunc(defs, func(s survey) bool { return s.ID == *id })
+	i := slices.IndexFunc(defs, func(s Survey) bool { return s.ID == *id })
 	if i < 0 {
 		return fmt.Errorf("no survey %q", *id)
 	}
-	if defs[i].closesOn().After(now) {
+	if defs[i].ClosesOn().After(now) {
 		return fmt.Errorf("%s has not closed", *id)
 	}
 	if dbURL == "" {
 		return errors.New("DB_URL is not set")
 	}
-	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, dbURL)
-	if err != nil {
-		return err
-	}
-	defer pool.Close()
-	if _, err = pool.Exec(ctx, schema); err != nil {
-		return err
-	}
-	n, err := finalize(ctx, pool, defs, defs[i], now, true)
+	n, err := aggregate(context.Background(), dbURL, defs, defs[i], now)
 	if err != nil {
 		return err
 	}

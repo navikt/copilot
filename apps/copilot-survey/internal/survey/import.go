@@ -3,26 +3,23 @@ package survey
 import (
 	"context"
 	"encoding/csv"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"io/fs"
-	"math/rand/v2"
 	"slices"
 	"strings"
 	"time"
-
-	"github.com/jackc/pgx/v5"
 )
 
-// importFiles maps a Forms export of an earlier survey onto its definition:
+// ImportFiles maps a Forms export of an earlier survey onto its definition:
 // which column is which question id, and which answer texts change on the
 // way in. Answers themselves are never committed.
-var importFiles fs.ReadFileFS
+var ImportFiles fs.ReadFileFS
 
-type importMapping struct {
+// ImportMapping maps a Forms export onto a survey definition.
+type ImportMapping struct {
 	Survey  string            `json:"survey"`
 	Columns map[string]string `json:"columns"` // CSV header -> question or matrix item id
 	// Values rewrites an answer (or one part of a multi answer) before it is
@@ -37,71 +34,14 @@ type importStats struct {
 	norms     map[string]int // per normalisation applied
 }
 
-// RunImport is `copilot-survey import --survey <id> [--dry-run]`: a CSV
-// export on in, the survey's answers in survey_answers. It writes no
-// participation rows and no hashes, and the export's identity and time
-// columns must be gone before it gets here (an unmapped column is refused).
-func RunImport(args []string, in io.Reader, out io.Writer, dbURL string, now time.Time) error {
-	fs := flag.NewFlagSet("import", flag.ContinueOnError)
-	id := fs.String("survey", "", "survey id, e.g. q2-2026")
-	dry := fs.Bool("dry-run", false, "print counts, write nothing")
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
-	defs, err := loadSurveyDir(surveyFiles)
-	if err != nil {
-		return err
-	}
-	i := slices.IndexFunc(defs, func(s survey) bool { return s.ID == *id })
-	if i < 0 {
-		return fmt.Errorf("no survey %q", *id)
-	}
-	s := defs[i]
-	raw, err := importFiles.ReadFile("imports/" + s.ID + ".json")
-	if err != nil {
-		return fmt.Errorf("no mapping for %s: %w", s.ID, err)
-	}
-	var m importMapping
-	if err = decodeStrict(raw, &m); err != nil || m.Survey != s.ID {
-		return fmt.Errorf("mapping imports/%s.json: invalid or for another survey (%v)", s.ID, err)
-	}
-	rows, stats, err := convertImport(s, m, in)
-	if err != nil {
-		return err
-	}
-	deleteAfter := s.deleteAfter()
-	fmt.Fprintf(out, "survey %s: %d rows, delete_after %s\n", s.ID, stats.rows, deleteAfter.Format(time.DateOnly))
-	if !now.Before(deleteAfter.AddDate(0, 0, 1)) {
-		fmt.Fprintf(out, "WARNING: delete_after %s has passed: the daily retention job deletes these rows at once\n", deleteAfter.Format(time.DateOnly))
-	}
-	for _, k := range sortedKeys(stats.questions) {
-		fmt.Fprintf(out, "  answered %-24s %d\n", k, stats.questions[k])
-	}
-	for _, k := range sortedKeys(stats.norms) {
-		fmt.Fprintf(out, "  normalised %s: %d\n", k, stats.norms[k])
-	}
-	if *dry {
-		return nil
-	}
-	if dbURL == "" {
-		return errors.New("DB_URL is not set")
-	}
-	n, err := writeImport(context.Background(), dbURL, s, rows, deleteAfter)
-	if err != nil {
-		return err
-	}
-	fmt.Fprintf(out, "wrote %d rows to survey_answers for %s (earlier rows replaced)\n", n, s.ID)
-	return nil
-}
-
 // convertImport turns CSV rows into answers in the form a submission is
 // stored: a number per scale or matrix item, the option text for choice, a
 // list for multi, free text under <id>.other for an answer not among the
 // options. An empty cell is not answered.
-func convertImport(s survey, m importMapping, in io.Reader) ([]map[string]any, importStats, error) {
+func convertImport(s Survey, m ImportMapping, in io.Reader) ([]map[string]any, importStats, error) {
 	stats := importStats{questions: map[string]int{}, norms: map[string]int{}}
-	qs := map[string]question{}
-	for _, q := range s.answerable() {
+	qs := map[string]Question{}
+	for _, q := range s.Answerable() {
 		qs[q.ID] = q
 	}
 	r := csv.NewReader(in)
@@ -109,7 +49,7 @@ func convertImport(s survey, m importMapping, in io.Reader) ([]map[string]any, i
 	if err != nil {
 		return nil, stats, fmt.Errorf("reading header: %w", err)
 	}
-	cols := make([]question, len(header))
+	cols := make([]Question, len(header))
 	for i, h := range header {
 		qid, ok := m.Columns[strings.TrimSpace(strings.TrimPrefix(h, "\uFEFF"))]
 		if !ok {
@@ -120,7 +60,7 @@ func convertImport(s survey, m importMapping, in io.Reader) ([]map[string]any, i
 		}
 	}
 	// rewrite applies the mapping's value map; ok false means drop it.
-	rewrite := func(q question, v string) (string, bool) {
+	rewrite := func(q Question, v string) (string, bool) {
 		for from, to := range m.Values[q.ID] {
 			if strings.EqualFold(from, v) {
 				if to == nil {
@@ -190,7 +130,7 @@ func convertImport(s survey, m importMapping, in io.Reader) ([]map[string]any, i
 // pick stores a choice or multi answer; a value not among the options is a
 // write-in, stored as q.Other with its text under <id>.other, as a
 // submission stores it.
-func pick(a map[string]any, q question, vals []string, stats importStats) error {
+func pick(a map[string]any, q Question, vals []string, stats importStats) error {
 	var picked, other []string
 	for _, v := range vals {
 		switch {
@@ -224,49 +164,72 @@ func pick(a map[string]any, q question, vals []string, stats importStats) error 
 	return nil
 }
 
-// writeImport replaces the survey's rows in one transaction, so a rerun
-// leaves no duplicates. Its aggregates go too, under finalize's lock, so
-// close-out counts the new rows instead of mixing old totals with new skip
-// counts. Rows are shuffled, as submissions are, so their order says nothing
-// about when someone answered.
-func writeImport(ctx context.Context, dbURL string, s survey, rows []map[string]any, deleteAfter time.Time) (int, error) {
-	store, err := openSurveyStore(ctx, dbURL)
-	if err != nil {
-		return 0, err
-	}
-	defer store.pool.Close()
-	versions := map[string]int{}
-	for _, q := range s.answerable() {
-		versions[q.ID] = q.Version
-	}
-	rand.Shuffle(len(rows), func(i, j int) { rows[i], rows[j] = rows[j], rows[i] })
-	batch := &pgx.Batch{}
-	batch.Queue(`SELECT pg_advisory_xact_lock(hashtext('survey_results:' || $1))`, s.ID)
-	batch.Queue(`DELETE FROM survey_results WHERE survey_id = $1`, s.ID)
-	batch.Queue(`DELETE FROM survey_skip_results WHERE survey_id = $1`, s.ID)
-	batch.Queue(`DELETE FROM survey_answers WHERE survey_id = $1`, s.ID)
-	for _, a := range rows {
-		v := map[string]int{}
-		for k := range a {
-			if n, ok := versions[k]; ok {
-				v[k] = n
-			}
-		}
-		answers, _ := json.Marshal(a)
-		vj, _ := json.Marshal(v)
-		batch.Queue(`INSERT INTO survey_answers (survey_id, answers, question_versions, context, delete_after) VALUES ($1, $2, $3, $4, $5)`,
-			s.ID, answers, vj, `{"client":"forms"}`, deleteAfter)
-	}
-	err = pgx.BeginFunc(ctx, store.pool, func(tx pgx.Tx) error { return tx.SendBatch(ctx, batch).Close() })
-	return len(rows), err
-}
-
 // clip cuts free text to the question's max_length, the bound a submission
 // is held to: long free text is likelier to identify someone.
-func clip(v string, q question, stats importStats) string {
+func clip(v string, q Question, stats importStats) string {
 	if r := []rune(v); q.MaxLen > 0 && len(r) > q.MaxLen {
 		stats.norms[fmt.Sprintf("%s text cut to max_length %d", q.ID, q.MaxLen)]++
 		return strings.TrimSpace(string(r[:q.MaxLen]))
 	}
 	return v
+}
+
+// ImportWriter writes converted import rows (store.WriteImport).
+type ImportWriter func(ctx context.Context, dbURL string, s Survey, rows []map[string]any, deleteAfter time.Time) (int, error)
+
+// RunImport is `copilot-survey import --survey <id> [--dry-run]`: a CSV
+// export on in, the survey's answers in survey_answers. It writes no
+// participation rows and no hashes, and the export's identity and time
+// columns must be gone before it gets here (an unmapped column is refused).
+func RunImport(args []string, in io.Reader, out io.Writer, dbURL string, now time.Time, write ImportWriter) error {
+	fs := flag.NewFlagSet("import", flag.ContinueOnError)
+	id := fs.String("survey", "", "survey id, e.g. q2-2026")
+	dry := fs.Bool("dry-run", false, "print counts, write nothing")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	defs, err := LoadSurveyDir(SurveyFiles)
+	if err != nil {
+		return err
+	}
+	i := slices.IndexFunc(defs, func(s Survey) bool { return s.ID == *id })
+	if i < 0 {
+		return fmt.Errorf("no survey %q", *id)
+	}
+	s := defs[i]
+	raw, err := ImportFiles.ReadFile("imports/" + s.ID + ".json")
+	if err != nil {
+		return fmt.Errorf("no mapping for %s: %w", s.ID, err)
+	}
+	var m ImportMapping
+	if err = DecodeStrict(raw, &m); err != nil || m.Survey != s.ID {
+		return fmt.Errorf("mapping imports/%s.json: invalid or for another survey (%v)", s.ID, err)
+	}
+	rows, stats, err := convertImport(s, m, in)
+	if err != nil {
+		return err
+	}
+	deleteAfter := s.DeleteAfter()
+	fmt.Fprintf(out, "survey %s: %d rows, delete_after %s\n", s.ID, stats.rows, deleteAfter.Format(time.DateOnly))
+	if !now.Before(deleteAfter.AddDate(0, 0, 1)) {
+		fmt.Fprintf(out, "WARNING: delete_after %s has passed: the daily retention job deletes these rows at once\n", deleteAfter.Format(time.DateOnly))
+	}
+	for _, k := range sortedKeys(stats.questions) {
+		fmt.Fprintf(out, "  answered %-24s %d\n", k, stats.questions[k])
+	}
+	for _, k := range sortedKeys(stats.norms) {
+		fmt.Fprintf(out, "  normalised %s: %d\n", k, stats.norms[k])
+	}
+	if *dry {
+		return nil
+	}
+	if dbURL == "" {
+		return errors.New("DB_URL is not set")
+	}
+	n, err := write(context.Background(), dbURL, s, rows, deleteAfter)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(out, "wrote %d rows to survey_answers for %s (earlier rows replaced)\n", n, s.ID)
+	return nil
 }

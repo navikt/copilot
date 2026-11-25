@@ -1,4 +1,4 @@
-package survey
+package api
 
 import (
 	"bytes"

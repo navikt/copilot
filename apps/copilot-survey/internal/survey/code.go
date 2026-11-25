@@ -43,16 +43,16 @@ func RunCode(args []string, out, errOut io.Writer, token string) error {
 	if token == "" {
 		return errors.New("GITHUB_TOKEN is not set")
 	}
-	defs, err := loadSurveyDir(surveyFiles)
+	defs, err := LoadSurveyDir(SurveyFiles)
 	if err != nil {
 		return err
 	}
-	i := slices.IndexFunc(defs, func(s survey) bool { return s.ID == *id })
+	i := slices.IndexFunc(defs, func(s Survey) bool { return s.ID == *id })
 	if i < 0 {
 		return fmt.Errorf("no survey %q", *id)
 	}
 	s := defs[i]
-	cbs, err := loadCodebooks(surveyFiles)
+	cbs, err := LoadCodebooks(SurveyFiles)
 	if err != nil {
 		return err
 	}
@@ -64,15 +64,15 @@ func RunCode(args []string, out, errOut io.Writer, token string) error {
 	if err != nil {
 		return err
 	}
-	rows, err := readExportCSV(s, f)
+	rows, err := ReadExportCSV(s, f)
 	_ = f.Close()
 	if err != nil {
 		return err
 	}
 	c := &modelCoder{client: &http.Client{Timeout: 2 * time.Minute}, endpoint: *endpoint, model: *model, token: token}
-	file := modelCodes{Survey: s.ID, Model: *model, CodebookVersion: cb.Version, Codes: []maskedCode{}}
-	for _, ff := range freetextFields(s) {
-		field, ok := cb.field(ff.ID)
+	file := ModelCodes{Survey: s.ID, Model: *model, CodebookVersion: cb.Version, Codes: []MaskedCode{}}
+	for _, ff := range FreetextFields(s) {
+		field, ok := cb.Field(ff.ID)
 		if !ok {
 			continue
 		}
@@ -83,7 +83,7 @@ func RunCode(args []string, out, errOut io.Writer, token string) error {
 			text, _ := row.Answers[field.ID].(string)
 			// Masked as the export masks it, whatever the CSV came from;
 			// redact leaves masked text as it is, so the hash still matches.
-			text = redact(text)
+			text = Redact(text)
 			if text == "" || seen[text] {
 				continue
 			}
@@ -95,7 +95,7 @@ func RunCode(args []string, out, errOut io.Writer, token string) error {
 				fmt.Fprintf(errOut, "%s text %d: %v\n", field.ID, n, err)
 				continue
 			}
-			file.Codes = append(file.Codes, maskedCode{Field: field.ID, Text: textHash(text), Codes: codes})
+			file.Codes = append(file.Codes, MaskedCode{Field: field.ID, Text: TextHash(text), Codes: codes})
 		}
 		fmt.Fprintf(errOut, "%s: %d texts, %d coded\n", field.ID, n, n-failed)
 	}
@@ -117,7 +117,7 @@ func checkEndpoint(raw string) error {
 
 // codingPrompt is the instruction for one field: the rules and the field's
 // categories, as the person sees them in admin.
-func codingPrompt(cb codebook, f codebookField, ff freetextField) string {
+func codingPrompt(cb Codebook, f CodebookField, ff FreetextField) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Du koder fritekstsvar fra en spørreundersøkelse etter en kodebok (versjon %d). Hver melding fra brukeren er ett svar, maskert. Svar bare med JSON: {\"codes\":[{\"category\":\"<id>\",\"onske\":true|false}]}.\n\n", cb.Version)
 	fmt.Fprintf(&b, "Spørsmål: %s\n", ff.Question)
@@ -130,7 +130,7 @@ func codingPrompt(cb codebook, f codebookField, ff freetextField) string {
 	}
 	b.WriteString("\nKategorier (bruk bare disse id-ene):\n")
 	for _, id := range f.Categories {
-		c := cb.category(id)
+		c := cb.Category(id)
 		fmt.Fprintf(&b, "\n## %s (%s)\n%s\n", c.ID, c.Name, c.Definition)
 		for _, l := range []struct {
 			head  string
@@ -150,8 +150,8 @@ type modelCoder struct {
 }
 
 // code asks the model for one text's codes, twice if the first answer does
-// not pass checkCodes.
-func (c *modelCoder) code(ctx context.Context, f codebookField, system, text string) ([]code, error) {
+// not pass CheckCodes.
+func (c *modelCoder) code(ctx context.Context, f CodebookField, system, text string) ([]Code, error) {
 	var last error
 	for range 2 {
 		raw, err := c.complete(ctx, system, text)
@@ -159,15 +159,15 @@ func (c *modelCoder) code(ctx context.Context, f codebookField, system, text str
 			return nil, err
 		}
 		var ans struct {
-			Codes []code `json:"codes"`
+			Codes []Code `json:"codes"`
 		}
 		if err = json.Unmarshal([]byte(raw), &ans); err != nil {
 			last = errors.New("answer is not the JSON asked for")
 			continue
 		}
-		// Not checkCodes' error: it quotes the model's category, and the
+		// Not CheckCodes' error: it quotes the model's category, and the
 		// model may echo the text there.
-		if codes, err := checkCodes(f, ans.Codes); err == nil {
+		if codes, err := CheckCodes(f, ans.Codes); err == nil {
 			return codes, nil
 		}
 		last = errors.New("answer breaks the codebook")

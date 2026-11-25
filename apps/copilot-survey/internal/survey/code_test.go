@@ -16,17 +16,17 @@ import (
 // categories in the instruction, invalid answers retried, nothing of the
 // text on stderr, and a file the import takes.
 func TestRunCode(t *testing.T) {
-	defs, _ := loadSurveyDir(surveyFiles)
-	s := defs[slices.IndexFunc(defs, func(s survey) bool { return s.ID == "q4-2026" })]
+	defs, _ := LoadSurveyDir(SurveyFiles)
+	s := defs[slices.IndexFunc(defs, func(s Survey) bool { return s.ID == "q4-2026" })]
 	syn := "Syntetisk svar, skriv til ola@nav.no"
-	rows := []storedAnswer{
+	rows := []StoredAnswer{
 		row(`{"opplevelse":"`+syn+`"}`, `{}`),
 		row(`{"opplevelse":"`+syn+`"}`, `{}`),
 		row(`{"opplevelse":"Annet syntetisk svar"}`, `{}`),
 		row(`{"verktoy":["Annet"],"verktoy.other":"Syntetisk verktøy"}`, `{}`),
 	}
 	var csv bytes.Buffer
-	writeExportCSV(&csv, s, toExportRows(rows))
+	WriteExportCSV(&csv, s, toExportRows(rows))
 	path := filepath.Join(t.TempDir(), "export.csv")
 	if err := os.WriteFile(path, csv.Bytes(), 0o600); err != nil {
 		t.Fatal(err)
@@ -71,12 +71,12 @@ func TestRunCode(t *testing.T) {
 	if strings.Contains(errOut.String(), "Syntetisk") || !strings.Contains(errOut.String(), "opplevelse: 2 texts, 2 coded") {
 		t.Errorf("stderr %s", errOut.String())
 	}
-	var file modelCodes
+	var file ModelCodes
 	if err := json.Unmarshal(out.Bytes(), &file); err != nil || file.CodebookVersion != 1 || len(file.Codes) != 3 || strings.Contains(out.String(), "Syntetisk") {
 		t.Fatalf("%v %s", err, out.String())
 	}
 	for _, c := range file.Codes {
-		if c.Field == "verktoy.other" && (c.Text != textHash("Syntetisk verktøy") || c.Codes[0].Onske) {
+		if c.Field == "verktoy.other" && (c.Text != TextHash("Syntetisk verktøy") || c.Codes[0].Onske) {
 			t.Errorf("verktoy.other %+v", c)
 		}
 	}
@@ -105,22 +105,22 @@ func TestRunCodeRefuses(t *testing.T) {
 
 // analyze adds the coding results when the CSV carries codes.
 func TestAnalyzeReadsCodes(t *testing.T) {
-	defs, _ := loadSurveyDir(surveyFiles)
-	s := defs[slices.IndexFunc(defs, func(s survey) bool { return s.ID == "q4-2026" })]
-	var rows []exportRow
+	defs, _ := LoadSurveyDir(SurveyFiles)
+	s := defs[slices.IndexFunc(defs, func(s Survey) bool { return s.ID == "q4-2026" })]
+	var rows []ExportRow
 	for range 5 {
-		r := toExportRows([]storedAnswer{row(`{"opplevelse":"Syntetisk"}`, `{}`)})[0]
-		r.Codes = map[string]textCodes{"opplevelse": {Model: []code{{"raskere", false}}, Human: []code{{"raskere", false}}}}
+		r := toExportRows([]StoredAnswer{row(`{"opplevelse":"Syntetisk"}`, `{}`)})[0]
+		r.Codes = map[string]TextCodes{"opplevelse": {Model: []Code{{"raskere", false}}, Human: []Code{{"raskere", false}}}}
 		rows = append(rows, r)
 	}
 	var csv bytes.Buffer
-	writeExportCSV(&csv, s, rows)
+	WriteExportCSV(&csv, s, rows)
 	path := filepath.Join(t.TempDir(), "export.csv")
 	if err := os.WriteFile(path, csv.Bytes(), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	var out bytes.Buffer
-	if err := RunAnalyze([]string{"q4-2026=" + path}, &out, s.closesOn()); err != nil {
+	if err := RunAnalyze([]string{"q4-2026=" + path}, &out, s.ClosesOn()); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), `"freetext"`) || !strings.Contains(out.String(), `"id": "raskere"`) {
@@ -132,11 +132,11 @@ func TestAnalyzeReadsCodes(t *testing.T) {
 // carries fixed messages only. A CSV that was never masked is masked
 // before anything leaves, and hashed as the import hashes.
 func TestRunCodeLeaksNothing(t *testing.T) {
-	defs, _ := loadSurveyDir(surveyFiles)
-	s := defs[slices.IndexFunc(defs, func(s survey) bool { return s.ID == "q4-2026" })]
+	defs, _ := LoadSurveyDir(SurveyFiles)
+	s := defs[slices.IndexFunc(defs, func(s Survey) bool { return s.ID == "q4-2026" })]
 	raw := "Syntetisk ekko, ring 22225555 eller ola@nav.no"
 	var csv bytes.Buffer
-	writeExportCSV(&csv, s, []exportRow{{Answers: map[string]any{"opplevelse": raw}, Context: map[string]string{}}}) // unmasked
+	WriteExportCSV(&csv, s, []ExportRow{{Answers: map[string]any{"opplevelse": raw}, Context: map[string]string{}}}) // unmasked
 	if !strings.Contains(csv.String(), "ola@nav.no") {
 		t.Fatal("control: the CSV should hold the raw text")
 	}
@@ -158,14 +158,14 @@ func TestRunCodeLeaksNothing(t *testing.T) {
 	if err := RunCode([]string{"--survey", "q4-2026", "--model", "m", "--endpoint", srv.URL, path}, &out, &errOut, "tok"); err != nil {
 		t.Fatal(err)
 	}
-	masked := redact(raw)
+	masked := Redact(raw)
 	if len(sent) != 2 || sent[0] != masked || strings.Contains(sent[0], "ola@nav.no") {
 		t.Errorf("sent %q", sent)
 	}
 	if strings.Contains(errOut.String(), "Syntetisk") || !strings.Contains(errOut.String(), "opplevelse text 1: answer breaks the codebook") {
 		t.Errorf("stderr %s", errOut.String())
 	}
-	if redact(masked) != masked {
+	if Redact(masked) != masked {
 		t.Error("redact is not idempotent: hashes of masked text would not match the import")
 	}
 }
@@ -179,33 +179,10 @@ func TestModelEndpointErrorIsFixed(t *testing.T) {
 	}))
 	defer srv.Close()
 	c := &modelCoder{client: srv.Client(), endpoint: srv.URL, model: "m", token: "tok"}
-	_, err := c.code(t.Context(), codebookField{}, "", "Syntetisk ekko")
+	_, err := c.code(t.Context(), CodebookField{}, "", "Syntetisk ekko")
 	if err == nil || err.Error() != "model endpoint: status 422" {
 		t.Errorf("%v", err)
 	}
 }
 
 func strconvQuote(s string) string { b, _ := json.Marshal(s); return string(b) }
-
-// The admin CSV keeps the model's codes back until the person has coded
-// the text, as the coding page does.
-func TestExportKeepsModelBlind(t *testing.T) {
-	api := adminAPI(t, []storedAnswer{
-		row(`{"comment":"rask"}`, `{"comment":1}`),
-		row(`{"comment":"treg"}`, `{"comment":1}`),
-	})
-	f := withFakeCodes(api)
-	f.codes[hiddenKey("comment", textHash("rask"))] = &textCodes{Model: []code{{"b", false}}}
-	f.codes[hiddenKey("comment", textHash("treg"))] = &textCodes{Model: []code{{"c", false}}, Human: []code{{"d", false}}}
-	rec := do(makeRouter(testAuthenticator(t), api), "GET", "/api/v1/admin/surveys/q4-2026/export.csv", adminToken, "")
-	rows, err := readExportCSV(api.surveys[0], rec.Body)
-	if rec.Code != 200 || err != nil {
-		t.Fatalf("%d %v", rec.Code, err)
-	}
-	for _, r := range rows {
-		got, text := r.Codes["comment"], r.Answers["comment"]
-		if text == "rask" && got.Model != nil || text == "treg" && got.Model == nil {
-			t.Errorf("%s: model %v", text, got.Model)
-		}
-	}
-}

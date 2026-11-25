@@ -24,27 +24,30 @@ import (
 // texts both coded. A category is published at kappa ≥ minKappa; below
 // that together with its merge_with partner when the pair reaches it;
 // otherwise not at all. A category nobody coded is not published and does
-// not pull its partner into a pair. Counts and shares under minSegment show
+// not pull its partner into a pair. Counts and shares under MinSegment show
 // as «<5».
 
 const minKappa = 0.6
 
-type codebook struct {
+// Codebook is the categories for coding a series' free texts.
+type Codebook struct {
 	Series     string             `json:"series"`
 	Version    int                `json:"version"`
 	Rules      []string           `json:"rules"`
-	Fields     []codebookField    `json:"fields"`
-	Categories []codebookCategory `json:"categories"`
+	Fields     []CodebookField    `json:"fields"`
+	Categories []CodebookCategory `json:"categories"`
 }
 
-type codebookField struct {
+// CodebookField is one coded free-text field and its categories.
+type CodebookField struct {
 	ID         string   `json:"id"`
 	Onske      string   `json:"onske"` // kodes, alltid or aldri
 	MaxCodes   int      `json:"max_codes"`
 	Categories []string `json:"categories"`
 }
 
-type codebookCategory struct {
+// CodebookCategory is one category a text can be coded with.
+type CodebookCategory struct {
 	ID         string   `json:"id"`
 	Name       string   `json:"name"`
 	Kind       string   `json:"kind"`
@@ -55,23 +58,24 @@ type codebookCategory struct {
 	Examples   []string `json:"examples"`
 }
 
-type code struct {
+// Code is one category given to a text, and whether it states a wish.
+type Code struct {
 	Category string `json:"category"`
 	Onske    bool   `json:"onske"`
 }
 
-// textCodes are one text's codes per coder; nil: that coder has not coded it.
-type textCodes struct {
-	Model, Human, Final []code
+// TextCodes are one text's codes per coder; nil: that coder has not coded it.
+type TextCodes struct {
+	Model, Human, Final []Code
 }
 
-// loadCodebooks reads surveys/codebooks/<series>.json, by series.
-func loadCodebooks(fsys fs.FS) (map[string]codebook, error) {
+// LoadCodebooks reads surveys/codebooks/<series>.json, by series.
+func LoadCodebooks(fsys fs.FS) (map[string]Codebook, error) {
 	names, err := fs.Glob(fsys, "surveys/codebooks/*.json")
 	if err != nil {
 		return nil, err
 	}
-	out := map[string]codebook{}
+	out := map[string]Codebook{}
 	for _, name := range names {
 		if path.Base(name) == "schema.json" {
 			continue
@@ -80,7 +84,7 @@ func loadCodebooks(fsys fs.FS) (map[string]codebook, error) {
 		if err != nil {
 			return nil, err
 		}
-		var cb codebook
+		var cb Codebook
 		if err := json.Unmarshal(raw, &cb); err != nil {
 			return nil, fmt.Errorf("%s: %w", name, err)
 		}
@@ -89,25 +93,27 @@ func loadCodebooks(fsys fs.FS) (map[string]codebook, error) {
 	return out, nil
 }
 
-func (cb codebook) field(id string) (codebookField, bool) {
-	i := slices.IndexFunc(cb.Fields, func(f codebookField) bool { return f.ID == id })
+// Field is the codebook field with id.
+func (cb Codebook) Field(id string) (CodebookField, bool) {
+	i := slices.IndexFunc(cb.Fields, func(f CodebookField) bool { return f.ID == id })
 	if i < 0 {
-		return codebookField{}, false
+		return CodebookField{}, false
 	}
 	return cb.Fields[i], true
 }
 
-func (cb codebook) category(id string) codebookCategory {
-	i := slices.IndexFunc(cb.Categories, func(c codebookCategory) bool { return c.ID == id })
+// Category is the category with id.
+func (cb Codebook) Category(id string) CodebookCategory {
+	i := slices.IndexFunc(cb.Categories, func(c CodebookCategory) bool { return c.ID == id })
 	if i < 0 {
-		return codebookCategory{ID: id}
+		return CodebookCategory{ID: id}
 	}
 	return cb.Categories[i]
 }
 
 // partner is c's merge_with partner when f codes it too, else "".
-func (cb codebook) partner(f codebookField, c string) string {
-	p := cb.category(c).MergeWith
+func (cb Codebook) partner(f CodebookField, c string) string {
+	p := cb.Category(c).MergeWith
 	if p == "" || !slices.Contains(f.Categories, p) {
 		return ""
 	}
@@ -115,17 +121,17 @@ func (cb codebook) partner(f codebookField, c string) string {
 }
 
 // pairID names a merged pair, in f's category order.
-func pairID(f codebookField, a, b string) string {
+func pairID(f CodebookField, a, b string) string {
 	if slices.Index(f.Categories, a) > slices.Index(f.Categories, b) {
 		a, b = b, a
 	}
 	return a + "+" + b
 }
 
-// checkCodes validates codes for f and returns them sorted: 1 to max_codes,
+// CheckCodes validates codes for f and returns them sorted: 1 to max_codes,
 // each category in f's set and given once per onske, «annet» alone. onske is
 // set from the field where the question fixes it.
-func checkCodes(f codebookField, codes []code) ([]code, error) {
+func CheckCodes(f CodebookField, codes []Code) ([]Code, error) {
 	out := slices.Clone(codes)
 	for i := range out {
 		switch f.Onske {
@@ -135,7 +141,7 @@ func checkCodes(f codebookField, codes []code) ([]code, error) {
 			out[i].Onske = false
 		}
 	}
-	slices.SortFunc(out, func(a, b code) int {
+	slices.SortFunc(out, func(a, b Code) int {
 		if c := strings.Compare(a.Category, b.Category); c != 0 {
 			return c
 		}
@@ -165,9 +171,9 @@ func checkCodes(f codebookField, codes []code) ([]code, error) {
 	return out, nil
 }
 
-// final is a text's final codes: the decision, or the two coders' codes
+// FinalCodes is a text's final codes: the decision, or the two coders' codes
 // where they agree. nil: not final yet.
-func (t textCodes) final() []code {
+func (t TextCodes) FinalCodes() []Code {
 	switch {
 	case t.Final != nil:
 		return t.Final
@@ -177,39 +183,39 @@ func (t textCodes) final() []code {
 	return nil
 }
 
-// disagree: both coders coded the text, differently, and nobody has decided.
-func (t textCodes) disagree() bool {
+// Disagree tells whether both coders coded the text, differently, and nobody has decided.
+func (t TextCodes) Disagree() bool {
 	return t.Final == nil && t.Human != nil && t.Model != nil && !slices.Equal(t.Human, t.Model)
 }
 
-func hasAny(codes []code, cats ...string) bool {
-	return slices.ContainsFunc(codes, func(c code) bool { return slices.Contains(cats, c.Category) })
+func hasAny(codes []Code, cats ...string) bool {
+	return slices.ContainsFunc(codes, func(c Code) bool { return slices.Contains(cats, c.Category) })
 }
 
-func hasWish(codes []code, cats ...string) bool {
-	return slices.ContainsFunc(codes, func(c code) bool { return c.Onske && slices.Contains(cats, c.Category) })
+func hasWish(codes []Code, cats ...string) bool {
+	return slices.ContainsFunc(codes, func(c Code) bool { return c.Onske && slices.Contains(cats, c.Category) })
 }
 
-// catTally is one category's, or one merged pair's, numbers in a field.
-type catTally struct {
+// CatTally is one category's, or one merged pair's, numbers in a field.
+type CatTally struct {
 	Count int      // respondents with it as a final code
 	Onske int      // of those, coded as a wish
 	Kappa *float64 // between the coders; nil when undefined
 }
 
-// fieldTally is one field's coding: Written respondents wrote in it, Coded
+// FieldTally is one field's coding: Written respondents wrote in it, Coded
 // of them have final codes. Cats is keyed by category, and by pairID for
 // every merge_with pair the field codes.
-type fieldTally struct {
+type FieldTally struct {
 	Written int
 	Coded   int
-	Cats    map[string]catTally
+	Cats    map[string]CatTally
 }
 
 // tallyCodes counts one field from its respondents' texts' codes, one entry
 // per respondent who wrote in it.
-func tallyCodes(cb codebook, f codebookField, texts []textCodes) fieldTally {
-	t := fieldTally{Written: len(texts), Cats: map[string]catTally{}}
+func tallyCodes(cb Codebook, f CodebookField, texts []TextCodes) FieldTally {
+	t := FieldTally{Written: len(texts), Cats: map[string]CatTally{}}
 	groups := map[string][]string{}
 	for _, c := range f.Categories {
 		groups[c] = []string{c}
@@ -218,15 +224,15 @@ func tallyCodes(cb codebook, f codebookField, texts []textCodes) fieldTally {
 		}
 	}
 	for _, tc := range texts {
-		if tc.final() != nil {
+		if tc.FinalCodes() != nil {
 			t.Coded++
 		}
 	}
 	for id, cats := range groups {
-		var ct catTally
+		var ct CatTally
 		var both, a, b, ab int // texts both coded; model yes, human yes, both yes
 		for _, tc := range texts {
-			if fin := tc.final(); hasAny(fin, cats...) {
+			if fin := tc.FinalCodes(); hasAny(fin, cats...) {
 				ct.Count++
 				if hasWish(fin, cats...) {
 					ct.Onske++
@@ -285,7 +291,8 @@ type codedCategory struct {
 	MergedTo string `json:"merged_into,omitempty"`
 }
 
-type codedField struct {
+// CodedField is the coding results for one field.
+type CodedField struct {
 	ID       string `json:"id"`
 	Question string `json:"question"`
 	Other    string `json:"other,omitempty"`
@@ -293,22 +300,22 @@ type codedField struct {
 	Coded    int    `json:"coded"`
 	// Categories: every category with its kappa and status (admin only).
 	Categories []codedCategory `json:"categories,omitempty"`
-	// Published: what may be shown, «<5» applied; null under minSegment writers.
+	// Published: what may be shown, «<5» applied; null under MinSegment writers.
 	Published []codedCategory `json:"published"`
 }
 
-// codingResults applies the publication rule to a survey's field tallies,
+// CodingResults applies the publication rule to a survey's field tallies,
 // in codebook order. Admin sees every category's real count; published
 // rows get «<5».
-func codingResults(s survey, cb codebook, tallies map[string]fieldTally) []codedField {
-	out := []codedField{}
-	for _, ff := range freetextFields(s) {
-		f, ok := cb.field(ff.ID)
+func CodingResults(s Survey, cb Codebook, tallies map[string]FieldTally) []CodedField {
+	out := []CodedField{}
+	for _, ff := range FreetextFields(s) {
+		f, ok := cb.Field(ff.ID)
 		t, counted := tallies[ff.ID]
 		if !ok || !counted {
 			continue
 		}
-		res := codedField{ID: f.ID, Question: ff.Question, Other: ff.Other, Written: t.Written, Coded: t.Coded}
+		res := CodedField{ID: f.ID, Question: ff.Question, Other: ff.Other, Written: t.Written, Coded: t.Coded}
 		status := map[string]string{}
 		merged := map[string]string{}
 		var published []string
@@ -341,9 +348,9 @@ func codingResults(s survey, cb codebook, tallies map[string]fieldTally) []coded
 		}
 		row := func(id string, mask bool) codedCategory {
 			ct := t.Cats[id]
-			name := cb.category(id).Name
+			name := cb.Category(id).Name
 			if a, b, ok := strings.Cut(id, "+"); ok {
-				name = cb.category(a).Name + " / " + cb.category(b).Name
+				name = cb.Category(a).Name + " / " + cb.Category(b).Name
 			}
 			r := codedCategory{ID: id, Name: name, Kappa: ct.Kappa, Status: status[id], MergedTo: merged[id]}
 			count, onske := ct.Count, ct.Onske
@@ -364,7 +371,7 @@ func codingResults(s survey, cb codebook, tallies map[string]fieldTally) []coded
 		for _, c := range f.Categories {
 			res.Categories = append(res.Categories, row(c, false))
 		}
-		if t.Written >= minSegment {
+		if t.Written >= MinSegment {
 			res.Published = []codedCategory{}
 			for _, id := range published {
 				r := row(id, true)
