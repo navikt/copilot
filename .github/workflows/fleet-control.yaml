@@ -47,7 +47,7 @@ jobs:
       mise-tasks: '["lint", "check"]'
       deploys-to-nais: true
       # Postgres deploys with the app in every cluster; dev already has it, so this is a no-op there.
-      nais-resource: '.nais/app.yaml,.nais/postgres.yaml'
+      nais-resource: '.nais/postgres.yaml,.nais/app.yaml'
       deploy-pr-to-dev: false
       check-on-pr: true
       nais-team: copilot
