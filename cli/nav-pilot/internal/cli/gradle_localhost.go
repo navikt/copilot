@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -45,14 +46,16 @@ func proposesLocalhost(root string) bool {
 	return ok
 }
 
-// runCpltConfig runs `cplt config ...` in dir and returns combined output.
+// runCpltConfig runs `cplt config ...` in dir and returns combined output,
+// or stdout only for `get --json`, so a stderr warning cannot break the parse.
 // A var so tests never run the real cplt.
 var runCpltConfig = func(dir string, args ...string) (string, error) {
 	cpltPath, err := findCplt()
 	if err != nil {
 		return "", err
 	}
-	out, err := runBoundedIn(dir, cpltCommandTimeout, true, cpltPath, append([]string{"config"}, args...)...)
+	combined := len(args) < 2 || args[1] != "--json"
+	out, err := runBoundedIn(dir, cpltCommandTimeout, combined, cpltPath, append([]string{"config"}, args...)...)
 	return string(out), err
 }
 
@@ -76,9 +79,8 @@ func maybeGradleLocalhost(projectDir string) {
 	if cpltStampForGradle() < cpltLocalFloor {
 		return
 	}
-	out, err := runCpltConfig(root, "get", "sandbox.allow_localhost_any")
-	if err != nil || !strings.Contains(out, "(default") {
-		return // stored at some layer, or cplt could not tell
+	if !localhostUndecided(root) {
+		return
 	}
 	if !claimSessionPrompt() {
 		return
@@ -90,4 +92,24 @@ func maybeGradleLocalhost(projectDir string) {
 	if _, err := runCpltConfig(root, "set", "--local", "sandbox.allow_localhost_any", value); err != nil {
 		fmt.Fprintf(os.Stderr, "%s cplt config set: %v\n", yellow("⚠"), err)
 	}
+}
+
+// localhostUndecided reports whether no layer has decided
+// sandbox.allow_localhost_any. It asks `cplt config get --json` first
+// (navikt/copilot#2874). Any error, unparseable output, other schema or
+// mismatched key falls back to the text check older cplt needs.
+func localhostUndecided(root string) bool {
+	const key = "sandbox.allow_localhost_any"
+	if out, err := runCpltConfig(root, "get", "--json", key); err == nil {
+		var r struct {
+			Schema int    `json:"schema"`
+			Key    string `json:"key"`
+			Set    *bool  `json:"set"`
+		}
+		if json.Unmarshal([]byte(strings.TrimSpace(out)), &r) == nil && r.Schema == 1 && r.Key == key && r.Set != nil {
+			return !*r.Set
+		}
+	}
+	out, err := runCpltConfig(root, "get", key)
+	return err == nil && strings.Contains(out, "(default")
 }
