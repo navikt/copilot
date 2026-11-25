@@ -118,7 +118,7 @@ def panels():
 
 # Panels whose instruments have no series yet. Kept with their intended query
 # so they light up once data arrives.
-PLACEHOLDERS = {30: 1015, 31: 1015, 32: 1015, 33: 1015, 40: 2915, 42: 2915}
+PLACEHOLDERS = {30: 1015, 31: 1015, 32: 1015, 33: 1015}
 
 
 # Panels whose values are not plain counts.
