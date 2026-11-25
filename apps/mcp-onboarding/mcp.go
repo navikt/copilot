@@ -292,7 +292,7 @@ func (h *MCPHandler) processRequest(req *JSONRPCRequest, user *UserContext) *JSO
 	case "initialized", "notifications/initialized":
 		return nil
 	case "tools/list":
-		return h.handleListTools(req)
+		return h.handleListTools(req, user)
 	case "tools/call":
 		return h.handleCallTool(req, user)
 	case "ping":
@@ -334,7 +334,7 @@ func (h *MCPHandler) handleInitialize(req *JSONRPCRequest) *JSONRPCResponse {
 	}
 }
 
-func (h *MCPHandler) handleListTools(req *JSONRPCRequest) *JSONRPCResponse {
+func (h *MCPHandler) handleListTools(req *JSONRPCRequest, user *UserContext) *JSONRPCResponse {
 	tools := []Tool{
 		{
 			Name:        "hello_world",
@@ -580,6 +580,11 @@ func (h *MCPHandler) handleListTools(req *JSONRPCRequest) *JSONRPCResponse {
 	// Every tool only reads; the GitHub-backed ones reach outside this server.
 	for i := range tools {
 		tools[i].Annotations = &ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: true}
+	}
+
+	// Entra mode (fleet-gateway) has no GitHub token, so offer only the tools that work without one (#2834).
+	if user != nil && user.NAVident != "" {
+		tools = slices.DeleteFunc(tools, func(t Tool) bool { return !entraTools[t.Name] })
 	}
 
 	return &JSONRPCResponse{
@@ -1494,7 +1499,7 @@ func (h *MCPHandler) serveModern(w http.ResponseWriter, r *http.Request, body []
 	case "server/discover":
 		resp = &JSONRPCResponse{JSONRPC: "2.0", ID: req.ID, Result: mcpDiscoverResult(ServerCapabilities{Tools: &ToolsCapability{}}, now)}
 	case "tools/list":
-		resp = h.handleListTools(&req)
+		resp = h.handleListTools(&req, GetUserFromContext(r.Context()))
 		extra = map[string]any{"ttlMs": mcpDiscoverTTLMilliseconds, "cacheScope": "private"}
 	case "tools/call":
 		resp = h.handleCallTool(&req, GetUserFromContext(r.Context()))
