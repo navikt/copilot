@@ -4,7 +4,9 @@ import { BodyLong } from "@navikt/ds-react";
 import { fleetApi, fleetLoad, requireFleet } from "@/lib/fleet-control";
 import { FleetFrame, fleetRobots } from "./frame";
 import { FleetProblemAlert, KortFortalt, PendingInbox, TeamSections } from "./fleet-ui";
-import { Catalog, NoTeam, TeamPicker } from "./catalog";
+import { Catalog, NoTeam, TeamPicker, UnknownTeam } from "./catalog";
+
+const DNS_LABEL = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
 
 export const metadata: Metadata = {
   title: "Fleet",
@@ -16,7 +18,8 @@ type Props = { searchParams: Promise<{ team?: string }> };
 
 export default async function FleetPage({ searchParams }: Props) {
   requireFleet();
-  const { team: picked } = await searchParams;
+  const { team } = await searchParams;
+  const picked = team && DNS_LABEL.test(team) ? team : undefined;
   const result = await fleetLoad(async () => {
     const me = await fleetApi.whoami();
     const [teams, pending, catalog] = await Promise.all([
@@ -60,7 +63,11 @@ export default async function FleetPage({ searchParams }: Props) {
               </BodyLong>
               <PendingInbox agents={result.data.pending} />
               <TeamPicker teams={result.data.used.map((t) => t.team)} current={picked} />
-              <TeamSections teams={result.data.used.filter((t) => !picked || t.team === picked)} />
+              {picked && !result.data.used.some((t) => t.team === picked) ? (
+                <UnknownTeam team={picked} />
+              ) : (
+                <TeamSections teams={result.data.used.filter((t) => !picked || t.team === picked)} />
+              )}
             </>
           ) : (
             <NoTeam />

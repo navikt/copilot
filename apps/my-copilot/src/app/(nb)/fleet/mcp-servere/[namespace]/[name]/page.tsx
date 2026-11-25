@@ -17,17 +17,14 @@ export default async function ServerPage({ params }: Props) {
   // The server and its history are for the owner team only. Anyone else gets 404
   // and sees the catalogue entry; an unpublished server stays «Fant ikke siden».
   const result = await fleetLoad(async () => {
-    try {
-      const [server, history, me] = await Promise.all([
-        fleetApi.server(namespace, name),
-        fleetApi.history("mcpservers", namespace, name),
-        fleetApi.whoami(),
-      ]);
-      return { owner: true as const, server, events: history.items, me: me.name };
-    } catch (err) {
-      if (!(err instanceof FleetControlError) || err.status !== 404) throw err;
-      return { owner: false as const, entry: await fleetApi.catalogEntry(namespace, name) };
-    }
+    // Only a 404 on the server itself means another team's server; whoami and history must not decide.
+    const server = await fleetApi.server(namespace, name).catch((err: unknown) => {
+      if (err instanceof FleetControlError && err.status === 404) return null;
+      throw err;
+    });
+    if (!server) return { owner: false as const, entry: await fleetApi.catalogEntry(namespace, name) };
+    const [history, me] = await Promise.all([fleetApi.history("mcpservers", namespace, name), fleetApi.whoami()]);
+    return { owner: true as const, server, events: history.items, me: me.name };
   });
 
   return (

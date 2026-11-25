@@ -170,6 +170,19 @@ describe("/fleet", () => {
     expect(screen.getByRole("combobox", { name: "Team" })).not.toHaveTextContent("team-c");
   });
 
+  it("explains an unknown or invalid team and links back", async () => {
+    for (const team of ["team-x", "Not a label!"]) {
+      const { unmount } = render(await FleetPage(sp(team)));
+      if (team === "team-x") {
+        expect(screen.getByText(/ikke med i teamet/)).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: "Vis alle teamene dine" })).toHaveAttribute("href", "/fleet");
+      } else {
+        expect(screen.getByRole("heading", { name: "team-a" })).toBeInTheDocument();
+      }
+      unmount();
+    }
+  });
+
   it("shows only the picked team", async () => {
     stub({
       [`${API}/whoami`]: { name: "A123456", teams: ["team-a", "team-d"] },
@@ -301,10 +314,26 @@ describe("/fleet", () => {
     expect(urls).toContain(`http://fc${API}/namespaces/team-b/mcpservercatalogentries/saker`);
   });
 
+  const catalogFetched = () =>
+    vi.mocked(fetch).mock.calls.some((c) => String(c[0]).includes("mcpservercatalogentries"));
+
   it("does not fall back to the catalogue on 503", async () => {
     stub({}, { [`${API}/namespaces/team-b/mcpservers/saker`]: 503 });
     render(await ServerPage(params("team-b", "saker")));
-    expect(screen.queryByText("hent_sak")).not.toBeInTheDocument();
+    expect(catalogFetched()).toBe(false);
+    expect(screen.getByText(/Vi får ikke kontakt med Fleet/)).toBeInTheDocument();
+  });
+
+  it("sends 401 on the server to login without fetching the catalogue", async () => {
+    stub({}, { [`${API}/namespaces/team-b/mcpservers/saker`]: 401 });
+    await expect(ServerPage(params("team-b", "saker"))).rejects.toThrow("NEXT_REDIRECT /oauth2/login");
+    expect(catalogFetched()).toBe(false);
+  });
+
+  it("does not switch to the read-only view when only history is 404", async () => {
+    stub({}, { [`${API}/namespaces/team-a/mcpservers/docs/history`]: 404 });
+    await expect(ServerPage(params("team-a", "docs"))).rejects.toThrow("NEXT_NOT_FOUND");
+    expect(catalogFetched()).toBe(false);
   });
 
   it("shows an agent profile to an MCP server's owner team without the history", async () => {

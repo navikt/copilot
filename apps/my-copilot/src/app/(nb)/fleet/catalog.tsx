@@ -19,7 +19,6 @@ import type { CatalogEntry } from "@/lib/fleet-control";
 import { refKey } from "@/lib/fleet-names";
 import { KortFortalt } from "./fleet-ui";
 
-const linkClass = "text-blue-600 hover:underline";
 const NAIS_CONSOLE = "https://console.nav.cloud.nais.io/";
 
 // Datakategori is the risk level. An unknown value is shown as it is.
@@ -47,7 +46,9 @@ export function Catalog({ entries }: { entries: CatalogEntry[] }) {
         <Heading id="katalog" level="2" size="medium">
           Katalog
         </Heading>
-        <BodyShort>Publiserte MCP-servere fra alle team. Åpne en for å se hva den gjør og hvem som eier den.</BodyShort>
+        <BodyShort>
+          Publiserte MCP-servere fra alle team. Åpne en server for å se verktøyene og hvem som eier den.
+        </BodyShort>
         {entries.length === 0 ? (
           <BodyShort>Ingen MCP-servere er publisert ennå.</BodyShort>
         ) : (
@@ -64,9 +65,9 @@ export function Catalog({ entries }: { entries: CatalogEntry[] }) {
               {entries.map((e) => (
                 <Table.Row key={refKey(e.metadata)}>
                   <Table.DataCell>
-                    <NextLink className={linkClass} href={`/fleet/mcp-servere/${refKey(e.metadata)}`}>
+                    <Link as={NextLink} href={`/fleet/mcp-servere/${refKey(e.metadata)}`}>
                       {e.metadata.name}
-                    </NextLink>
+                    </Link>
                   </Table.DataCell>
                   <Table.DataCell>{e.metadata.namespace}</Table.DataCell>
                   <Table.DataCell>
@@ -109,6 +110,20 @@ export function TeamPicker({ teams, current }: { teams: string[]; current?: stri
   );
 }
 
+/** A ?team= that is not one of the person's teams with something in Fleet. */
+export function UnknownTeam({ team }: { team: string }) {
+  return (
+    <Alert variant="info">
+      <BodyLong>
+        Du har ingen MCP-servere eller agentprofiler i {team}, eller du er ikke med i teamet.{" "}
+        <Link as={NextLink} href="/fleet">
+          Vis alle teamene dine
+        </Link>
+      </BodyLong>
+    </Alert>
+  );
+}
+
 export function NoTeam() {
   return (
     <Alert variant="info">
@@ -117,7 +132,7 @@ export function NoTeam() {
           Kom i gang
         </Heading>
         <BodyLong>
-          Du er ikke med i et team i Nais ennå. Du kan se katalogen, men bare et team kan registrere MCP-servere og få
+          Du er ikke med i et team i Nais ennå. Du kan se katalogen, men bare team kan registrere MCP-servere og få
           tilgang til dem.
         </BodyLong>
         <Heading level="3" size="xsmall">
@@ -127,7 +142,7 @@ export function NoTeam() {
           <List.Item>
             Bli med i teamet ditt i <Link href={NAIS_CONSOLE}>Nais Console</Link>.
           </List.Item>
-          <List.Item>Kom tilbake hit og last inn siden på nytt.</List.Item>
+          <List.Item>Last inn denne siden på nytt.</List.Item>
         </List>
       </VStack>
     </Alert>
@@ -142,7 +157,7 @@ export function ServerReadOnly({ entry }: { entry: CatalogEntry }) {
       <KortFortalt>
         <BodyLong>
           Denne MCP-serveren eies av <strong>{entry.metadata.namespace}</strong>. Eierteamet bestemmer hvem som får
-          tilgang. Utkast, historikk og handlinger ser bare eierteamet.
+          tilgang. Bare eierteamet ser utkast, historikk og handlinger.
         </BodyLong>
       </KortFortalt>
       <dl>
@@ -192,9 +207,9 @@ export function ServerReadOnly({ entry }: { entry: CatalogEntry }) {
         )}
       </VStack>
       <BodyShort>
-        <NextLink className={linkClass} href="/fleet">
+        <Link as={NextLink} href="/fleet">
           Tilbake til Fleet
-        </NextLink>
+        </Link>
       </BodyShort>
     </VStack>
   );
