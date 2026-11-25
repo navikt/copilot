@@ -17,6 +17,7 @@ import (
 
 	"golang.org/x/sync/singleflight"
 
+	"github.com/navikt/copilot/fleet-gateway/internal/oauth"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
@@ -87,7 +88,7 @@ func (s *StrategyOBO) TeamToken(ctx context.Context, sessionID string, route rou
 	if s.endpoint == "" {
 		return "", &upstreamTokenError{reason: "texas exchange endpoint not configured"}
 	}
-	sess, ok, err := getSessionFromStore(ctx, s.store, s.now, s.sessionMaxAge, sessionID)
+	sess, ok, err := oauth.GetSession(ctx, s.store, s.now, s.sessionMaxAge, sessionID)
 	if err != nil {
 		return "", fmt.Errorf("load session: %w", err)
 	}
@@ -169,7 +170,7 @@ func (s *StrategyRefresh) TeamToken(ctx context.Context, sessionID string, route
 	if s.tokenEndpoint == "" {
 		return "", &upstreamTokenError{reason: "entra token endpoint not configured"}
 	}
-	sess, ok, err := getSessionFromStore(ctx, s.store, s.now, s.sessionMaxAge, sessionID)
+	sess, ok, err := oauth.GetSession(ctx, s.store, s.now, s.sessionMaxAge, sessionID)
 	if err != nil {
 		return "", fmt.Errorf("load session: %w", err)
 	}
@@ -187,7 +188,7 @@ func (s *StrategyRefresh) TeamToken(ctx context.Context, sessionID string, route
 		mu.Lock()
 		defer mu.Unlock()
 
-		freshSess, ok, err := getSessionFromStore(reqCtx, s.store, s.now, s.sessionMaxAge, sessionID)
+		freshSess, ok, err := oauth.GetSession(reqCtx, s.store, s.now, s.sessionMaxAge, sessionID)
 		if err != nil {
 			return nil, fmt.Errorf("load session: %w", err)
 		}
@@ -240,7 +241,7 @@ func (s *StrategyRefresh) TeamToken(ctx context.Context, sessionID string, route
 		if newRT, _ := out["refresh_token"].(string); newRT != "" {
 			freshSess.RefreshToken = newRT
 			if remTTL := freshSess.Expiry.Sub(s.now()); remTTL > 0 {
-				if err := putSessionInStore(reqCtx, s.store, s.now, s.sessionMaxAge, sessionID, freshSess, remTTL); err != nil {
+				if err := oauth.PutSession(reqCtx, s.store, s.now, s.sessionMaxAge, sessionID, freshSess, remTTL); err != nil {
 					return nil, fmt.Errorf("persist rotated refresh token: %w", err)
 				}
 			}

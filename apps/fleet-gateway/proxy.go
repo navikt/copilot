@@ -21,6 +21,7 @@ import (
 	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
 	"github.com/navikt/copilot/fleet-gateway/internal/identity"
 	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
+	"github.com/navikt/copilot/fleet-gateway/internal/oauth"
 	"github.com/navikt/copilot/fleet-gateway/internal/policy"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
@@ -172,7 +173,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 			return
 		}
 
-		tokenHash := hashToken(token)
+		tokenHash := oauth.HashToken(token)
 		sess, ok, err := g.getSession(r.Context(), tokenHash)
 		if err != nil {
 			outcome = "store_error"

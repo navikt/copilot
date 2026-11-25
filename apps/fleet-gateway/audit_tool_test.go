@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/navikt/copilot/fleet-gateway/internal/oauth"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
@@ -310,7 +311,7 @@ func TestToolPolicy_HeaderMismatchDeniedOnAllowlist(t *testing.T) {
 // A stored, unexpired session that names no user or no client gets 401, not a
 // request with an empty identity (#2582).
 func TestMCP_IncompleteSessionUnauthorized(t *testing.T) {
-	for name, sess := range map[string]gatewaySession{
+	for name, sess := range map[string]oauth.Session{
 		"no navident":  {ClientID: "c", NAVIdent: ""},
 		"no client id": {ClientID: "", NAVIdent: "Z123456"},
 	} {
@@ -321,10 +322,10 @@ func TestMCP_IncompleteSessionUnauthorized(t *testing.T) {
 			t.Cleanup(func() { slog.SetDefault(old) })
 			te := newTestEnv(t)
 			sess.Resource, sess.IssuedAt, sess.Expiry = te.resource, te.now, te.now.Add(time.Hour)
-			if err := te.gw.putSession(context.Background(), hashToken("incomplete"), &sess, time.Hour); err != nil {
+			if err := te.gw.putSession(context.Background(), oauth.HashToken("incomplete"), &sess, time.Hour); err != nil {
 				t.Fatal(err)
 			}
-			if _, ok, err := te.gw.getSession(context.Background(), hashToken("incomplete")); !ok || err != nil {
+			if _, ok, err := te.gw.getSession(context.Background(), oauth.HashToken("incomplete")); !ok || err != nil {
 				t.Fatalf("seeded session not found: %v %v", ok, err)
 			}
 			rec := mcpPost(te, "incomplete", "")

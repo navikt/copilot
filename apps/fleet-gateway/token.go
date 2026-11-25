@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -16,6 +15,7 @@ import (
 	"time"
 
 	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
+	"github.com/navikt/copilot/fleet-gateway/internal/oauth"
 )
 
 const (
@@ -33,27 +33,6 @@ const (
 	// the same RT; after a transient upstream failure it is also the retry delay.
 	refreshPendingTTL = 60 * time.Second
 )
-
-type gatewaySession struct {
-	ClientID     string    `json:"client_id"`
-	Resource     string    `json:"resource"`
-	EntraToken   string    `json:"entra_token,omitempty"`
-	RefreshToken string    `json:"refresh_token,omitempty"` //nolint:gosec // serialized only into SessionStore (sealed with RT_KEYS in Postgres)
-	NAVIdent     string    `json:"nav_ident"`
-	FID          string    `json:"fid,omitempty"`
-	IssuedAt     time.Time `json:"issued_at"`
-	Expiry       time.Time `json:"expiry"`
-}
-
-type issuedCode struct {
-	ClientID    string         `json:"client_id"`
-	RedirectURI string         `json:"redirect_uri"`
-	Challenge   string         `json:"challenge"`
-	Resource    string         `json:"resource"`
-	Session     gatewaySession `json:"session"`
-	EntraRT     string         `json:"entra_rt,omitempty"` //nolint:gosec // transient on 60s single-use code until /token seals it
-	Created     time.Time      `json:"created"`
-}
 
 type rtPayload struct {
 	V        int    `json:"v"`
@@ -331,7 +310,7 @@ func (g *Gateway) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Re
 		issued.Session.FID = fid
 	}
 
-	if err := g.putSession(r.Context(), hashToken(accessToken), &issued.Session, ttl); err != nil {
+	if err := g.putSession(r.Context(), oauth.HashToken(accessToken), &issued.Session, ttl); err != nil {
 		if errors.Is(err, errStoreFull) {
 			httpx.MarkShed(w, "store_full")
 			bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store capacity reached")
@@ -671,7 +650,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	newSess := &gatewaySession{
+	newSess := &oauth.Session{
 		ClientID:     payload.ClientID,
 		Resource:     payload.Resource,
 		EntraToken:   newAT,
@@ -681,7 +660,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		IssuedAt:     issuedAt,
 		Expiry:       sessExpiry,
 	}
-	if err = g.putSession(ctx, hashToken(accessToken), newSess, ttl); err != nil {
+	if err = g.putSession(ctx, oauth.HashToken(accessToken), newSess, ttl); err != nil {
 		outcome = "store_error"
 		if errors.Is(err, errStoreFull) {
 			httpx.MarkShed(w, "store_full")
@@ -757,7 +736,7 @@ func (g *Gateway) revokeHandler(w http.ResponseWriter, r *http.Request) {
 
 	token := r.PostFormValue("token")
 	if token != "" && len(token) <= maxLegacyRefreshTokenLen {
-		tokenHash := hashToken(token)
+		tokenHash := oauth.HashToken(token)
 		sess, ok, err := g.getSession(r.Context(), tokenHash)
 		if err != nil {
 			slog.Warn("revoke session lookup failed", "error", err)
@@ -836,11 +815,6 @@ func (g *Gateway) revokeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{})
-}
-
-func hashToken(token string) string {
-	sum := sha256.Sum256([]byte(token))
-	return hex.EncodeToString(sum[:])
 }
 
 func pkceS256(verifier string) string {
