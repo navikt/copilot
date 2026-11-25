@@ -287,7 +287,8 @@ describe("/fleet", () => {
     expect(container.querySelector("img")).toBeNull();
     for (const t of ["ond", "data", "blandet"]) expect(screen.getByText(t).closest("a")).toBeNull();
     expect(screen.getByRole("link", { name: "god" })).toHaveAttribute("rel", "noopener noreferrer");
-    expect(screen.getByText("Søker i dokumentasjonen")).toBeInTheDocument();
+    // Once as stacked rows below md, once in the table from md up.
+    expect(screen.getAllByText("Søker i dokumentasjonen")).toHaveLength(2);
   });
 
   it("tells the owner team to resubmit a draft no person sent in", async () => {

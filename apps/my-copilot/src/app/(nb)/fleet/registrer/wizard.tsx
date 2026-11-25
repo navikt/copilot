@@ -408,7 +408,7 @@ export function RegisterWizard({ teams, team, apps, requireRos, discoveryEnabled
               </RadioGroup>
 
               {allowed.length > 0 && (
-                <ExpansionCard aria-label="Avansert" size="small">
+                <ExpansionCard aria-label="Avansert">
                   <ExpansionCard.Header>
                     <ExpansionCard.Title as="h3" size="small">
                       Avansert

@@ -14,6 +14,7 @@ import {
   Checkbox,
   CopyButton,
   ExpansionCard,
+  Hide,
   HStack,
   Modal,
   Radio,
@@ -22,6 +23,7 @@ import {
   ReadMore,
   Heading,
   Select,
+  Show,
   Table,
   Tag,
   Textarea,
@@ -276,32 +278,55 @@ function WaitingForAccess({ server, agents }: { server: MCPServer; agents: Agent
       <BodyShort>
         Disse agentprofilene vil bruke MCP-serveren. Når du gir tilgang, kan agentene bruke verktøyene.
       </BodyShort>
-      <FleetTable aria-label="Agentprofiler som venter på tilgang">
-        <Table.Header>
-          <Table.Row>
-            <Table.HeaderCell scope="col">Agentprofil</Table.HeaderCell>
-            <Table.HeaderCell scope="col">Verktøy</Table.HeaderCell>
-            <Table.HeaderCell scope="col">Handling</Table.HeaderCell>
-          </Table.Row>
-        </Table.Header>
-        <Table.Body>
+      <Show below="md">
+        <VStack as="ul" gap="space-16" aria-label="Agentprofiler som venter på tilgang">
           {waiting.map((a) => (
-            <Table.Row key={refKey(a.metadata)}>
-              <Table.DataCell>
-                <NextLink className={linkClass} href={`/fleet/agenter/${refKey(a.metadata)}`}>
-                  {refKey(a.metadata)}
-                </NextLink>
-              </Table.DataCell>
-              <Table.DataCell>
-                {a.spec.grants?.find((g) => refKey(g.serverRef) === key)?.allowedTools.join(", ") || "–"}
-              </Table.DataCell>
-              <Table.DataCell>
-                <GrantAccess profile={a} serverRef={{ group: "fleet.nav.no", kind: "MCPServer", ...server.metadata }} />
-              </Table.DataCell>
-            </Table.Row>
+            <VStack as="li" key={refKey(a.metadata)} gap="space-8" align="start">
+              <NextLink
+                className={`${linkClass} [overflow-wrap:anywhere]`}
+                href={`/fleet/agenter/${refKey(a.metadata)}`}
+              >
+                {refKey(a.metadata)}
+              </NextLink>
+              <BodyShort size="small" className="[overflow-wrap:anywhere]">
+                Verktøy: {a.spec.grants?.find((g) => refKey(g.serverRef) === key)?.allowedTools.join(", ") || "–"}
+              </BodyShort>
+              <GrantAccess profile={a} serverRef={{ group: "fleet.nav.no", kind: "MCPServer", ...server.metadata }} />
+            </VStack>
           ))}
-        </Table.Body>
-      </FleetTable>
+        </VStack>
+      </Show>
+      <Hide below="md">
+        <FleetTable aria-label="Agentprofiler som venter på tilgang">
+          <Table.Header>
+            <Table.Row>
+              <Table.HeaderCell scope="col">Agentprofil</Table.HeaderCell>
+              <Table.HeaderCell scope="col">Verktøy</Table.HeaderCell>
+              <Table.HeaderCell scope="col">Handling</Table.HeaderCell>
+            </Table.Row>
+          </Table.Header>
+          <Table.Body>
+            {waiting.map((a) => (
+              <Table.Row key={refKey(a.metadata)}>
+                <Table.DataCell>
+                  <NextLink className={linkClass} href={`/fleet/agenter/${refKey(a.metadata)}`}>
+                    {refKey(a.metadata)}
+                  </NextLink>
+                </Table.DataCell>
+                <Table.DataCell>
+                  {a.spec.grants?.find((g) => refKey(g.serverRef) === key)?.allowedTools.join(", ") || "–"}
+                </Table.DataCell>
+                <Table.DataCell>
+                  <GrantAccess
+                    profile={a}
+                    serverRef={{ group: "fleet.nav.no", kind: "MCPServer", ...server.metadata }}
+                  />
+                </Table.DataCell>
+              </Table.Row>
+            ))}
+          </Table.Body>
+        </FleetTable>
+      </Hide>
     </VStack>
   );
 }
@@ -352,7 +377,7 @@ export function PendingInbox({ agents }: { agents: AgentProfile[] }) {
 
 function Historikk({ events }: { events: AuditEvent[] }) {
   return (
-    <ExpansionCard aria-label="Historikk" size="small">
+    <ExpansionCard aria-label="Historikk">
       <ExpansionCard.Header>
         <ExpansionCard.Title as="h2" size="small">
           Historikk
@@ -390,7 +415,7 @@ function Historikk({ events }: { events: AuditEvent[] }) {
 
 function Detaljer({ rows }: { rows: [string, ReactNode][] }) {
   return (
-    <ExpansionCard aria-label="Detaljer" size="small">
+    <ExpansionCard aria-label="Detaljer">
       <ExpansionCard.Header>
         <ExpansionCard.Title as="h2" size="small">
           Detaljer
@@ -546,16 +571,30 @@ function ServerDocs({ spec }: { spec?: MCPServerSpec }) {
         </div>
       )}
       {tools.length > 0 && (
-        <FleetTable aria-label="Verktøy">
-          <Table.Body>
-            {tools.map((t) => (
-              <Table.Row key={t.name}>
-                <Table.HeaderCell scope="row">{t.name}</Table.HeaderCell>
-                <Table.DataCell>{t.description}</Table.DataCell>
-              </Table.Row>
-            ))}
-          </Table.Body>
-        </FleetTable>
+        <>
+          <Show below="md">
+            <VStack as="ul" gap="space-12" aria-label="Verktøy">
+              {tools.map((t) => (
+                <li key={t.name}>
+                  <code className="[overflow-wrap:anywhere]">{t.name}</code>
+                  {t.description && <BodyShort size="small">{t.description}</BodyShort>}
+                </li>
+              ))}
+            </VStack>
+          </Show>
+          <Hide below="md">
+            <FleetTable aria-label="Verktøy">
+              <Table.Body>
+                {tools.map((t) => (
+                  <Table.Row key={t.name}>
+                    <Table.HeaderCell scope="row">{t.name}</Table.HeaderCell>
+                    <Table.DataCell>{t.description}</Table.DataCell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </FleetTable>
+          </Hide>
+        </>
       )}
     </VStack>
   );
@@ -776,7 +815,7 @@ function ServerActions({ server, me, owner }: { server: MCPServer; me?: string; 
         </VStack>
       )}
       {owner && (
-        <ExpansionCard aria-label="Endre MCP-serveren" size="small">
+        <ExpansionCard aria-label="Endre MCP-serveren">
           <ExpansionCard.Header>
             <ExpansionCard.Title as="h2" size="small">
               Endre MCP-serveren
