@@ -1,0 +1,747 @@
+package metrics
+
+import (
+	"bufio"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"log/slog"
+	"net/http"
+	neturl "net/url"
+	"strings"
+	"time"
+
+	"github.com/bradleyfalzon/ghinstallation/v2"
+
+	"github.com/navikt/copilot/apps/copilot-metrics/internal/config"
+)
+
+// ErrReportNotAvailable indicates the metrics report has not been generated yet.
+// This is a transient condition — the report typically becomes available later in the day.
+var ErrReportNotAvailable = errors.New("report not available")
+
+type githubHTTPError struct {
+	Status   int
+	message  string
+	download bool // failed fetching a report file, not the report metadata
+}
+
+func (e *githubHTTPError) Error() string { return e.message }
+
+var errTerminalGitHub = errors.New("GitHub authentication or rate limit failure")
+
+func (e *githubHTTPError) Is(target error) bool {
+	return target == errTerminalGitHub && (e.Status == http.StatusUnauthorized || e.Status == http.StatusForbidden || e.Status == http.StatusTooManyRequests)
+}
+
+func isTerminalGitHubError(err error) bool {
+	return errors.Is(err, errTerminalGitHub)
+}
+
+type GitHubClient struct {
+	httpClient     *http.Client // GitHub API client with enterprise installation auth
+	orgHttpClient  *http.Client // GitHub API client with org installation auth (nil if not configured)
+	downloadClient *http.Client // Plain client for pre-signed URLs
+	enterprise     string
+	org            string
+}
+
+type MetricsReportResponse struct {
+	DownloadLinks []string `json:"download_links"`
+	ReportDay     string   `json:"report_day"`
+}
+
+// FetchResult contains the metrics records along with metadata about the fetch.
+type FetchResult struct {
+	Records  []json.RawMessage
+	Scope    string // "enterprise" or "organization"
+	ScopeID  string // enterprise slug or org name
+	Complete bool   // All required source endpoints returned validated reports.
+}
+
+func NewGitHubClient(cfg *config.Config) (*GitHubClient, error) {
+	transport, err := ghinstallation.New(
+		http.DefaultTransport,
+		cfg.GitHubAppID,
+		cfg.GitHubAppInstallationID,
+		[]byte(cfg.GitHubAppPrivateKey),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create GitHub App transport: %w", err)
+	}
+
+	client := &GitHubClient{
+		httpClient: &http.Client{
+			Transport: transport,
+			Timeout:   30 * time.Second,
+		},
+		downloadClient: &http.Client{
+			Timeout: 60 * time.Second, // Longer timeout for file downloads
+		},
+		enterprise: cfg.EnterpriseSlug,
+		org:        cfg.OrganizationSlug,
+	}
+
+	// Create separate org client if org installation ID is configured
+	if cfg.GitHubAppOrgInstallationID != 0 {
+		orgTransport, err := ghinstallation.New(
+			http.DefaultTransport,
+			cfg.GitHubAppID,
+			cfg.GitHubAppOrgInstallationID,
+			[]byte(cfg.GitHubAppPrivateKey),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create GitHub App org transport: %w", err)
+		}
+		client.orgHttpClient = &http.Client{
+			Transport: orgTransport,
+			Timeout:   30 * time.Second,
+		}
+		slog.Info("Org installation configured", "org", cfg.OrganizationSlug, "installation_id", cfg.GitHubAppOrgInstallationID)
+	} else {
+		slog.Warn("No org installation ID configured — org-level endpoints will use enterprise token (may fail with 403)")
+	}
+
+	return client, nil
+}
+
+// FetchDailyMetrics fetches metrics for a specific day, trying enterprise first then org.
+func (c *GitHubClient) FetchDailyMetrics(ctx context.Context, day time.Time) (*FetchResult, error) {
+	dayStr := day.Format("2006-01-02")
+
+	// Try enterprise endpoint first
+	enterpriseURL := fmt.Sprintf("https://api.github.com/enterprises/%s/copilot/metrics/reports/enterprise-1-day?day=%s",
+		c.enterprise, dayStr)
+
+	slog.Debug("Fetching metrics report", "url", enterpriseURL, "day", dayStr)
+
+	records, err := c.fetchMetricsFromURLWithRetry(ctx, enterpriseURL)
+	if err == nil {
+		return &FetchResult{
+			Records: records,
+			Scope:   "enterprise",
+			ScopeID: c.enterprise,
+		}, nil
+	}
+
+	if isTerminalGitHubError(err) {
+		return nil, err
+	}
+	enterpriseErr := err
+	slog.Warn("Enterprise endpoint failed, trying organization endpoint", "error", enterpriseErr)
+
+	// Fall back to organization endpoint
+	orgURL := fmt.Sprintf("https://api.github.com/orgs/%s/copilot/metrics/reports/organization-1-day?day=%s",
+		c.org, dayStr)
+	slog.Debug("Fetching metrics report (org fallback)", "url", orgURL, "day", dayStr)
+
+	records, err = c.fetchMetricsFromURLWithRetryOrg(ctx, orgURL)
+	if err != nil {
+		if isTerminalGitHubError(err) {
+			return nil, err
+		}
+		if isReportNotAvailable(enterpriseErr) {
+			return nil, fmt.Errorf("%w for %s: enterprise report not generated yet and org endpoint also failed: %v",
+				ErrReportNotAvailable, dayStr, err)
+		}
+		return nil, fmt.Errorf("both enterprise and org endpoints failed: %w", err)
+	}
+
+	return &FetchResult{
+		Records: records,
+		Scope:   "organization",
+		ScopeID: c.org,
+	}, nil
+}
+
+// fetchMetricsFromURLWithRetry retries transient failures with exponential backoff.
+func (c *GitHubClient) fetchMetricsFromURLWithRetry(ctx context.Context, url string) ([]json.RawMessage, error) {
+	return c.fetchWithRetry(ctx, url, c.fetchMetricsFromURL)
+}
+
+// fetchMetricsFromURLWithRetryOrg uses the org installation token with retries.
+func (c *GitHubClient) fetchMetricsFromURLWithRetryOrg(ctx context.Context, url string) ([]json.RawMessage, error) {
+	return c.fetchWithRetry(ctx, url, c.fetchMetricsFromURLWithOrg)
+}
+
+func (c *GitHubClient) fetchWithRetry(ctx context.Context, url string, fetchFn func(context.Context, string) ([]json.RawMessage, error)) ([]json.RawMessage, error) {
+	var lastErr error
+	for attempt := 0; attempt < 3; attempt++ {
+		if attempt > 0 {
+			backoff := time.Duration(1<<attempt) * time.Second // 2s, 4s
+			slog.Debug("Retrying after backoff", "url", url, "attempt", attempt+1, "backoff", backoff, "last_error", lastErr)
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(backoff):
+			}
+		}
+
+		records, err := fetchFn(ctx, url)
+		if err == nil {
+			if attempt > 0 {
+				slog.Info("Request succeeded after retry", "url", url, "attempts", attempt+1)
+			}
+			return records, nil
+		}
+		lastErr = err
+
+		// Don't retry on errors that won't resolve with a retry
+		if isClientError(err) || isReportNotAvailable(err) || isDecodeError(err) {
+			slog.Debug("Non-retryable error", "url", url, "error", err,
+				"is_client_error", isClientError(err),
+				"is_not_available", isReportNotAvailable(err),
+				"is_decode_error", isDecodeError(err))
+			return nil, err
+		}
+	}
+	return nil, fmt.Errorf("failed after 3 attempts: %w", lastErr)
+}
+
+// isClientError checks if the error indicates a 4xx HTTP status or 204 (No Content).
+// 204 is treated as non-retryable because it means "no data available for this day".
+func isClientError(err error) bool {
+	var status *githubHTTPError
+	if errors.As(err, &status) {
+		return (status.Status >= 400 && status.Status < 500) || status.Status == http.StatusNoContent
+	}
+	errStr := err.Error()
+	return strings.Contains(errStr, "status 4") || strings.Contains(errStr, "status 204")
+}
+
+// isReportNotAvailable checks if the error indicates the report hasn't been generated yet.
+func isReportNotAvailable(err error) bool {
+	var status *githubHTTPError
+	if errors.As(err, &status) {
+		return status.Status == http.StatusNoContent
+	}
+	return errors.Is(err, ErrReportNotAvailable) ||
+		strings.Contains(err.Error(), "No report available") ||
+		strings.Contains(err.Error(), "status 204") ||
+		strings.Contains(err.Error(), "CANCEL")
+}
+
+// isDecodeError checks if the error is a non-retryable response decode failure.
+func isDecodeError(err error) bool {
+	return strings.Contains(err.Error(), "failed to decode report response")
+}
+
+func truncate(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "..."
+}
+
+func (c *GitHubClient) fetchMetricsFromURL(ctx context.Context, url string) ([]json.RawMessage, error) {
+	return c.fetchMetricsFromURLWith(ctx, url, c.httpClient)
+}
+
+// fetchMetricsFromURLWithOrg uses the org installation token for org-level endpoints.
+func (c *GitHubClient) fetchMetricsFromURLWithOrg(ctx context.Context, url string) ([]json.RawMessage, error) {
+	client := c.httpClient
+	if c.orgHttpClient != nil {
+		client = c.orgHttpClient
+	}
+	return c.fetchMetricsFromURLWith(ctx, url, client)
+}
+
+func (c *GitHubClient) fetchMetricsFromURLWith(ctx context.Context, url string, client *http.Client) ([]json.RawMessage, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("X-GitHub-Api-Version", "2026-03-10")
+
+	slog.Debug("GitHub API request", "method", "GET", "url", url)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	slog.Debug("GitHub API response", "url", url, "status", resp.StatusCode,
+		"content_type", resp.Header.Get("Content-Type"),
+		"rate_remaining", resp.Header.Get("X-Ratelimit-Remaining"),
+		"rate_limit", resp.Header.Get("X-Ratelimit-Limit"))
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, &githubHTTPError{Status: resp.StatusCode, message: fmt.Sprintf("API returned status %d: %s", resp.StatusCode, truncate(string(body), 500))}
+	}
+
+	// Read body so we can inspect it before decoding. The API sometimes returns
+	// a plain JSON string (e.g. "No report available") instead of an object.
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	slog.Debug("GitHub API response body", "url", url, "body_bytes", len(body))
+
+	trimmed := strings.TrimSpace(string(body))
+	if len(trimmed) > 0 && trimmed[0] == '"' {
+		// API returned a JSON string — typically means the report isn't ready yet
+		return nil, fmt.Errorf("%w: %s", ErrReportNotAvailable, trimmed)
+	}
+
+	var reportResp MetricsReportResponse
+	if err := json.Unmarshal(body, &reportResp); err != nil {
+		return nil, fmt.Errorf("failed to decode report response: %w", err)
+	}
+	requested, err := neturl.Parse(url)
+	if err != nil {
+		return nil, fmt.Errorf("parse report URL: %w", err)
+	}
+	if day := requested.Query().Get("day"); day != "" && reportResp.ReportDay != day {
+		return nil, fmt.Errorf("failed to decode report response: report day does not match request")
+	}
+	if reportResp.DownloadLinks == nil {
+		return nil, fmt.Errorf("failed to decode report response: missing download links")
+	}
+	if len(reportResp.DownloadLinks) == 0 {
+		return nil, fmt.Errorf("report has no download links; source completeness is unknown")
+	}
+
+	slog.Info("Got download links", "count", len(reportResp.DownloadLinks), "report_day", reportResp.ReportDay, "url", url)
+
+	var allRecords []json.RawMessage
+	for i, downloadURL := range reportResp.DownloadLinks {
+		slog.Debug("Downloading NDJSON file", "file_index", i, "total_files", len(reportResp.DownloadLinks))
+		records, err := c.downloadAndParseNDJSON(ctx, downloadURL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to download file %d: %w", i, err)
+		}
+		slog.Debug("Downloaded NDJSON file", "file_index", i, "records", len(records))
+		allRecords = append(allRecords, records...)
+	}
+
+	return allRecords, nil
+}
+
+func (c *GitHubClient) downloadAndParseNDJSON(ctx context.Context, url string) ([]json.RawMessage, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create download request: %w", safeTransportError(err))
+	}
+
+	slog.Debug("Downloading NDJSON", "content_length_hint", req.Header.Get("Content-Length"))
+
+	// Use downloadClient (no auth) for pre-signed URLs
+	resp, err := c.downloadClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("download request failed: %w", safeTransportError(err))
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, &githubHTTPError{Status: resp.StatusCode, message: fmt.Sprintf("download returned status %d", resp.StatusCode), download: true}
+	}
+
+	slog.Debug("NDJSON download response", "status", resp.StatusCode,
+		"content_length", resp.Header.Get("Content-Length"),
+		"content_type", resp.Header.Get("Content-Type"))
+
+	var records []json.RawMessage
+	scanner := bufio.NewScanner(resp.Body)
+	scanner.Buffer(make([]byte, 1024*1024), 10*1024*1024)
+
+	lineNum := 0
+	for scanner.Scan() {
+		lineNum++
+		line := scanner.Bytes()
+		if len(line) == 0 {
+			continue
+		}
+
+		if !json.Valid(line) {
+			return nil, fmt.Errorf("invalid JSON in NDJSON at line %d", lineNum)
+		}
+
+		record := make(json.RawMessage, len(line))
+		copy(record, line)
+		records = append(records, record)
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("error reading NDJSON: %w", err)
+	}
+
+	slog.Debug("Parsed NDJSON", "total_lines", lineNum, "valid_records", len(records))
+	return records, nil
+}
+
+// FetchDailyUserTeams fetches the user-teams-1-day report for the given day.
+// Fetches from both enterprise and org endpoints to ensure all teams are captured.
+// Enterprise teams and org teams may differ — the enterprise endpoint returns teams
+// visible at enterprise level, while org endpoint returns org-level teams.
+func (c *GitHubClient) FetchDailyUserTeams(ctx context.Context, day time.Time) (*FetchResult, error) {
+	dayStr := day.Format("2006-01-02")
+
+	// Try enterprise endpoint
+	enterpriseURL := fmt.Sprintf("https://api.github.com/enterprises/%s/copilot/metrics/reports/%s?day=%s",
+		c.enterprise, "user-teams-1-day", dayStr)
+	slog.Info("Fetching user-teams report", "scope", "enterprise", "day", dayStr)
+	enterpriseRecords, enterpriseErr := c.fetchMetricsFromURLWithRetry(ctx, enterpriseURL)
+	if isTerminalGitHubError(enterpriseErr) {
+		return nil, enterpriseErr
+	}
+	if enterpriseErr != nil {
+		if isReportNotAvailable(enterpriseErr) {
+			slog.Info("Enterprise user-teams endpoint not available", "day", dayStr)
+		} else {
+			slog.Warn("Enterprise user-teams endpoint failed", "day", dayStr, "error", enterpriseErr)
+		}
+	} else {
+		slog.Info("Enterprise user-teams fetched", "day", dayStr, "records", len(enterpriseRecords))
+	}
+
+	// Also try org endpoint for org-level teams
+	orgURL := fmt.Sprintf("https://api.github.com/orgs/%s/copilot/metrics/reports/%s?day=%s",
+		c.org, "user-teams-1-day", dayStr)
+	slog.Info("Fetching user-teams report", "scope", "organization", "org", c.org, "day", dayStr)
+	orgRecords, orgErr := c.fetchMetricsFromURLWithRetryOrg(ctx, orgURL)
+	if isTerminalGitHubError(orgErr) {
+		return nil, orgErr
+	}
+	if orgErr != nil {
+		if isReportNotAvailable(orgErr) {
+			slog.Info("Org user-teams endpoint not available", "day", dayStr, "org", c.org)
+		} else {
+			slog.Warn("Org user-teams endpoint failed", "day", dayStr, "org", c.org, "error", orgErr)
+		}
+	} else {
+		slog.Info("Org user-teams fetched", "day", dayStr, "org", c.org, "records", len(orgRecords))
+	}
+
+	// Fail closed: only an org metadata request answering HTTP 204 (no report
+	// for that day) leaves the enterprise report complete. Any other org error,
+	// including download, parse, transport and cancel errors, makes it partial.
+	var orgHTTPErr *githubHTTPError
+	orgNoReport := errors.As(orgErr, &orgHTTPErr) && orgHTTPErr.Status == http.StatusNoContent && !orgHTTPErr.download
+	complete := enterpriseErr == nil && (orgErr == nil || orgNoReport)
+
+	// Merge results — deduplicate by user_id + team_id
+	var allRecords []json.RawMessage
+	seen := make(map[string]bool)
+
+	addRecords := func(records []json.RawMessage) {
+		for _, r := range records {
+			var entry struct {
+				UserID json.Number `json:"user_id"`
+				TeamID json.Number `json:"team_id"`
+			}
+			if err := json.Unmarshal(r, &entry); err == nil {
+				key := entry.UserID.String() + ":" + entry.TeamID.String()
+				if !seen[key] {
+					seen[key] = true
+					allRecords = append(allRecords, r)
+				}
+			} else {
+				allRecords = append(allRecords, r)
+			}
+		}
+	}
+
+	if enterpriseErr == nil {
+		addRecords(enterpriseRecords)
+	}
+	if orgErr == nil {
+		addRecords(orgRecords)
+	}
+
+	slog.Info("User-teams merge complete", "day", dayStr,
+		"enterprise_ok", enterpriseErr == nil, "org_ok", orgErr == nil,
+		"total_records", len(allRecords), "deduplicated_keys", len(seen))
+
+	if len(allRecords) > 0 {
+		scope := "enterprise"
+		scopeID := c.enterprise
+		if enterpriseErr != nil {
+			scope = "organization"
+			scopeID = c.org
+		}
+		return &FetchResult{
+			Records:  allRecords,
+			Scope:    scope,
+			ScopeID:  scopeID,
+			Complete: complete,
+		}, nil
+	}
+
+	// Both failed
+	if enterpriseErr != nil && orgErr != nil {
+		if isReportNotAvailable(enterpriseErr) {
+			return nil, fmt.Errorf("%w for %s (user-teams-1-day): both endpoints failed", ErrReportNotAvailable, dayStr)
+		}
+		return nil, fmt.Errorf("both enterprise and org user-teams-1-day endpoints failed: enterprise=%v, org=%v", enterpriseErr, orgErr)
+	}
+
+	// One endpoint succeeded but returned 0 records
+	scope := "enterprise"
+	scopeID := c.enterprise
+	if enterpriseErr != nil {
+		scope = "organization"
+		scopeID = c.org
+	}
+	return &FetchResult{Records: allRecords, Scope: scope, ScopeID: scopeID, Complete: complete}, nil
+}
+
+// FetchDailyUserMetrics fetches the users-1-day report for the given day.
+// This report contains per-user usage metrics needed for team-level aggregation.
+func (c *GitHubClient) FetchDailyUserMetrics(ctx context.Context, day time.Time) (*FetchResult, error) {
+	return c.fetchDailyReport(ctx, day, "users-1-day")
+}
+
+// FetchDailyRepoMetrics fetches the repos-1-day report for the given day.
+// This report contains per-repository, PR-only Copilot lifecycle activity
+// (coding-agent authored/merged PRs and Copilot code-review suggestions).
+// It uses the same enterprise-first-then-org fallback and NDJSON transport as
+// the other daily reports.
+func (c *GitHubClient) FetchDailyRepoMetrics(ctx context.Context, day time.Time) (*FetchResult, error) {
+	return c.fetchDailyReport(ctx, day, "repos-1-day")
+}
+
+// fetchDailyReport fetches a daily report by type, trying enterprise first then org.
+func (c *GitHubClient) fetchDailyReport(ctx context.Context, day time.Time, reportType string) (*FetchResult, error) {
+	dayStr := day.Format("2006-01-02")
+
+	enterpriseURL := fmt.Sprintf("https://api.github.com/enterprises/%s/copilot/metrics/reports/%s?day=%s",
+		c.enterprise, reportType, dayStr)
+
+	slog.Debug("Fetching report", "type", reportType, "url", enterpriseURL, "day", dayStr)
+
+	records, err := c.fetchMetricsFromURLWithRetry(ctx, enterpriseURL)
+	if err == nil {
+		return &FetchResult{
+			Records:  records,
+			Scope:    "enterprise",
+			ScopeID:  c.enterprise,
+			Complete: true,
+		}, nil
+	}
+
+	if isTerminalGitHubError(err) {
+		return nil, err
+	}
+	enterpriseErr := err
+	slog.Warn("Enterprise endpoint failed, trying organization endpoint", "type", reportType, "error", enterpriseErr)
+
+	orgURL := fmt.Sprintf("https://api.github.com/orgs/%s/copilot/metrics/reports/%s?day=%s",
+		c.org, reportType, dayStr)
+	slog.Debug("Fetching report (org fallback)", "type", reportType, "url", orgURL, "day", dayStr)
+
+	records, err = c.fetchMetricsFromURLWithRetryOrg(ctx, orgURL)
+	if err != nil {
+		if isTerminalGitHubError(err) {
+			return nil, err
+		}
+		if isReportNotAvailable(enterpriseErr) {
+			return nil, fmt.Errorf("%w for %s (%s): enterprise report not generated yet and org endpoint also failed: %v",
+				ErrReportNotAvailable, dayStr, reportType, err)
+		}
+		return nil, fmt.Errorf("both enterprise and org %s endpoints failed: %w", reportType, err)
+	}
+
+	return &FetchResult{
+		Records: records,
+		Scope:   "organization",
+		ScopeID: c.org,
+	}, nil
+}
+
+// FetchLatest28DayReport fetches the latest 28-day rolling report.
+func (c *GitHubClient) FetchLatest28DayReport(ctx context.Context) (*FetchResult, error) {
+	url := fmt.Sprintf("https://api.github.com/enterprises/%s/copilot/metrics/reports/enterprise-28-day/latest",
+		c.enterprise)
+
+	slog.Debug("Fetching 28-day report", "url", url)
+
+	records, err := c.fetchMetricsFromURLWithRetry(ctx, url)
+	if err == nil {
+		return &FetchResult{
+			Records: records,
+			Scope:   "enterprise",
+			ScopeID: c.enterprise,
+		}, nil
+	}
+
+	if isTerminalGitHubError(err) {
+		return nil, err
+	}
+	slog.Warn("Enterprise 28-day endpoint failed, trying organization endpoint", "error", err)
+
+	url = fmt.Sprintf("https://api.github.com/orgs/%s/copilot/metrics/reports/organization-28-day/latest",
+		c.org)
+	records, err = c.fetchMetricsFromURLWithRetryOrg(ctx, url)
+	if err != nil {
+		return nil, fmt.Errorf("both enterprise and org 28-day endpoints failed: %w", err)
+	}
+
+	return &FetchResult{
+		Records: records,
+		Scope:   "organization",
+		ScopeID: c.org,
+	}, nil
+}
+
+// copilotSeatResponse is the response from the Copilot billing seats API.
+type copilotSeatResponse struct {
+	TotalSeats int           `json:"total_seats"`
+	Seats      []copilotSeat `json:"seats"`
+}
+
+type copilotSeat struct {
+	Assignee struct {
+		ID    int64  `json:"id"`
+		Login string `json:"login"`
+	} `json:"assignee"`
+	PlanType                string    `json:"plan_type"`
+	CreatedAt               time.Time `json:"created_at"`
+	PendingCancellationDate string    `json:"pending_cancellation_date"`
+}
+
+// SeatCounts holds the Copilot seat totals for one scope. Totals only: it
+// never carries per-person data.
+type SeatCounts struct {
+	Scope               string // "enterprise" or "organization"
+	ScopeID             string // enterprise slug or org name
+	Total               int
+	PendingCancellation int
+}
+
+// FetchAllCopilotLogins returns the unique GitHub logins of Copilot seat holders
+// in the organization. It uses the org installation token: the enterprise seats
+// endpoint does not accept GitHub App installation tokens.
+func (c *GitHubClient) FetchAllCopilotLogins(ctx context.Context) ([]string, error) {
+	if c.orgHttpClient == nil {
+		return nil, errors.New("org GitHub client not configured: org installation is required to list Copilot seats")
+	}
+	seats, _, err := c.fetchSeats(ctx, "https://api.github.com/orgs/"+c.org, c.orgHttpClient)
+	if err != nil {
+		return nil, err
+	}
+	var logins []string
+	seen := make(map[string]bool, len(seats))
+	for _, seat := range seats {
+		if l := seat.Assignee.Login; l != "" && !seen[l] {
+			seen[l] = true
+			logins = append(logins, l)
+		}
+	}
+	slog.Info("Fetched all Copilot seat holders", "count", len(logins))
+	return logins, nil
+}
+
+// FetchSeatCounts returns the current seat totals. Like the daily reports it
+// tries the enterprise endpoint first and falls back to the organization one.
+func (c *GitHubClient) FetchSeatCounts(ctx context.Context) (*SeatCounts, error) {
+	seats, total, err := c.fetchSeats(ctx, "https://api.github.com/enterprises/"+c.enterprise, c.httpClient)
+	if err == nil {
+		return countSeats("enterprise", c.enterprise, total, seats), nil
+	}
+	slog.Warn("Enterprise seats endpoint failed, trying organization endpoint", "error", err)
+
+	orgClient := c.httpClient
+	if c.orgHttpClient != nil {
+		orgClient = c.orgHttpClient
+	}
+	seats, total, orgErr := c.fetchSeats(ctx, "https://api.github.com/orgs/"+c.org, orgClient)
+	if orgErr != nil {
+		if seatsPermissionDenied(err) && seatsPermissionDenied(orgErr) {
+			return nil, fmt.Errorf("%w: enterprise: %w; org: %w", errSeatsNoPermission, err, orgErr)
+		}
+		return nil, fmt.Errorf("both enterprise and org seats endpoints failed: %w; org: %w", err, orgErr)
+	}
+	return countSeats("organization", c.org, total, seats), nil
+}
+
+// errSeatsNoPermission means both seats endpoints refused the token. A retry
+// cannot fix that, so the caller skips seat counts instead of failing the job.
+var errSeatsNoPermission = errors.New("no permission to read Copilot seats")
+
+// seatsPermissionDenied reports a 403 that is not GitHub's rate-limit 403.
+func seatsPermissionDenied(err error) bool {
+	var status *githubHTTPError
+	return errors.As(err, &status) && status.Status == http.StatusForbidden &&
+		!strings.Contains(strings.ToLower(status.message), "rate limit")
+}
+
+// countSeats reduces a seat list to totals. total_seats from the API is
+// authoritative; pending cancellations are counted from the seat list.
+func countSeats(scope, scopeID string, total int, seats []copilotSeat) *SeatCounts {
+	counts := &SeatCounts{Scope: scope, ScopeID: scopeID, Total: total}
+	seen := map[int64]bool{}
+	for _, seat := range seats {
+		// fetchSeats can return a seat twice when the list shifts between pages.
+		if seat.Assignee.ID == 0 || seen[seat.Assignee.ID] {
+			continue // seat without a user, or repeated across pages
+		}
+		seen[seat.Assignee.ID] = true
+		if seat.PendingCancellationDate != "" {
+			counts.PendingCancellation++
+		}
+	}
+	return counts
+}
+
+// seatsPerPage is the seats page size; tests shrink it.
+var seatsPerPage = 100
+
+// fetchSeats pages through {base}/copilot/billing/seats and returns every seat
+// along with the API's total_seats.
+func (c *GitHubClient) fetchSeats(ctx context.Context, base string, client *http.Client) ([]copilotSeat, int, error) {
+	var seats []copilotSeat
+	total := 0
+	page := 1
+
+	for {
+		url := fmt.Sprintf("%s/copilot/billing/seats?per_page=%d&page=%d", base, seatsPerPage, page)
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		if err != nil {
+			return nil, 0, fmt.Errorf("create seats request page %d: %w", page, err)
+		}
+		req.Header.Set("Accept", "application/vnd.github+json")
+		req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+
+		resp, err := client.Do(req)
+		if err != nil {
+			return nil, 0, fmt.Errorf("fetch seats page %d: %w", page, err)
+		}
+
+		body, readErr := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		if readErr != nil {
+			return nil, 0, fmt.Errorf("read seats page %d: %w", page, readErr)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			return nil, 0, &githubHTTPError{Status: resp.StatusCode, message: fmt.Sprintf("seats API returned %d on page %d: %s", resp.StatusCode, page, truncate(string(body), 300))}
+		}
+
+		var result copilotSeatResponse
+		if err := json.Unmarshal(body, &result); err != nil {
+			return nil, 0, fmt.Errorf("decode seats page %d: %w", page, err)
+		}
+
+		seats = append(seats, result.Seats...)
+		total = result.TotalSeats
+
+		slog.Debug("Fetched seats page", "page", page, "on_page", len(result.Seats), "total_so_far", len(seats), "total_seats", result.TotalSeats)
+
+		// Stop on a short page, not on len(seats) >= total_seats: a seat can
+		// show up on two pages while the list shifts, which would end early.
+		if len(result.Seats) < seatsPerPage {
+			break
+		}
+		page++
+	}
+
+	return seats, total, nil
+}

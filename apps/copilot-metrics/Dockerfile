@@ -6,7 +6,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY *.go ./
-COPY views/ views/
+COPY internal/ internal/
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o copilot-metrics .
 
 FROM gcr.io/distroless/static-debian12:nonroot
