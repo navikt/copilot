@@ -12,7 +12,7 @@ OAuth 2.1 authorization server in front of Microsoft Entra ID, plus a reverse pr
 | --- | --- | --- |
 | Entra (`login.microsoftonline.com`) | Login, refresh | Login and refresh fail. Existing access tokens keep working until they expire (Entra `expires_in`, capped at `SESSION_MAX_AGE`, 12 h; refresh slides the session up to `SESSION_ABSOLUTE_MAX_AGE`, 7 d from login) |
 | Texas (Nais token exchange) | OBO token to the upstream | Every `/mcp/*` call fails |
-| Nais Postgres (`fleet-gateway`) | Sessions, consent, DCR clients, counters | `/ready` fails, see below |
+| Nais Postgres (`fleet-gateway`) | Sessions, consent, DCR clients, counters | `fleet_gateway_store_up` = 0 and alert `FleetGatewayStoreDown`; `/ready` stays 200, see below |
 | `RT_KEYS` secret `fleet-gateway-rt-keys` | Seals refresh tokens and every store value; also signs the Entra state cookie | Startup fails on Nais without it |
 | Route file (`pilot-routes.<env>.yaml`, baked into the image) | Which routes exist, their tools and `enabled` | Startup fails on an invalid file |
 | fleet-control and Texas (only with `ROUTES_SOURCE=fleet-control`) | The route snapshot | A pod with a snapshot keeps it. A new pod starts from the snapshot stored in Postgres (`fleet_gateway_routes_from_stored_snapshot` = 1). With no valid stored snapshot it serves no routes: `/mcp/*` 503 and `/ready` fails until the first valid snapshot. A route revoked after the stored snapshot was taken comes back if a pod restarts during a fleet-control outage: watch for `fleet_gateway_routes_from_stored_snapshot` = 1 and the warning log `route table loaded from stored snapshot, fleet-control unreachable`, which gives the snapshot's age |
@@ -22,7 +22,7 @@ OAuth 2.1 authorization server in front of Microsoft Entra ID, plus a reverse pr
 ## Health and logs
 
 - `GET /health`: liveness, always 200 while the process runs.
-- `GET /ready`: pings Postgres with a 2 s timeout. 503 `not_ready` when the database is unreachable, or with `ROUTES_SOURCE=fleet-control` before the first valid route snapshot, live or stored (`reason: no_route_snapshot`).
+- `GET /ready`: pings Postgres with a 2 s timeout and sets `fleet_gateway_store_up`, but does not fail on it (#2893). 503 `not_ready` while shutting down, or with `ROUTES_SOURCE=fleet-control` before the first valid route snapshot, live or stored (`reason: no_route_snapshot`).
 
 ```sh
 kubectl config use-context prod-gcp
@@ -141,7 +141,7 @@ Remove the `client_id` from `ALLOWED_CLIENT_IDS` in `.nais/<env>-gcp.yaml` and d
 
 ## Postgres outage or loss
 
-- Outage: `/ready` returns 503, so Nais takes both pods out of the ingress and every call fails until the database is back. The pods are not restarted by liveness. No HA is configured (`.nais/postgres.yaml`).
+- Outage: `/ready` stays 200 (#2893), so pods stay in the ingress and route from the in-memory snapshot. Anything that reads or writes the store (login, token refresh, sessions) fails until the database is back. `FleetGatewayStoreDown` fires after 2 min. The pods are not restarted by liveness. No HA is configured (`.nais/postgres.yaml`).
 - Loss or corruption: recreate empty. **Warning:** this drops the `revoked` denylist while client-held refresh tokens stay decryptable with the unchanged `RT_KEYS`, so revoked or already-used tokens can pass replay checks again if Entra still accepts them. Rotate `RT_KEYS` (drop the old key, see above) whenever the database is lost. Everything in it is short-lived (sessions 12 h, consent 30 days, DCR clients up to 180 days). Users log in again; migrations run at startup. OpenCode users may need `opencode mcp logout <name>` first (unverified).
 - Backups: Nais Postgres defaults (automated backups, retention) are **unverified**; none are required for this design.
 

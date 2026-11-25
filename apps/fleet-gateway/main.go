@@ -282,10 +282,13 @@ func (g *Gateway) readyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
+	// The DB is not a readiness condition (#2893): routing runs from the in-memory
+	// snapshot, so pods stay in rotation and the alert on storeUp reports the outage.
 	if err := g.store.Ping(ctx); err != nil {
-		slog.Warn("readiness check failed", "error", err)
-		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "not_ready"})
-		return
+		slog.Warn("session store ping failed", "error", err)
+		storeUp.Set(0)
+	} else {
+		storeUp.Set(1)
 	}
 	if g.awaitingSnapshot() {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "not_ready", "reason": "no_route_snapshot"})
