@@ -366,8 +366,16 @@ func TestManagedPrunesOldSetFiles(t *testing.T) {
 	if err := os.WriteFile(foreign, []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	mine := filepath.Join(dir, "nav-pilot-mine.toml")
+	if err := os.WriteFile(mine, []byte(cpltManagedHeader), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tmp := filepath.Join(dir, ".nav-pilot.toml.123456")
+	if err := os.WriteFile(tmp, []byte("partial"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	past := time.Now().Add(-8 * 24 * time.Hour)
-	for _, p := range []string{fleet, old, foreign} {
+	for _, p := range []string{fleet, old, foreign, mine, tmp} {
 		if err := os.Chtimes(p, past, past); err != nil {
 			t.Fatal(err)
 		}
@@ -375,12 +383,61 @@ func TestManagedPrunesOldSetFiles(t *testing.T) {
 	if p, _ := CpltManagedConfig([]string{"mimir.nav.cloud.nais.io"}); p == "" {
 		t.Fatal("no path")
 	}
-	if _, err := os.Lstat(old); err == nil {
-		t.Error("old set file kept")
+	for _, p := range []string{old, tmp} {
+		if _, err := os.Lstat(p); err == nil {
+			t.Errorf("%s kept", p)
+		}
 	}
-	for _, p := range []string{fleet, foreign, managedPath(home)} {
+	for _, p := range []string{fleet, foreign, mine, managedPath(home)} {
 		if _, err := os.Lstat(p); err != nil {
 			t.Errorf("%s removed", p)
 		}
+	}
+}
+
+func TestManagedPruneSkipsOtherOwner(t *testing.T) {
+	withManaged(t, managedRelease)
+	old, _ := CpltManagedConfig([]string{"mcp.intern.nav.no"})
+	past := time.Now().Add(-8 * 24 * time.Hour)
+	if err := os.Chtimes(old, past, past); err != nil {
+		t.Fatal(err)
+	}
+	prev := managedOwner
+	t.Cleanup(func() { managedOwner = prev })
+	managedOwner = func(*syscall.Stat_t) int { return os.Getuid() + 1 }
+	CpltManagedConfig([]string{"mimir.nav.cloud.nais.io"})
+	if _, err := os.Lstat(old); err != nil {
+		t.Error("file of another owner pruned")
+	}
+}
+
+func TestValidManagedHost(t *testing.T) {
+	for h, want := range map[string]bool{
+		"mimir.nav.cloud.nais.io": true, "a1.b2.no": true, "x.0abc.no": true,
+		"127.1": false, "10.1": false, "0x7f.1": false, "0177.0.0.1": false, "10.0.0.1": false,
+		"0x7f.nav.no": false, "a.123": false, "localhost": false, "*.nav.no": false, "A.no": false, "a..no": false,
+	} {
+		if got := validManagedHost(h); got != want {
+			t.Errorf("%q: %v, want %v", h, got, want)
+		}
+	}
+}
+
+func TestManagedDropsInheritedEnv(t *testing.T) {
+	for name, fail := range map[string]bool{"written": false, "not written": true} {
+		t.Run(name, func(t *testing.T) {
+			home := withManaged(t, managedRelease)
+			other, _ := CpltManagedConfig([]string{"mcp.intern.nav.no"})
+			if fail {
+				cpltManagedConfig = func([]string) (string, string) { return "", "test" }
+			}
+			for _, v := range []string{other, filepath.Join(home, "foreign.toml")} {
+				t.Setenv(CpltManagedEnv, v)
+				_, env := launchManaged(t)
+				if env == v || fail && env != "" {
+					t.Errorf("%s: inherited %q survived as %q", name, v, env)
+				}
+			}
+		})
 	}
 }

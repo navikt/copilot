@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -79,10 +80,17 @@ func cpltManagedContent(approved []string) []byte {
 // validManagedHost is a bare lowercase host name with at least two labels:
 // no wildcard, port, IP address or localhost.
 func validManagedHost(h string) bool {
-	if net.ParseIP(h) != nil || !strings.Contains(h, ".") || len(h) > 253 {
+	if net.ParseIP(h) != nil || !strings.Contains(h, ".") || len(h) > 253 || !validHostLabels(h) {
 		return false
 	}
-	return validHostLabels(h)
+	labels := strings.Split(h, ".")
+	for _, l := range labels {
+		if strings.HasPrefix(l, "0x") {
+			return false
+		}
+	}
+	// A TLD with a letter rules out numeric IP spellings like 127.1 or 0177.0.0.1.
+	return strings.ContainsAny(labels[len(labels)-1], "abcdefghijklmnopqrstuvwxyz")
 }
 
 // CpltManagedConfig writes ~/.config/cplt/managed.d/nav-pilot.toml when cplt
@@ -183,8 +191,20 @@ func ensureCpltManagedFile(name string, want []byte, write bool) (string, error)
 	return path, nil
 }
 
-// managedPruneAge is how long an unused per-set file stays.
-const managedPruneAge = 7 * 24 * time.Hour
+// managedPruneAge is how long an unused per-set file stays; a temp file
+// left by a crashed write goes after a day.
+const (
+	managedPruneAge = 7 * 24 * time.Hour
+	managedTempAge  = 24 * time.Hour
+)
+
+var (
+	managedSetName  = regexp.MustCompile(`^nav-pilot-[0-9a-f]{12}\.toml$`)
+	managedTempName = regexp.MustCompile(`^\.nav-pilot\.toml\.[0-9]+$`)
+)
+
+// managedOwner is a file's owner uid; a var so tests can fake a foreign owner.
+var managedOwner = func(st *syscall.Stat_t) int { return int(st.Uid) }
 
 // pruneManagedFiles removes per-set files nav-pilot wrote that no launch has
 // used for [managedPruneAge]. Best effort: errors are ignored, nav-pilot.toml
@@ -196,7 +216,8 @@ func pruneManagedFiles(dir string, uid int, keep string) {
 	}
 	for _, e := range entries {
 		p := filepath.Join(dir, e.Name())
-		if p == keep || !strings.HasPrefix(e.Name(), "nav-pilot-") || !strings.HasSuffix(e.Name(), ".toml") {
+		set, tmp := managedSetName.MatchString(e.Name()), managedTempName.MatchString(e.Name())
+		if p == keep || !set && !tmp {
 			continue
 		}
 		fi, err := os.Lstat(p)
@@ -204,8 +225,13 @@ func pruneManagedFiles(dir string, uid int, keep string) {
 			continue
 		}
 		st, _ := fi.Sys().(*syscall.Stat_t)
-		if !fi.Mode().IsRegular() || st == nil || int(st.Uid) != uid ||
-			time.Since(fi.ModTime()) < managedPruneAge || !fileStartsWith(p, []byte(cpltManagedHeader)) {
+		if !fi.Mode().IsRegular() || st == nil || managedOwner(st) != uid {
+			continue
+		}
+		if set && (time.Since(fi.ModTime()) < managedPruneAge || !fileStartsWith(p, []byte(cpltManagedHeader))) {
+			continue
+		}
+		if tmp && time.Since(fi.ModTime()) < managedTempAge {
 			continue
 		}
 		_ = os.Remove(p)

@@ -431,6 +431,8 @@ func launchViaCplt(spec cpltLaunch) error {
 	// file (a passwd home nav-pilot cannot see, e.g. CGO-less LDAP lookups),
 	// and the lists union, so a duplicate costs nothing.
 	spec.proposal = append([]string{}, cpltProposalFlags()...)
+	// An inherited value may name another set's file: drop it on every path.
+	spec.env = slices.DeleteFunc(spec.env, func(e string) bool { return strings.HasPrefix(e, CpltManagedEnv+"=") })
 	if path, _ := cpltManagedConfig(proposalPrivateHosts(spec.proposal)); path != "" {
 		spec.env, _ = telemetry.SetEnvValue(spec.env, CpltManagedEnv, path)
 	}

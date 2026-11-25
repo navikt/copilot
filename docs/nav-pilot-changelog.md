@@ -27,7 +27,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### Godkjente adresser i cplts managed-fil
 
-- **cplt**: Med cplt 2026.11.24 eller nyere skriver nav-pilot nå også adressene du har godkjent for pakkens sandkasseunntak og for MCP-servere fra registeret, i en egen fil per sett med godkjente adresser under `~/.config/cplt/managed.d/`, så et repo aldri får adresser som er godkjent for et annet. Filer som ikke er brukt på sju dager, fjernes. Filen får de samme adressene som oppstarten sender som flagg, ikke flere, og flaggene sendes fortsatt. Ligger det en fil der som nav-pilot ikke har skrevet, lar nav-pilot den være. Du merker ingen forskjell (#2950).
+- **cplt**: Med cplt 2026.11.24 eller nyere skriver nav-pilot nå også adressene du har godkjent for pakkens sandkasseunntak og for MCP-servere fra registeret, i en egen fil per sett med godkjente adresser under `~/.config/cplt/managed.d/`. Når nav-pilot starter agenten, får et repo aldri adresser som er godkjent for et annet. Starter du `cplt` direkte, styrer ikke nav-pilot hvilken fil cplt leser. Filer som ikke er brukt på sju dager, fjernes. Filen får de samme adressene som oppstarten sender som flagg, ikke flere, og flaggene sendes fortsatt. Ligger det en fil der som nav-pilot ikke har skrevet, lar nav-pilot den være. Du merker ingen forskjell (#2950).
 
 ### Localhost-spørsmålet bruker cplts JSON-svar
 
