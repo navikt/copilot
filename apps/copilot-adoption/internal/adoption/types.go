@@ -1,4 +1,4 @@
-package main
+package adoption
 
 import (
 	"context"
@@ -95,11 +95,10 @@ type SourceOIDResolver interface {
 	ResolveSourceOIDs(ctx context.Context, criteria []SearchCriteria) (SourceOIDs, error)
 }
 
-// Verify implementations satisfy interfaces at compile time.
-var (
-	_ RepoLister           = (*GitHubClient)(nil)
-	_ TeamMapper           = (*GitHubClient)(nil)
-	_ CustomizationScanner = (*GitHubClient)(nil)
-	_ SourceOIDResolver    = (*GitHubClient)(nil)
-	_ AdoptionStore        = (*BigQueryClient)(nil)
-)
+func EmptyResults(criteria []SearchCriteria) map[string]SearchResult {
+	m := make(map[string]SearchResult, len(criteria))
+	for _, c := range criteria {
+		m[c.Category] = SearchResult{Exists: false}
+	}
+	return m
+}

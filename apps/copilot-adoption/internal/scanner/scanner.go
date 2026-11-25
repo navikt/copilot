@@ -1,10 +1,14 @@
-package main
+package scanner
 
 import (
 	"context"
 	"fmt"
 	"log/slog"
 	"time"
+
+	"github.com/navikt/copilot/apps/copilot-adoption/internal/adoption"
+	"github.com/navikt/copilot/apps/copilot-adoption/internal/config"
+	"github.com/navikt/copilot/apps/copilot-adoption/internal/slack"
 )
 
 // RunScan executes the full adoption scan pipeline:
@@ -14,15 +18,15 @@ import (
 // 4. Batch GraphQL scans for active repos
 // 5. Combine results and insert to BigQuery
 func RunScan(ctx context.Context, gh interface {
-	RepoLister
-	TeamMapper
-	CustomizationScanner
-	SourceOIDResolver
-}, bq AdoptionStore, cfg *Config, scanDate time.Time, _ *SlackNotifier) error {
+	adoption.RepoLister
+	adoption.TeamMapper
+	adoption.CustomizationScanner
+	adoption.SourceOIDResolver
+}, bq adoption.AdoptionStore, cfg *config.Config, scanDate time.Time, _ *slack.SlackNotifier) error {
 	dateStr := scanDate.Format("2006-01-02")
 	slog.Info("Starting adoption scan", "date", dateStr, "org", cfg.OrganizationSlug)
 
-	criteria := DefaultCriteria()
+	criteria := adoption.DefaultCriteria()
 	slog.Info("Search criteria loaded", "count", len(criteria))
 	for _, c := range criteria {
 		slog.Debug("Criterion", "category", c.Category, "path", c.TreePath, "type", c.CheckType)
@@ -45,8 +49,8 @@ func RunScan(ctx context.Context, gh interface {
 	}
 
 	// Step 3: Split archived vs active
-	var activeRepos []RepoInfo
-	var archivedRepos []RepoInfo
+	var activeRepos []adoption.RepoInfo
+	var archivedRepos []adoption.RepoInfo
 	for _, r := range repos {
 		if r.IsArchived {
 			archivedRepos = append(archivedRepos, r)
@@ -80,15 +84,15 @@ func RunScan(ctx context.Context, gh interface {
 
 	// Step 5: Assemble results
 	slog.Info("Assembling results...")
-	var allResults []RepoScanResult
+	var allResults []adoption.RepoScanResult
 
 	// Active repos: full scan results
 	for _, repo := range activeRepos {
 		customizations := scanOutput.Customizations[repo.Name]
 		if customizations == nil {
-			customizations = emptyResults(criteria)
+			customizations = adoption.EmptyResults(criteria)
 		}
-		res := assembleResult(cfg.OrganizationSlug, repo, teamMap[repo.Name], customizations, scanOutput.LastCommits[repo.Name])
+		res := AssembleResult(cfg.OrganizationSlug, repo, teamMap[repo.Name], customizations, scanOutput.LastCommits[repo.Name])
 		res.DefaultBranchCommits7d = scanOutput.Commits7d[repo.Name]
 		res.DefaultBranchCommits30d = scanOutput.Commits30d[repo.Name]
 		allResults = append(allResults, res)
@@ -96,7 +100,7 @@ func RunScan(ctx context.Context, gh interface {
 
 	// Archived repos: metadata only, no customization scan
 	for _, repo := range archivedRepos {
-		allResults = append(allResults, assembleResult(cfg.OrganizationSlug, repo, teamMap[repo.Name], emptyResults(criteria), nil))
+		allResults = append(allResults, AssembleResult(cfg.OrganizationSlug, repo, teamMap[repo.Name], adoption.EmptyResults(criteria), nil))
 	}
 
 	// Step 5b: Resolve source OIDs and compute sync status
@@ -133,15 +137,15 @@ func RunScan(ctx context.Context, gh interface {
 
 // DryRunScan runs the scan pipeline without BigQuery, returning assembled results.
 func DryRunScan(ctx context.Context, gh interface {
-	RepoLister
-	TeamMapper
-	CustomizationScanner
-	SourceOIDResolver
-}, cfg *Config, scanDate time.Time) ([]RepoScanResult, error) {
+	adoption.RepoLister
+	adoption.TeamMapper
+	adoption.CustomizationScanner
+	adoption.SourceOIDResolver
+}, cfg *config.Config, scanDate time.Time) ([]adoption.RepoScanResult, error) {
 	dateStr := scanDate.Format("2006-01-02")
 	slog.Info("Starting DRY RUN adoption scan", "date", dateStr, "org", cfg.OrganizationSlug)
 
-	criteria := DefaultCriteria()
+	criteria := adoption.DefaultCriteria()
 	slog.Info("Search criteria loaded", "count", len(criteria))
 
 	// Step 1: List all repos
@@ -157,12 +161,12 @@ func DryRunScan(ctx context.Context, gh interface {
 	teamMap, err := gh.BuildTeamMap(ctx, cfg.OrganizationSlug)
 	if err != nil {
 		slog.Warn("Failed to build team map, continuing without team data", "error", err)
-		teamMap = make(map[string][]TeamAccess)
+		teamMap = make(map[string][]adoption.TeamAccess)
 	}
 
 	// Step 3: Split archived vs active
-	var activeRepos []RepoInfo
-	var archivedRepos []RepoInfo
+	var activeRepos []adoption.RepoInfo
+	var archivedRepos []adoption.RepoInfo
 	for _, r := range repos {
 		if r.IsArchived {
 			archivedRepos = append(archivedRepos, r)
@@ -180,19 +184,19 @@ func DryRunScan(ctx context.Context, gh interface {
 	}
 
 	// Step 5: Assemble results
-	var allResults []RepoScanResult
+	var allResults []adoption.RepoScanResult
 	for _, repo := range activeRepos {
 		customizations := scanOutput.Customizations[repo.Name]
 		if customizations == nil {
-			customizations = emptyResults(criteria)
+			customizations = adoption.EmptyResults(criteria)
 		}
-		res := assembleResult(cfg.OrganizationSlug, repo, teamMap[repo.Name], customizations, scanOutput.LastCommits[repo.Name])
+		res := AssembleResult(cfg.OrganizationSlug, repo, teamMap[repo.Name], customizations, scanOutput.LastCommits[repo.Name])
 		res.DefaultBranchCommits7d = scanOutput.Commits7d[repo.Name]
 		res.DefaultBranchCommits30d = scanOutput.Commits30d[repo.Name]
 		allResults = append(allResults, res)
 	}
 	for _, repo := range archivedRepos {
-		allResults = append(allResults, assembleResult(cfg.OrganizationSlug, repo, teamMap[repo.Name], emptyResults(criteria), nil))
+		allResults = append(allResults, AssembleResult(cfg.OrganizationSlug, repo, teamMap[repo.Name], adoption.EmptyResults(criteria), nil))
 	}
 
 	// Step 5b: Resolve source OIDs and compute sync status
@@ -224,7 +228,7 @@ func DryRunScan(ctx context.Context, gh interface {
 
 // ComputeInSync annotates each SearchResult with per-file sync status by comparing
 // blob OIDs against the canonical source repo. Modifies results in place.
-func ComputeInSync(results []RepoScanResult, source SourceOIDs, criteria []SearchCriteria) {
+func ComputeInSync(results []adoption.RepoScanResult, source adoption.SourceOIDs, criteria []adoption.SearchCriteria) {
 	for i := range results {
 		for _, c := range criteria {
 			sr, ok := results[i].Customizations[c.Category]
@@ -243,7 +247,7 @@ func ComputeInSync(results []RepoScanResult, source SourceOIDs, criteria []Searc
 			allResolved := true
 			inSync := make([]bool, len(sr.Oids))
 			switch c.CheckType {
-			case CheckFile:
+			case adoption.CheckFile:
 				base := c.TreePath
 				if idx := len(c.TreePath) - 1; idx >= 0 {
 					for j := idx; j >= 0; j-- {
@@ -258,7 +262,7 @@ func ComputeInSync(results []RepoScanResult, source SourceOIDs, criteria []Searc
 				} else {
 					allResolved = false
 				}
-			case CheckDirectory:
+			case adoption.CheckDirectory:
 				for j, name := range sr.Files {
 					if j < len(sr.Oids) && sr.Oids[j] != "" {
 						inSync[j] = sr.Oids[j] == sourceOids[name]
@@ -278,7 +282,7 @@ func ComputeInSync(results []RepoScanResult, source SourceOIDs, criteria []Searc
 	}
 }
 
-func assembleResult(org string, repo RepoInfo, teams []TeamAccess, customizations map[string]SearchResult, lastCommit *time.Time) RepoScanResult {
+func AssembleResult(org string, repo adoption.RepoInfo, teams []adoption.TeamAccess, customizations map[string]adoption.SearchResult, lastCommit *time.Time) adoption.RepoScanResult {
 	hasAny := false
 	count := 0
 	for _, sr := range customizations {
@@ -289,7 +293,7 @@ func assembleResult(org string, repo RepoInfo, teams []TeamAccess, customization
 	}
 
 	if teams == nil {
-		teams = []TeamAccess{}
+		teams = []adoption.TeamAccess{}
 	}
 
 	topics := repo.Topics
@@ -297,7 +301,7 @@ func assembleResult(org string, repo RepoInfo, teams []TeamAccess, customization
 		topics = []string{}
 	}
 
-	return RepoScanResult{
+	return adoption.RepoScanResult{
 		Org:                     org,
 		Repo:                    repo.Name,
 		DefaultBranch:           repo.DefaultBranch,

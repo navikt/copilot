@@ -1,4 +1,4 @@
-package main
+package github
 
 import (
 	"bytes"
@@ -15,6 +15,9 @@ import (
 	"time"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
+
+	"github.com/navikt/copilot/apps/copilot-adoption/internal/adoption"
+	"github.com/navikt/copilot/apps/copilot-adoption/internal/config"
 )
 
 type GitHubClient struct {
@@ -24,7 +27,7 @@ type GitHubClient struct {
 	concurrency int
 }
 
-func NewGitHubClient(cfg *Config) (*GitHubClient, error) {
+func NewGitHubClient(cfg *config.Config) (*GitHubClient, error) {
 	transport, err := ghinstallation.New(
 		http.DefaultTransport,
 		cfg.GitHubAppID,
@@ -61,8 +64,8 @@ type restRepo struct {
 	OpenIssuesCount int      `json:"open_issues_count"`
 }
 
-func (c *GitHubClient) ListRepos(ctx context.Context, org string) ([]RepoInfo, error) {
-	var allRepos []RepoInfo
+func (c *GitHubClient) ListRepos(ctx context.Context, org string) ([]adoption.RepoInfo, error) {
+	var allRepos []adoption.RepoInfo
 	page := 1
 
 	for {
@@ -76,7 +79,7 @@ func (c *GitHubClient) ListRepos(ctx context.Context, org string) ([]RepoInfo, e
 		}
 
 		for _, r := range repos {
-			info := RepoInfo{
+			info := adoption.RepoInfo{
 				Name:            r.Name,
 				DefaultBranch:   r.DefaultBranch,
 				PrimaryLanguage: r.Language,
@@ -138,7 +141,7 @@ type restTeamRepo struct {
 	Permissions map[string]bool `json:"permissions"`
 }
 
-func (c *GitHubClient) BuildTeamMap(ctx context.Context, org string) (map[string][]TeamAccess, error) {
+func (c *GitHubClient) BuildTeamMap(ctx context.Context, org string) (map[string][]adoption.TeamAccess, error) {
 	teams, err := c.listTeams(ctx, org)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list teams: %w", err)
@@ -146,7 +149,7 @@ func (c *GitHubClient) BuildTeamMap(ctx context.Context, org string) (map[string
 
 	slog.Info("Listed teams", "org", org, "count", len(teams))
 
-	teamMap := make(map[string][]TeamAccess)
+	teamMap := make(map[string][]adoption.TeamAccess)
 	for _, team := range teams {
 		repos, err := c.listTeamRepos(ctx, org, team.Slug)
 		if err != nil {
@@ -156,7 +159,7 @@ func (c *GitHubClient) BuildTeamMap(ctx context.Context, org string) (map[string
 
 		for _, repo := range repos {
 			perm := highestPermission(repo.Permissions)
-			teamMap[repo.Name] = append(teamMap[repo.Name], TeamAccess{
+			teamMap[repo.Name] = append(teamMap[repo.Name], adoption.TeamAccess{
 				Slug:       team.Slug,
 				Name:       team.Name,
 				Permission: perm,
@@ -253,10 +256,10 @@ type graphqlRequest struct {
 // ScanRepos checks multiple repositories for customization files using batched GraphQL queries.
 // Uses concurrency workers to parallelize batch execution.
 // Returns ScanOutput with customizations per repo and last commit dates.
-func (c *GitHubClient) ScanRepos(ctx context.Context, org string, repos []RepoInfo, criteria []SearchCriteria) (*ScanOutput, error) {
+func (c *GitHubClient) ScanRepos(ctx context.Context, org string, repos []adoption.RepoInfo, criteria []adoption.SearchCriteria) (*adoption.ScanOutput, error) {
 	type batchJob struct {
 		index int
-		repos []RepoInfo
+		repos []adoption.RepoInfo
 	}
 
 	// Build batch jobs
@@ -269,8 +272,8 @@ func (c *GitHubClient) ScanRepos(ctx context.Context, org string, repos []RepoIn
 		jobs = append(jobs, batchJob{index: i, repos: repos[i:end]})
 	}
 
-	output := &ScanOutput{
-		Customizations: make(map[string]map[string]SearchResult),
+	output := &adoption.ScanOutput{
+		Customizations: make(map[string]map[string]adoption.SearchResult),
 		LastCommits:    make(map[string]*time.Time),
 		Commits7d:      make(map[string]int),
 		Commits30d:     make(map[string]int),
@@ -347,21 +350,13 @@ func (c *GitHubClient) ScanRepos(ctx context.Context, org string, repos []RepoIn
 	return output, nil
 }
 
-func emptyResults(criteria []SearchCriteria) map[string]SearchResult {
-	m := make(map[string]SearchResult, len(criteria))
-	for _, c := range criteria {
-		m[c.Category] = SearchResult{Exists: false}
-	}
-	return m
-}
-
 // scanBatch executes a single batched GraphQL query for multiple repos.
-func (c *GitHubClient) scanBatch(ctx context.Context, org string, repos []RepoInfo, criteria []SearchCriteria) (map[string]map[string]SearchResult, map[string]*time.Time, error) {
+func (c *GitHubClient) scanBatch(ctx context.Context, org string, repos []adoption.RepoInfo, criteria []adoption.SearchCriteria) (map[string]map[string]adoption.SearchResult, map[string]*time.Time, error) {
 	customizations, lastCommits, _, _, err := c.scanBatchWithActivity(ctx, org, repos, criteria)
 	return customizations, lastCommits, err
 }
 
-func (c *GitHubClient) scanBatchWithActivity(ctx context.Context, org string, repos []RepoInfo, criteria []SearchCriteria) (map[string]map[string]SearchResult, map[string]*time.Time, map[string]int, map[string]int, error) {
+func (c *GitHubClient) scanBatchWithActivity(ctx context.Context, org string, repos []adoption.RepoInfo, criteria []adoption.SearchCriteria) (map[string]map[string]adoption.SearchResult, map[string]*time.Time, map[string]int, map[string]int, error) {
 	query := buildGraphQLQuery(org, repos, criteria)
 
 	body, err := json.Marshal(graphqlRequest{Query: query})
@@ -397,7 +392,7 @@ func (c *GitHubClient) scanBatchWithActivity(ctx context.Context, org string, re
 }
 
 // buildGraphQLQuery constructs a batched query checking all criteria across multiple repos.
-func buildGraphQLQuery(org string, repos []RepoInfo, criteria []SearchCriteria) string {
+func buildGraphQLQuery(org string, repos []adoption.RepoInfo, criteria []adoption.SearchCriteria) string {
 	var b strings.Builder
 	b.WriteString("query {\n")
 
@@ -419,9 +414,9 @@ func buildGraphQLQuery(org string, repos []RepoInfo, criteria []SearchCriteria) 
 			expression := fmt.Sprintf("%s:%s", ref, c.TreePath)
 
 			switch c.CheckType {
-			case CheckFile:
+			case adoption.CheckFile:
 				fmt.Fprintf(&b, "    %s: object(expression: %q) { __typename ... on Blob { oid } }\n", alias, expression)
-			case CheckDirectory:
+			case adoption.CheckDirectory:
 				fmt.Fprintf(&b, "    %s: object(expression: %q) {\n", alias, expression)
 				b.WriteString("      __typename\n")
 				b.WriteString("      ... on Tree { entries { name type object { oid } } }\n")
@@ -476,8 +471,8 @@ type defaultBranchRefResponse struct {
 	} `json:"target"`
 }
 
-func parseGraphQLResponseWithActivity(data map[string]json.RawMessage, repos []RepoInfo, criteria []SearchCriteria) (map[string]map[string]SearchResult, map[string]*time.Time, map[string]int, map[string]int) {
-	results := make(map[string]map[string]SearchResult, len(repos))
+func parseGraphQLResponseWithActivity(data map[string]json.RawMessage, repos []adoption.RepoInfo, criteria []adoption.SearchCriteria) (map[string]map[string]adoption.SearchResult, map[string]*time.Time, map[string]int, map[string]int) {
+	results := make(map[string]map[string]adoption.SearchResult, len(repos))
 	lastCommits := make(map[string]*time.Time, len(repos))
 	commits7d := make(map[string]int, len(repos))
 	commits30d := make(map[string]int, len(repos))
@@ -486,18 +481,18 @@ func parseGraphQLResponseWithActivity(data map[string]json.RawMessage, repos []R
 		key := fmt.Sprintf("repo%d", i)
 		repoData, ok := data[key]
 		if !ok || string(repoData) == "null" {
-			results[repo.Name] = emptyResults(criteria)
+			results[repo.Name] = adoption.EmptyResults(criteria)
 			continue
 		}
 
 		var fields map[string]json.RawMessage
 		if err := json.Unmarshal(repoData, &fields); err != nil {
 			slog.Warn("Failed to parse repo data", "repo", repo.Name, "error", err)
-			results[repo.Name] = emptyResults(criteria)
+			results[repo.Name] = adoption.EmptyResults(criteria)
 			continue
 		}
 
-		repoResults := make(map[string]SearchResult, len(criteria))
+		repoResults := make(map[string]adoption.SearchResult, len(criteria))
 
 		// Extract last commit date and 7d/30d commit counts from defaultBranchRef
 		if branchData, ok := fields["defaultBranchRef"]; ok && string(branchData) != "null" {
@@ -517,27 +512,27 @@ func parseGraphQLResponseWithActivity(data map[string]json.RawMessage, repos []R
 			alias := c.GraphQLAlias()
 			fieldData, ok := fields[alias]
 			if !ok || string(fieldData) == "null" {
-				repoResults[c.Category] = SearchResult{Exists: false}
+				repoResults[c.Category] = adoption.SearchResult{Exists: false}
 				continue
 			}
 
 			var obj objectResponse
 			if err := json.Unmarshal(fieldData, &obj); err != nil {
-				repoResults[c.Category] = SearchResult{Exists: false}
+				repoResults[c.Category] = adoption.SearchResult{Exists: false}
 				continue
 			}
 
 			switch c.CheckType {
-			case CheckFile:
+			case adoption.CheckFile:
 				if obj.TypeName != "Blob" {
-					repoResults[c.Category] = SearchResult{Exists: false}
+					repoResults[c.Category] = adoption.SearchResult{Exists: false}
 					continue
 				}
 				// Files parallels Oids so v_staleness_summary can unnest file checks.
-				repoResults[c.Category] = SearchResult{Exists: true, Files: []string{path.Base(c.TreePath)}, Oids: blobOids(obj)}
-			case CheckDirectory:
+				repoResults[c.Category] = adoption.SearchResult{Exists: true, Files: []string{path.Base(c.TreePath)}, Oids: blobOids(obj)}
+			case adoption.CheckDirectory:
 				if obj.TypeName != "Tree" || len(obj.Entries) == 0 {
-					repoResults[c.Category] = SearchResult{Exists: false}
+					repoResults[c.Category] = adoption.SearchResult{Exists: false}
 					continue
 				}
 				var names []string
@@ -545,7 +540,7 @@ func parseGraphQLResponseWithActivity(data map[string]json.RawMessage, repos []R
 					names = append(names, e.Name)
 				}
 				matched := c.MatchFiles(names)
-				repoResults[c.Category] = SearchResult{
+				repoResults[c.Category] = adoption.SearchResult{
 					Exists: len(matched) > 0,
 					Files:  matched,
 					Oids:   matchedOids(obj.Entries, matched),
@@ -707,9 +702,9 @@ const sourceRepo = "copilot"
 // ResolveSourceOIDs fetches blob OIDs for all customization files in the source repo.
 // Returns a map of category → (filename → OID). For file-type checks, the filename
 // is the basename of the TreePath.
-func (c *GitHubClient) ResolveSourceOIDs(ctx context.Context, criteria []SearchCriteria) (SourceOIDs, error) {
-	repo := RepoInfo{Name: sourceRepo, DefaultBranch: "main"}
-	batchCustomizations, _, err := c.scanBatch(ctx, c.org, []RepoInfo{repo}, criteria)
+func (c *GitHubClient) ResolveSourceOIDs(ctx context.Context, criteria []adoption.SearchCriteria) (adoption.SourceOIDs, error) {
+	repo := adoption.RepoInfo{Name: sourceRepo, DefaultBranch: "main"}
+	batchCustomizations, _, err := c.scanBatch(ctx, c.org, []adoption.RepoInfo{repo}, criteria)
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan source repo %s/%s: %w", c.org, sourceRepo, err)
 	}
@@ -719,7 +714,7 @@ func (c *GitHubClient) ResolveSourceOIDs(ctx context.Context, criteria []SearchC
 		return nil, fmt.Errorf("source repo %s not found in scan results", sourceRepo)
 	}
 
-	source := make(SourceOIDs, len(criteria))
+	source := make(adoption.SourceOIDs, len(criteria))
 	for _, c := range criteria {
 		sr, ok := repoResults[c.Category]
 		if !ok || !sr.Exists {
@@ -728,7 +723,7 @@ func (c *GitHubClient) ResolveSourceOIDs(ctx context.Context, criteria []SearchC
 
 		oidMap := make(map[string]string)
 		switch c.CheckType {
-		case CheckFile:
+		case adoption.CheckFile:
 			// File checks: use TreePath basename as key
 			if len(sr.Oids) > 0 {
 				base := c.TreePath
@@ -737,7 +732,7 @@ func (c *GitHubClient) ResolveSourceOIDs(ctx context.Context, criteria []SearchC
 				}
 				oidMap[base] = sr.Oids[0]
 			}
-		case CheckDirectory:
+		case adoption.CheckDirectory:
 			// Directory checks: Files and Oids are parallel arrays
 			for i, name := range sr.Files {
 				if i < len(sr.Oids) && sr.Oids[i] != "" {
@@ -754,3 +749,10 @@ func (c *GitHubClient) ResolveSourceOIDs(ctx context.Context, criteria []SearchC
 	slog.Info("Resolved source OIDs", "categories", len(source))
 	return source, nil
 }
+
+var (
+	_ adoption.RepoLister           = (*GitHubClient)(nil)
+	_ adoption.TeamMapper           = (*GitHubClient)(nil)
+	_ adoption.CustomizationScanner = (*GitHubClient)(nil)
+	_ adoption.SourceOIDResolver    = (*GitHubClient)(nil)
+)
