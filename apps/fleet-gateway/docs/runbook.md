@@ -239,7 +239,8 @@ Recording rules in `.nais/app.yaml` hold the one definition that the alerts and 
 
 ```promql
 # fleet_gateway:slo_availability_errors:ratio_rate1h
-sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity|user_cap|user_sse_cap"}[1h]))
+(sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity|user_cap|user_sse_cap"}[1h]))
+  or sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{outcome!~"unauthorized|disabled|tool_denied"}[1h])) * 0)
   / sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{outcome!~"unauthorized|disabled|tool_denied"}[1h]))
 ```
 
@@ -253,7 +254,7 @@ Traffic is sparse: the median route sees 0 to 1 requests an hour. A window with 
 histogram_quantile(0.95, sum by (route, le) (rate(fleet_gateway_mcp_request_duration_seconds_bucket{namespace="copilot", kind!="sse"}[30d])))
 ```
 
-**5xx rate** reads `fleet_gateway_http_requests_total{code,reason}`. It has no route label, so it is gateway-wide. `reason` is set only on deliberate 503s (kill switch, caps, store quota, concurrent refresh), and those do not count. Recorded as `fleet_gateway:slo_5xx:ratio_rate1d`. Upstream 502s cannot be told apart in this counter and do count.
+**5xx rate** reads `fleet_gateway_http_requests_total{code,reason}`. It has no route label, so it is gateway-wide. `reason` is set only on deliberate 503s (kill switch, caps, store quota, concurrent refresh), and those do not count. Recorded as `fleet_gateway:slo_5xx:ratio_rate1d`, only when the day has at least 20 responses. Upstream 502s cannot be told apart in this counter and do count.
 
 ```promql
 sum(increase(fleet_gateway_http_requests_total{namespace="copilot", code=~"5..", reason=""}[30d]))

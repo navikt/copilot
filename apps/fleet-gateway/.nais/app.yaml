@@ -133,23 +133,29 @@ metadata:
 spec:
   groups:
     # SLO recording rules (runbook "SLO"). Alerts and dashboards (#2916) read these names.
+    # "or total * 0" makes errors 0, not a gap, on a route with traffic but no bad series yet;
+    # metrics.Init pre-creates only upstream_token_error. A route without traffic stays a gap (unknown).
     - name: fleet-gateway-slo
       rules:
         - record: fleet_gateway:slo_availability_errors:ratio_rate5m
           expr: |
-            sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity|user_cap|user_sse_cap"}[5m]))
+            (sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity|user_cap|user_sse_cap"}[5m]))
+              or sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|tool_denied"}[5m])) * 0)
               / sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|tool_denied"}[5m]))
         - record: fleet_gateway:slo_availability_errors:ratio_rate1h
           expr: |
-            sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity|user_cap|user_sse_cap"}[1h]))
+            (sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity|user_cap|user_sse_cap"}[1h]))
+              or sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|tool_denied"}[1h])) * 0)
               / sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|tool_denied"}[1h]))
         - record: fleet_gateway:slo_availability_errors:ratio_rate6h
           expr: |
-            sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity|user_cap|user_sse_cap"}[6h]))
+            (sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity|user_cap|user_sse_cap"}[6h]))
+              or sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|tool_denied"}[6h])) * 0)
               / sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|tool_denied"}[6h]))
         - record: fleet_gateway:slo_availability_errors:ratio_rate1d
           expr: |
-            sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity|user_cap|user_sse_cap"}[1d]))
+            (sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity|user_cap|user_sse_cap"}[1d]))
+              or sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|tool_denied"}[1d])) * 0)
               / sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|tool_denied"}[1d]))
         - record: fleet_gateway:slo_availability_requests:increase6h
           expr: sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|tool_denied"}[6h]))
@@ -159,6 +165,7 @@ spec:
           expr: |
             sum by (namespace) (increase(fleet_gateway_http_requests_total{namespace="copilot", code=~"5..", reason=""}[1d]))
               / sum by (namespace) (increase(fleet_gateway_http_requests_total{namespace="copilot"}[1d]))
+            and on (namespace) sum by (namespace) (increase(fleet_gateway_http_requests_total{namespace="copilot"}[1d])) >= 20
     - name: fleet-gateway
       rules:
         - alert: FleetGatewayRouteSnapshotStale
