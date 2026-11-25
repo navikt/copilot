@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/navikt/copilot/apps/mcp-dolly/internal/dolly"
 	"io"
 	"log/slog"
 	"net/url"
@@ -23,7 +24,7 @@ import (
 const (
 	maxToolResultBytes = 128 * 1024
 	maxPageSize        = 50
-	defaultPageSize    = 20
+	defaultPageSize    = dolly.DefaultPageSize
 	maxPageNo          = 10000
 	maxFragmentLen     = 100
 	minOrderAntall     = 1
@@ -169,7 +170,7 @@ func (el *elicitInput) confirmed() (ok, answered bool) {
 // askOrderConfirmation returns an InputRequiredResult whose requestState carries
 // the confirmation token. Clients pass requestState back without showing it to the model.
 // https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr#inputrequiredresult
-func (s *server) askOrderConfirmation(ctx context.Context, inboundToken, userHash, params string, gruppeID int64, req dollyBestillingRequest, fields map[string]json.RawMessage) any {
+func (s *server) askOrderConfirmation(ctx context.Context, inboundToken, userHash, params string, gruppeID int64, req dolly.BestillingRequest, fields map[string]json.RawMessage) any {
 	res := s.execWithOBO(ctx, inboundToken, func(tok string) (string, error) {
 		return "", s.checkGroupOwner(ctx, tok, gruppeID)
 	})
@@ -222,7 +223,7 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, too
 	}
 	get := func(path string, q url.Values) any {
 		return s.execWithOBO(ctx, inboundToken, func(tok string) (string, error) {
-			b, err := s.dolly.get(ctx, tok, path, q)
+			b, err := s.dolly.Get(ctx, tok, path, q)
 			if err != nil {
 				return "", err
 			}
@@ -246,12 +247,12 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, too
 			return nil, e
 		}
 		return s.execWithOBO(ctx, inboundToken, func(tok string) (string, error) {
-			brukerID, err := s.dolly.currentBrukerID(ctx, tok)
+			brukerID, err := s.dolly.CurrentBrukerID(ctx, tok)
 			if err != nil {
 				return "", err
 			}
 			q := url.Values{"brukerId": {brukerID}, "pageNo": {strconv.Itoa(pageNo)}, "pageSize": {strconv.Itoa(pageSize)}}
-			b, err := s.dolly.get(ctx, tok, "/api/v1/gruppe", q)
+			b, err := s.dolly.Get(ctx, tok, "/api/v1/gruppe", q)
 			if err != nil {
 				return "", err
 			}
@@ -425,7 +426,7 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, too
 			if err := s.checkGroupOwner(ctx, tok, gruppeID); err != nil {
 				return "", err
 			}
-			b, refund, err := s.dolly.createOrder(ctx, tok, gruppeID, orderReq)
+			b, refund, err := s.dolly.CreateOrder(ctx, tok, gruppeID, orderReq)
 			if err != nil {
 				if !refund {
 					committed = true
@@ -472,11 +473,11 @@ func (s *server) useToken(ctx context.Context, token, userHash, params string) e
 }
 
 func (s *server) checkGroupOwner(ctx context.Context, tok string, gruppeID int64) error {
-	brukerID, err := s.dolly.currentBrukerID(ctx, tok)
+	brukerID, err := s.dolly.CurrentBrukerID(ctx, tok)
 	if err != nil {
 		return err
 	}
-	ownerID, err := s.dolly.groupOwnerBrukerID(ctx, tok, gruppeID)
+	ownerID, err := s.dolly.GroupOwnerBrukerID(ctx, tok, gruppeID)
 	if err != nil {
 		return err
 	}
@@ -559,41 +560,41 @@ func (q *userQuota) hashUser(navIdent string) string {
 	return hex.EncodeToString(mac.Sum(nil))
 }
 
-func parseCreateOrder(fields map[string]json.RawMessage, now time.Time) (int64, dollyBestillingRequest, *mcpRPCError) {
+func parseCreateOrder(fields map[string]json.RawMessage, now time.Time) (int64, dolly.BestillingRequest, *mcpRPCError) {
 	gruppeID, e := parseID(fields, "gruppeId")
 	if e != nil {
-		return 0, dollyBestillingRequest{}, e
+		return 0, dolly.BestillingRequest{}, e
 	}
 
 	rawAntall, ok := fields["antall"]
 	if !ok {
-		return 0, dollyBestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "antall is required"}
+		return 0, dolly.BestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "antall is required"}
 	}
 	antall, e := parseStrictInt(rawAntall, "antall")
 	if e != nil {
-		return 0, dollyBestillingRequest{}, e
+		return 0, dolly.BestillingRequest{}, e
 	}
 	if antall < minOrderAntall || antall > maxOrderAntall {
-		return 0, dollyBestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("antall must be %d to %d", minOrderAntall, maxOrderAntall)}
+		return 0, dolly.BestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("antall must be %d to %d", minOrderAntall, maxOrderAntall)}
 	}
 
 	rawEnvs, ok := fields["environments"]
 	if !ok {
-		return 0, dollyBestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "environments is required"}
+		return 0, dolly.BestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "environments is required"}
 	}
 	var envItems []json.RawMessage
 	if len(rawEnvs) == 0 || rawEnvs[0] != '[' || json.Unmarshal(rawEnvs, &envItems) != nil {
-		return 0, dollyBestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "environments must be an array of strings"}
+		return 0, dolly.BestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "environments must be an array of strings"}
 	}
 	if len(envItems) < 1 || len(envItems) > 3 {
-		return 0, dollyBestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "environments must contain 1 to 3 entries from q1, q2, q4"}
+		return 0, dolly.BestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "environments must contain 1 to 3 entries from q1, q2, q4"}
 	}
 	seenEnvs := make(map[string]bool, len(envItems))
 	envs := make([]string, 0, len(envItems))
 	for _, item := range envItems {
 		env, envErr := parseStrictString(bytes.TrimSpace(item), "environments")
 		if envErr != nil {
-			return 0, dollyBestillingRequest{}, envErr
+			return 0, dolly.BestillingRequest{}, envErr
 		}
 		// Map validated input to constants so only allowlisted literals reach the audit log.
 		switch env {
@@ -604,16 +605,16 @@ func parseCreateOrder(fields map[string]json.RawMessage, now time.Time) (int64, 
 		case "q4":
 			env = "q4"
 		default:
-			return 0, dollyBestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "environments must be a subset of q1, q2, q4"}
+			return 0, dolly.BestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "environments must be a subset of q1, q2, q4"}
 		}
 		if seenEnvs[env] {
-			return 0, dollyBestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "environments must not contain duplicates"}
+			return 0, dolly.BestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "environments must not contain duplicates"}
 		}
 		seenEnvs[env] = true
 		envs = append(envs, env)
 	}
 
-	opprett := dollyOpprettNyPerson{
+	opprett := dolly.OpprettNyPerson{
 		Identtype: "FNR",
 		Syntetisk: true,
 	}
@@ -622,25 +623,25 @@ func parseCreateOrder(fields map[string]json.RawMessage, now time.Time) (int64, 
 	if rawMin, ok := fields["minAlder"]; ok {
 		minAlder, e = parseStrictInt(rawMin, "minAlder")
 		if e != nil {
-			return 0, dollyBestillingRequest{}, e
+			return 0, dolly.BestillingRequest{}, e
 		}
 		if minAlder < 0 || minAlder > maxOrderAge {
-			return 0, dollyBestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("minAlder must be 0 to %d", maxOrderAge)}
+			return 0, dolly.BestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("minAlder must be 0 to %d", maxOrderAge)}
 		}
 		hasMin = true
 	}
 	if rawMax, ok := fields["maxAlder"]; ok {
 		maxAlder, e = parseStrictInt(rawMax, "maxAlder")
 		if e != nil {
-			return 0, dollyBestillingRequest{}, e
+			return 0, dolly.BestillingRequest{}, e
 		}
 		if maxAlder < 0 || maxAlder > maxOrderAge {
-			return 0, dollyBestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("maxAlder must be 0 to %d", maxOrderAge)}
+			return 0, dolly.BestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("maxAlder must be 0 to %d", maxOrderAge)}
 		}
 		hasMax = true
 	}
 	if hasMin && hasMax && minAlder > maxAlder {
-		return 0, dollyBestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "minAlder must not exceed maxAlder"}
+		return 0, dolly.BestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "minAlder must not exceed maxAlder"}
 	}
 	today := now.UTC()
 	if hasMax {
@@ -650,24 +651,24 @@ func parseCreateOrder(fields map[string]json.RawMessage, now time.Time) (int64, 
 		opprett.FoedtFoer = today.AddDate(-minAlder, 0, 0).Format("2006-01-02T00:00:00")
 	}
 
-	var person *dollyPersonDTO
+	var person *dolly.PersonDTO
 	if rawKjoenn, ok := fields["kjoenn"]; ok {
 		kjoenn, kErr := parseStrictString(rawKjoenn, "kjoenn")
 		if kErr != nil {
-			return 0, dollyBestillingRequest{}, kErr
+			return 0, dolly.BestillingRequest{}, kErr
 		}
 		switch kjoenn {
 		case "MANN", "KVINNE", "UKJENT":
-			person = &dollyPersonDTO{Kjoenn: []dollyKjoennDTO{{Kjoenn: kjoenn}}}
+			person = &dolly.PersonDTO{Kjoenn: []dolly.KjoennDTO{{Kjoenn: kjoenn}}}
 		default:
-			return 0, dollyBestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "kjoenn must be MANN, KVINNE, or UKJENT"}
+			return 0, dolly.BestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "kjoenn must be MANN, KVINNE, or UKJENT"}
 		}
 	}
 
-	return gruppeID, dollyBestillingRequest{
+	return gruppeID, dolly.BestillingRequest{
 		Antall:       antall,
 		Environments: envs,
-		Pdldata: dollyPdlPerson{
+		Pdldata: dolly.PdlPerson{
 			OpprettNyPerson: opprett,
 			Person:          person,
 		},

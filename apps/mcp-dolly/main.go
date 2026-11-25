@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/navikt/copilot/apps/mcp-dolly/internal/dolly"
 	"io"
 	"log/slog"
 	"net/http"
@@ -117,7 +118,7 @@ func loadConfigFromEnv() (*config, error) {
 
 type server struct {
 	cfg         *config
-	dolly       *dollyClient
+	dolly       *dolly.Client
 	upstreamSem chan struct{}
 	quota       *userQuota
 	confirm     *orderConfirm
@@ -146,8 +147,8 @@ func (s *server) callTool(ctx context.Context, token, navIdent, name string, arg
 func newServer(cfg *config) *server {
 	s := &server{
 		cfg:         cfg,
-		dolly:       newDollyClient(cfg.DollyURL, cfg.HTTPClient),
-		upstreamSem: make(chan struct{}, maxConcurrentUpstream),
+		dolly:       dolly.NewClient(cfg.DollyURL, cfg.HTTPClient),
+		upstreamSem: make(chan struct{}, dolly.MaxConcurrentUpstream),
 		quota:       newUserQuota(cfg.Keys.userHash),
 		confirm:     newOrderConfirm(cfg.Keys.confirm),
 		now:         time.Now,

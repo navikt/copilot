@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"github.com/navikt/copilot/apps/mcp-dolly/internal/dolly"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -527,14 +528,14 @@ func TestTexasExchangeErrorDoesNotLeakBodyOrToken(t *testing.T) {
 }
 
 func TestUpstreamLimitReader1MiB(t *testing.T) {
-	if maxUpstreamBodyBytes != 1<<20 {
-		t.Fatalf("maxUpstreamBodyBytes = %d, want %d", maxUpstreamBodyBytes, 1<<20)
+	if dolly.MaxUpstreamBodyBytes != 1<<20 {
+		t.Fatalf("dolly.MaxUpstreamBodyBytes = %d, want %d", dolly.MaxUpstreamBodyBytes, 1<<20)
 	}
 	srv := newTestServer(t, defaultTexasHandler("obo-tok"), func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"brukerId":"`))
-		_, _ = w.Write(bytes.Repeat([]byte("x"), maxUpstreamBodyBytes+1024))
+		_, _ = w.Write(bytes.Repeat([]byte("x"), dolly.MaxUpstreamBodyBytes+1024))
 		_, _ = w.Write([]byte(`"]}`))
 	})
 
@@ -590,15 +591,15 @@ func TestUpstreamConcurrencySemaphore(t *testing.T) {
 	}
 
 	// Wait for the first two requests to block inside upstream.
-	for range maxConcurrentUpstream {
+	for range dolly.MaxConcurrentUpstream {
 		<-entered
 	}
 	// Give queued goroutines a moment to attempt entry, then verify cap holds.
 	time.Sleep(30 * time.Millisecond)
-	if got := maxInFlight.Load(); got > maxConcurrentUpstream {
+	if got := maxInFlight.Load(); got > dolly.MaxConcurrentUpstream {
 		close(release)
 		wg.Wait()
-		t.Fatalf("max in-flight = %d, want <= %d", got, maxConcurrentUpstream)
+		t.Fatalf("max in-flight = %d, want <= %d", got, dolly.MaxConcurrentUpstream)
 	}
 
 	// While slots are full, a cancelled context must return an error result immediately.
@@ -624,8 +625,8 @@ func TestUpstreamConcurrencySemaphore(t *testing.T) {
 	close(release)
 	wg.Wait()
 
-	if got := maxInFlight.Load(); got != maxConcurrentUpstream {
-		t.Fatalf("max in-flight = %d, want %d", got, maxConcurrentUpstream)
+	if got := maxInFlight.Load(); got != dolly.MaxConcurrentUpstream {
+		t.Fatalf("max in-flight = %d, want %d", got, dolly.MaxConcurrentUpstream)
 	}
 }
 

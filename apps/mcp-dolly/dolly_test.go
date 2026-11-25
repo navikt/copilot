@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"github.com/navikt/copilot/apps/mcp-dolly/internal/dolly"
 	"io"
 	"log/slog"
 	"net"
@@ -255,7 +256,7 @@ func TestCreateOrderOwnershipAndRequestShape(t *testing.T) {
 			t.Fatalf("upstream requests = %+v, want %+v", gotReqs, wantReqs)
 		}
 
-		var parsed dollyBestillingRequest
+		var parsed dolly.BestillingRequest
 		if err := json.Unmarshal(gotPostBody, &parsed); err != nil {
 			t.Fatalf("unmarshal post body: %v", err)
 		}
@@ -684,7 +685,7 @@ func TestCreateOrderQuotaRefundRules(t *testing.T) {
 	if baseTransport == nil {
 		baseTransport = http.DefaultTransport
 	}
-	srv.dolly.httpClient = &http.Client{
+	srv.dolly.HTTPClient = &http.Client{
 		Timeout: 60 * time.Millisecond,
 		Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
 			mu.Lock()
