@@ -43,16 +43,16 @@ func TestEntraStateCookie_ValidatesAcrossInstances(t *testing.T) {
 	if bytes.Equal(a.cfg.CookieSecret, aesKey) {
 		t.Fatal("state cookie key must be an HKDF subkey, not the RT_KEYS AES key")
 	}
-	cookie := a.signEntraState("state-123")
-	if !b.verifyEntraStateCookie(cookie, "state-123") {
+	cookie := a.oauth().SignEntraState("state-123")
+	if !b.oauth().VerifyEntraStateCookie(cookie, "state-123") {
 		t.Fatal("state cookie issued on instance A rejected by instance B")
 	}
-	if b.verifyEntraStateCookie(cookie, "other-state") {
+	if b.oauth().VerifyEntraStateCookie(cookie, "other-state") {
 		t.Fatal("cookie accepted for a different state")
 	}
 
 	t.Setenv("RT_KEYS", "")
-	if c := newGW(); c.verifyEntraStateCookie(cookie, "state-123") {
+	if c := newGW(); c.oauth().VerifyEntraStateCookie(cookie, "state-123") {
 		t.Fatal("cookie accepted by an instance with a different key")
 	}
 }
@@ -86,10 +86,10 @@ func TestEntraStateCookie_ValidatesAcrossKeyRotation(t *testing.T) {
 		t.Fatal(err)
 	}
 	gw := &Gateway{cfg: &Config{CookieSecret: newKeys[0], CookieVerifyKeys: newKeys[1:]}}
-	if !gw.verifyEntraStateCookie(entra.SignState(oldKeys[0], "s"), "s") {
+	if !gw.oauth().VerifyEntraStateCookie(entra.SignState(oldKeys[0], "s"), "s") {
 		t.Fatal("cookie signed with the old primary rejected after rotation")
 	}
-	if gw.verifyEntraStateCookie(entra.SignState(make([]byte, 32), "s"), "s") {
+	if gw.oauth().VerifyEntraStateCookie(entra.SignState(make([]byte, 32), "s"), "s") {
 		t.Fatal("cookie signed with an unknown key accepted")
 	}
 }

@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/oauth/server"
 )
 
 func TestConsentPage_ContentAndCSP(t *testing.T) {
@@ -86,7 +88,7 @@ func TestConsentPage_CSRFFailurePreservesPendingConsent(t *testing.T) {
 
 func TestConsentCSSHandler(t *testing.T) {
 	rec := httptest.NewRecorder()
-	consentCSSHandler(rec, httptest.NewRequest(http.MethodGet, "/static/consent.css", nil))
+	server.ConsentCSS(rec, httptest.NewRequest(http.MethodGet, "/static/consent.css", nil))
 	if ct := rec.Header().Get("Content-Type"); ct != "text/css; charset=utf-8" || rec.Body.Len() == 0 {
 		t.Fatalf("content-type %q, %d bytes", ct, rec.Body.Len())
 	}

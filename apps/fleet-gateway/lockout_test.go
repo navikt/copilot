@@ -103,7 +103,7 @@ func TestLockout_SessionRejectedForTargetUserOnly(t *testing.T) {
 		t.Fatalf("login while blocked: got %d %v, want 400 invalid_grant (session revoked)", status, body)
 	}
 	postLockoutHash := oauth.HashToken("post-lockout-session")
-	if err := te.gw.putSession(ctx, postLockoutHash, &oauth.Session{
+	if err := te.gw.oauth().PutSession(ctx, postLockoutHash, &oauth.Session{
 		ClientID: te.clientID,
 		Resource: te.resource,
 		NAVIdent: "Z111111",
@@ -274,7 +274,7 @@ func TestLockout_Postgres(t *testing.T) {
 		IssuedAt: clk.Now(),
 		Expiry:   clk.Now().Add(time.Hour),
 	}
-	if err := gw.putSession(ctx, tokHash, sess, time.Hour); err != nil {
+	if err := gw.oauth().PutSession(ctx, tokHash, sess, time.Hour); err != nil {
 		t.Fatalf("putSession: %v", err)
 	}
 	if _, ok, err := gw.getSession(ctx, tokHash); err != nil || !ok {

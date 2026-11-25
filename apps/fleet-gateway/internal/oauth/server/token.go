@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"context"
@@ -15,26 +15,30 @@ import (
 
 	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
 	"github.com/navikt/copilot/fleet-gateway/internal/oauth"
+	"github.com/navikt/copilot/fleet-gateway/internal/proxy"
+	"github.com/navikt/copilot/fleet-gateway/internal/session"
 	"github.com/navikt/copilot/fleet-gateway/internal/teamtoken"
 )
 
 const (
-	rtSealAAD = "fgw-rt-v1"
-	// maxRefreshTokenLen is the expected upper bound for newly issued sealed
+	// RTSealAAD is the additional data sealed into refresh tokens.
+	RTSealAAD = "fgw-rt-v1"
+	// MaxRefreshTokenLen is the expected upper bound for newly issued sealed
 	// refresh tokens without groups: a ~2 KiB Entra RT plus metadata seals and
 	// base64-encodes to ~3.1 KiB (3148 B measured), so 4 KiB leaves headroom
 	// (~2x over a typical ~1 KiB Entra RT).
-	maxRefreshTokenLen = 4 * 1024
-	// maxLegacyRefreshTokenLen keeps the prior 16 KiB read-side cap so refresh
+	MaxRefreshTokenLen = 4 * 1024
+	// MaxLegacyRefreshTokenLen keeps the prior 16 KiB read-side cap so refresh
 	// tokens issued before groups were dropped (up to ~200 group GUIDs) are not
 	// rejected until they expire.
-	maxLegacyRefreshTokenLen = 16 * 1024
-	// refreshPendingTTL is how long an in-flight refresh blocks concurrent use of
+	MaxLegacyRefreshTokenLen = 16 * 1024
+	// RefreshPendingTTL is how long an in-flight refresh blocks concurrent use of
 	// the same RT; after a transient upstream failure it is also the retry delay.
-	refreshPendingTTL = 60 * time.Second
+	RefreshPendingTTL = 60 * time.Second
 )
 
-type rtPayload struct {
+// RTPayload is the plaintext of a sealed refresh token.
+type RTPayload struct {
 	V        int    `json:"v"`
 	JTI      string `json:"jti"`
 	FID      string `json:"fid"` // token family, constant across rotations
@@ -47,7 +51,8 @@ type rtPayload struct {
 	EntraRT  string `json:"entra_rt"` //nolint:gosec // encrypted inside AES-GCM sealed client refresh token
 }
 
-func (g *Gateway) sealRefreshToken(p rtPayload) (string, error) {
+// SealRefreshToken seals p into a client refresh token.
+func (g *Server) SealRefreshToken(p RTPayload) (string, error) {
 	if g.rtKeys == nil {
 		return "", errors.New("refresh token sealing keys not configured")
 	}
@@ -55,31 +60,32 @@ func (g *Gateway) sealRefreshToken(p rtPayload) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	blob, err := g.rtKeys.Seal([]byte(rtSealAAD), raw)
+	blob, err := g.rtKeys.Seal([]byte(RTSealAAD), raw)
 	if err != nil {
 		return "", err
 	}
 	return base64.RawURLEncoding.EncodeToString(blob), nil
 }
 
-func (g *Gateway) openRefreshToken(token string) (*rtPayload, error) {
+// OpenRefreshToken opens a client refresh token.
+func (g *Server) OpenRefreshToken(token string) (*RTPayload, error) {
 	if g.rtKeys == nil {
-		return nil, errSealDecrypt
+		return nil, session.ErrSealDecrypt
 	}
 	blob, err := base64.RawURLEncoding.DecodeString(token)
 	if err != nil {
-		return nil, errSealMalformed
+		return nil, session.ErrSealMalformed
 	}
-	plaintext, err := g.rtKeys.Open([]byte(rtSealAAD), blob)
+	plaintext, err := g.rtKeys.Open([]byte(RTSealAAD), blob)
 	if err != nil {
 		return nil, err
 	}
-	var p rtPayload
+	var p RTPayload
 	if err := json.Unmarshal(plaintext, &p); err != nil {
-		return nil, errSealMalformed
+		return nil, session.ErrSealMalformed
 	}
 	if p.V != 1 || p.JTI == "" || p.FID == "" || p.IAT <= 0 || p.EXP <= 0 || p.ClientID == "" || p.Resource == "" || p.NAVIdent == "" || p.EntraRT == "" {
-		return nil, errSealMalformed
+		return nil, session.ErrSealMalformed
 	}
 	return &p, nil
 }
@@ -94,7 +100,7 @@ type refreshGrace struct {
 	Expiry       time.Time `json:"expiry"`
 }
 
-// graceResponse returns the pair already issued for jti, while the grace window
+// GraceResponse returns the pair already issued for jti, while the grace window
 // lasts and the new RT is still unused. Only the immediately previous RT
 // qualifies: once the new RT has been rotated too, replaying the old one is reuse.
 //
@@ -102,8 +108,8 @@ type refreshGrace struct {
 // landing before this returns is seen. The old jti must be burned: the winner
 // stores the pair before burning, and a pair whose burn failed must never be
 // served, or the old RT and the new pair would be two live branches.
-func (g *Gateway) graceResponse(ctx context.Context, jti, fid string) (map[string]any, bool, error) {
-	raw, ok, err := g.store.Get(ctx, kindRefreshGrace, jti)
+func (g *Server) GraceResponse(ctx context.Context, jti, fid string) (map[string]any, bool, error) {
+	raw, ok, err := g.store.Get(ctx, session.KindRefreshGrace, jti)
 	if err != nil || !ok {
 		return nil, false, err
 	}
@@ -135,10 +141,10 @@ func (g *Gateway) graceResponse(ctx context.Context, jti, fid string) (map[strin
 
 // awaitGrace polls for the pair a concurrent refresh of the same RT is about to
 // issue, for at most g.refreshWait.
-func (g *Gateway) awaitGrace(ctx context.Context, jti, fid string) (map[string]any, bool, error) {
+func (g *Server) awaitGrace(ctx context.Context, jti, fid string) (map[string]any, bool, error) {
 	deadline := time.Now().Add(g.refreshWait)
 	for {
-		resp, ok, err := g.graceResponse(ctx, jti, fid)
+		resp, ok, err := g.GraceResponse(ctx, jti, fid)
 		if err != nil || ok || !time.Now().Before(deadline) {
 			return resp, ok, err
 		}
@@ -158,7 +164,8 @@ func randomJTI() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(buf), nil
 }
 
-func (g *Gateway) tokenHandler(w http.ResponseWriter, r *http.Request) {
+// Token handles POST /token.
+func (g *Server) Token(w http.ResponseWriter, r *http.Request) {
 	bad := func(status int, errCode, desc string) {
 		httpx.WriteJSON(w, status, map[string]string{
 			"error":             errCode,
@@ -176,13 +183,13 @@ func (g *Gateway) tokenHandler(w http.ResponseWriter, r *http.Request) {
 	case "authorization_code":
 		g.handleAuthorizationCodeGrant(w, r, bad)
 	case "refresh_token":
-		if g.cfg.RTStorage != rtStorageClientEncrypted {
+		if g.cfg.RTStorage != RTStorageClientEncrypted {
 			bad(http.StatusBadRequest, "unsupported_grant_type", "only authorization_code is supported")
 			return
 		}
-		g.handleRefreshTokenGrant(w, r, bad)
+		g.HandleRefreshTokenGrant(w, r, bad)
 	default:
-		if g.cfg.RTStorage == rtStorageClientEncrypted {
+		if g.cfg.RTStorage == RTStorageClientEncrypted {
 			bad(http.StatusBadRequest, "unsupported_grant_type", "supported grant_types are authorization_code and refresh_token")
 			return
 		}
@@ -190,7 +197,7 @@ func (g *Gateway) tokenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (g *Gateway) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Request, bad func(int, string, string)) {
+func (g *Server) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Request, bad func(int, string, string)) {
 	code := r.PostFormValue("code")
 	if code == "" {
 		bad(http.StatusBadRequest, "invalid_request", "code is required")
@@ -200,7 +207,7 @@ func (g *Gateway) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Re
 	// Look the client up before the code is consumed: a store error here answers
 	// 503 Retry-After and the retry still finds the code. The client_id is
 	// checked against the code below.
-	known, mayRefresh, err := g.clientGrants(r.Context(), r.PostFormValue("client_id"))
+	known, mayRefresh, err := g.ClientGrants(r.Context(), r.PostFormValue("client_id"))
 	if err != nil {
 		slog.Warn("load registered client failed", "error", err)
 		w.Header().Set("Retry-After", "5")
@@ -213,7 +220,7 @@ func (g *Gateway) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Re
 	}
 
 	// Single-use: Pop deletes the code even if subsequent binding checks fail.
-	issued, ok, err := g.popCode(r.Context(), code)
+	issued, ok, err := g.PopCode(r.Context(), code)
 	if err != nil {
 		slog.Warn("pop authorization code failed", "error", err)
 		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
@@ -239,7 +246,7 @@ func (g *Gateway) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Re
 
 	verifier := r.PostFormValue("code_verifier")
 	if !isValidCodeVerifier(verifier) ||
-		subtle.ConstantTimeCompare([]byte(pkceS256(verifier)), []byte(issued.Challenge)) != 1 {
+		subtle.ConstantTimeCompare([]byte(PKCES256(verifier)), []byte(issued.Challenge)) != 1 {
 		bad(http.StatusBadRequest, "invalid_grant", "PKCE verification failed")
 		return
 	}
@@ -279,7 +286,7 @@ func (g *Gateway) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Re
 	}
 
 	refreshToken := ""
-	if g.cfg.RTStorage == rtStorageClientEncrypted && issued.EntraRT != "" && mayRefresh {
+	if g.cfg.RTStorage == RTStorageClientEncrypted && issued.EntraRT != "" && mayRefresh {
 		issued.Session.RefreshToken = ""
 		jti, err := randomJTI()
 		if err != nil {
@@ -291,7 +298,7 @@ func (g *Gateway) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Re
 			bad(http.StatusInternalServerError, "server_error", "failed to issue token")
 			return
 		}
-		refreshToken, err = g.sealRefreshToken(rtPayload{
+		refreshToken, err = g.SealRefreshToken(RTPayload{
 			V:        1,
 			JTI:      jti,
 			FID:      fid,
@@ -310,8 +317,8 @@ func (g *Gateway) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Re
 		issued.Session.FID = fid
 	}
 
-	if err := g.putSession(r.Context(), oauth.HashToken(accessToken), &issued.Session, ttl); err != nil {
-		if errors.Is(err, errStoreFull) {
+	if err := g.PutSession(r.Context(), oauth.HashToken(accessToken), &issued.Session, ttl); err != nil {
+		if errors.Is(err, session.ErrStoreFull) {
 			httpx.MarkShed(w, "store_full")
 			bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store capacity reached")
 			return
@@ -329,13 +336,13 @@ func (g *Gateway) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Re
 	if refreshToken != "" {
 		resp["refresh_token"] = refreshToken
 	}
-	g.renewClient(r.Context(), issued.Session.ClientID)
+	g.RenewClient(r.Context(), issued.Session.ClientID)
 	httpx.WriteJSON(w, http.StatusOK, resp)
 }
 
 // rtExpiry is when a refresh token issued at now stops working: the idle
 // timeout from now, never later than the family hard cap.
-func (g *Gateway) rtExpiry(hardCap, now time.Time) time.Time {
+func (g *Server) rtExpiry(hardCap, now time.Time) time.Time {
 	return minTime(now.Add(g.cfg.SessionIdleTimeout), hardCap)
 }
 
@@ -346,11 +353,11 @@ func (g *Gateway) rtExpiry(hardCap, now time.Time) time.Time {
 // the current cap and the default 7 d, which only over-retains (shortcut: a cap
 // above 7 d lowered before a legacy token is replayed is not covered; legacy
 // tokens live 12 h after the rollout).
-func (g *Gateway) retainUntil(p *rtPayload) time.Time {
+func (g *Server) retainUntil(p *RTPayload) time.Time {
 	if p.ABS > 0 {
 		return time.Unix(p.ABS, 0).UTC()
 	}
-	return time.Unix(p.IAT, 0).UTC().Add(max(g.cfg.SessionAbsoluteMaxAge, defaultSessionAbsoluteMaxAge))
+	return time.Unix(p.IAT, 0).UTC().Add(max(g.cfg.SessionAbsoluteMaxAge, DefaultSessionAbsoluteMaxAge))
 }
 
 func minTime(a, b time.Time) time.Time {
@@ -360,23 +367,24 @@ func minTime(a, b time.Time) time.Time {
 	return a
 }
 
-func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request, bad func(int, string, string)) {
+// HandleRefreshTokenGrant handles grant_type=refresh_token.
+func (g *Server) HandleRefreshTokenGrant(w http.ResponseWriter, r *http.Request, bad func(int, string, string)) {
 	outcome := "ok"
 	navIdent := ""
 	// Bounded: the value is client-supplied and not yet validated.
 	clientID := r.PostFormValue("client_id")
 	defer func() {
-		slog.Info("audit refresh", "outcome", outcome, "navident", sanitizeLogValue(navIdent), "client_id", truncateLogValue(clientID, maxLogClientIDLen))
+		slog.Info("audit refresh", "outcome", outcome, "navident", sanitizeLogValue(navIdent), "client_id", TruncateLogValue(clientID, maxLogClientIDLen))
 	}()
 
 	rawRT := r.PostFormValue("refresh_token")
-	if rawRT == "" || len(rawRT) > maxLegacyRefreshTokenLen {
+	if rawRT == "" || len(rawRT) > MaxLegacyRefreshTokenLen {
 		outcome = "invalid_request"
 		bad(http.StatusBadRequest, "invalid_grant", "invalid refresh token")
 		return
 	}
 
-	known, mayRefresh, err := g.clientGrants(r.Context(), clientID)
+	known, mayRefresh, err := g.ClientGrants(r.Context(), clientID)
 	if err != nil {
 		outcome = "store_error"
 		slog.Warn("load registered client failed", "error", err)
@@ -395,7 +403,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	payload, err := g.openRefreshToken(rawRT)
+	payload, err := g.OpenRefreshToken(rawRT)
 	if err != nil {
 		outcome = "decrypt_failed"
 		bad(http.StatusBadRequest, "invalid_grant", "invalid refresh token")
@@ -477,7 +485,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 	}
 	if used {
 		// Inside the grace window the immediately previous RT gets the same pair again.
-		resp, ok, gerr := g.graceResponse(r.Context(), payload.JTI, payload.FID)
+		resp, ok, gerr := g.GraceResponse(r.Context(), payload.JTI, payload.FID)
 		if gerr != nil {
 			unavailable(gerr)
 			return
@@ -517,11 +525,11 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 	}
 	// Detach from client cancellation before claiming pend:<jti> so a client abort
 	// during the claim or Entra call cannot leave pend:<jti> held for
-	// refreshPendingTTL with the jti unburned and no grace pair.
-	ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), defaultOutboundTimeout)
+	// RefreshPendingTTL with the jti unburned and no grace pair.
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), proxy.DefaultOutboundTimeout)
 	defer cancel()
 
-	pendExpiry := g.now().Add(refreshPendingTTL)
+	pendExpiry := g.now().Add(RefreshPendingTTL)
 	if pendExpiry.After(absExpiry) {
 		pendExpiry = absExpiry
 	}
@@ -546,7 +554,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		// make it drop its RT. Retry-After stays inside the grace window so a retry
 		// after a slow but successful refresh still gets the pair.
 		outcome = "refresh_in_flight"
-		retry := min(refreshPendingTTL, absExpiry.Sub(g.now()), g.cfg.RefreshGraceWindow/2)
+		retry := min(RefreshPendingTTL, absExpiry.Sub(g.now()), g.cfg.RefreshGraceWindow/2)
 		w.Header().Set("Retry-After", strconv.Itoa(max(1, int(retry.Seconds()))))
 		httpx.MarkShed(w, "refresh_in_flight")
 		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "refresh in progress, retry later")
@@ -557,7 +565,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 	if err != nil || status >= 500 || status == http.StatusTooManyRequests {
 		outcome = "upstream_unavailable"
 		slog.Warn("upstream refresh unavailable", "status", status)
-		w.Header().Set("Retry-After", strconv.Itoa(int(refreshPendingTTL.Seconds())))
+		w.Header().Set("Retry-After", strconv.Itoa(int(RefreshPendingTTL.Seconds())))
 		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "upstream unavailable, retry later")
 		return
 	}
@@ -632,7 +640,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 	if newEntraRT == "" {
 		newEntraRT = payload.EntraRT
 	}
-	newRT, err := g.sealRefreshToken(rtPayload{
+	newRT, err := g.SealRefreshToken(RTPayload{
 		V:        1,
 		JTI:      newJTI,
 		FID:      payload.FID,
@@ -660,9 +668,9 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		IssuedAt:     issuedAt,
 		Expiry:       sessExpiry,
 	}
-	if err = g.putSession(ctx, oauth.HashToken(accessToken), newSess, ttl); err != nil {
+	if err = g.PutSession(ctx, oauth.HashToken(accessToken), newSess, ttl); err != nil {
 		outcome = "store_error"
-		if errors.Is(err, errStoreFull) {
+		if errors.Is(err, session.ErrStoreFull) {
 			httpx.MarkShed(w, "store_full")
 			bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store capacity reached")
 			return
@@ -671,14 +679,14 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
 		return
 	}
-	// Store the pair, then burn the old jti. graceResponse serves the pair only
+	// Store the pair, then burn the old jti. GraceResponse serves the pair only
 	// once the jti is burned, so a failed or crashed burn leaves the pair unused
 	// and concurrent users get 503 Retry-After, never a second live branch.
 	// A lost grace pair only costs the grace window, so a write failure is not fatal.
 	graceTTL := min(g.cfg.RefreshGraceWindow, absExpiry.Sub(now))
 	if raw, merr := json.Marshal(refreshGrace{AccessToken: accessToken, RefreshToken: newRT, NewJTI: newJTI, Expiry: sessExpiry}); merr != nil {
 		slog.Warn("marshal refresh grace failed", "error", merr)
-	} else if perr := g.store.Put(ctx, kindRefreshGrace, payload.JTI, raw, graceTTL); perr != nil {
+	} else if perr := g.store.Put(ctx, session.KindRefreshGrace, payload.JTI, raw, graceTTL); perr != nil {
 		slog.Warn("store refresh grace failed", "error", perr)
 	}
 	if err = g.store.Revoke(ctx, payload.JTI, retain); err != nil {
@@ -686,7 +694,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	g.renewClient(ctx, clientID)
+	g.RenewClient(ctx, clientID)
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{
 		"access_token":  accessToken,
 		"token_type":    "Bearer",
@@ -695,7 +703,8 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 	})
 }
 
-func (g *Gateway) revokeHandler(w http.ResponseWriter, r *http.Request) {
+// Revoke handles POST /revoke.
+func (g *Server) Revoke(w http.ResponseWriter, r *http.Request) {
 	bad := func(status int, errCode, desc string) {
 		httpx.WriteJSON(w, status, map[string]string{
 			"error":             errCode,
@@ -716,9 +725,9 @@ func (g *Gateway) revokeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	token := r.PostFormValue("token")
-	if token != "" && len(token) <= maxLegacyRefreshTokenLen {
+	if token != "" && len(token) <= MaxLegacyRefreshTokenLen {
 		tokenHash := oauth.HashToken(token)
-		sess, ok, err := g.getSession(r.Context(), tokenHash)
+		sess, ok, err := g.GetSession(r.Context(), tokenHash)
 		if err != nil {
 			slog.Warn("revoke session lookup failed", "error", err)
 			bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
@@ -740,13 +749,13 @@ func (g *Gateway) revokeHandler(w http.ResponseWriter, r *http.Request) {
 			// this access token cannot mint a new one. A family lives at most the
 			// absolute session age, so retaining the mark that long covers it.
 			if sess.FID != "" {
-				if err = g.store.Revoke(r.Context(), "fam:"+sess.FID, g.now().Add(max(g.cfg.SessionAbsoluteMaxAge, defaultSessionAbsoluteMaxAge))); err != nil {
+				if err = g.store.Revoke(r.Context(), "fam:"+sess.FID, g.now().Add(max(g.cfg.SessionAbsoluteMaxAge, DefaultSessionAbsoluteMaxAge))); err != nil {
 					slog.Warn("revoke refresh family failed", "error", err)
 					bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
 					return
 				}
 			}
-			if err = g.store.Delete(r.Context(), kindSession, tokenHash); err != nil {
+			if err = g.store.Delete(r.Context(), session.KindSession, tokenHash); err != nil {
 				slog.Warn("revoke session delete failed", "error", err)
 				bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
 				return
@@ -754,9 +763,9 @@ func (g *Gateway) revokeHandler(w http.ResponseWriter, r *http.Request) {
 			httpx.WriteJSON(w, http.StatusOK, map[string]any{})
 			return
 		}
-		payload, err := g.openRefreshToken(token)
+		payload, err := g.OpenRefreshToken(token)
 		if err != nil {
-			if errors.Is(err, errSealUnknownKID) && len(token) != 43 {
+			if errors.Is(err, session.ErrSealUnknownKID) && len(token) != 43 {
 				slog.Warn("revoke refresh token unknown key id", "error", err)
 				w.Header().Set("Retry-After", "5")
 				bad(http.StatusServiceUnavailable, "temporarily_unavailable", "refresh token key unavailable")
@@ -788,7 +797,7 @@ func (g *Gateway) revokeHandler(w http.ResponseWriter, r *http.Request) {
 			bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
 			return
 		}
-		if err := g.store.Delete(r.Context(), kindRefreshGrace, payload.JTI); err != nil {
+		if err := g.store.Delete(r.Context(), session.KindRefreshGrace, payload.JTI); err != nil {
 			slog.Warn("revoke refresh grace failed", "error", err)
 			bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
 			return
@@ -798,7 +807,8 @@ func (g *Gateway) revokeHandler(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{})
 }
 
-func pkceS256(verifier string) string {
+// PKCES256 returns the S256 code challenge for verifier.
+func PKCES256(verifier string) string {
 	sum := sha256.Sum256([]byte(verifier))
 	return base64.RawURLEncoding.EncodeToString(sum[:])
 }

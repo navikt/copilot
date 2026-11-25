@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/navikt/copilot/fleet-gateway/internal/oauth/server"
 	"github.com/navikt/copilot/fleet-gateway/internal/policy"
 	"github.com/navikt/copilot/fleet-gateway/internal/proxy"
 	"io"
@@ -564,7 +565,7 @@ func TestHardening_OIDCNonce_PKCE_Singleflight_Prompt_And_Claims(t *testing.T) {
 			{name: "invalid prompt", overrides: map[string]string{"prompt": "admin"}},
 			{name: "invalid JSON claims", overrides: map[string]string{"claims": "{not-json"}},
 			{name: "non-object JSON claims", overrides: map[string]string{"claims": `["array"]`}},
-			{name: "oversized claims", overrides: map[string]string{"claims": fmt.Sprintf(`{"k":"%s"}`, strings.Repeat("x", maxClaimsBytes))}},
+			{name: "oversized claims", overrides: map[string]string{"claims": fmt.Sprintf(`{"k":"%s"}`, strings.Repeat("x", server.MaxClaimsBytes))}},
 		}
 		for _, bc := range badCases {
 			t.Run(bc.name, func(t *testing.T) {

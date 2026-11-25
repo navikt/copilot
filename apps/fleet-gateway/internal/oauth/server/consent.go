@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"crypto/subtle"
@@ -10,9 +10,11 @@ import (
 	"strings"
 
 	"github.com/navikt/copilot/fleet-gateway/internal/oauth"
+	"github.com/navikt/copilot/fleet-gateway/internal/session"
 )
 
-const csrfCookieName = "__Host-fleet_csrf"
+// CSRFCookieName is the consent form's CSRF cookie.
+const CSRFCookieName = "__Host-fleet_csrf"
 
 //go:embed web/pages.html
 var pagesHTML string
@@ -22,8 +24,8 @@ var consentCSS []byte
 
 var pageTemplates = template.Must(template.New("pages").Parse(pagesHTML))
 
-// consentCSSHandler serves the stylesheet for the consent and error pages.
-func consentCSSHandler(w http.ResponseWriter, _ *http.Request) {
+// ConsentCSS serves the stylesheet for the consent and error pages.
+func ConsentCSS(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/css; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Cache-Control", "public, max-age=3600")
@@ -59,9 +61,9 @@ func setPageSecurityHeaders(w http.ResponseWriter, formAction string) {
 	w.Header().Set("Referrer-Policy", "no-referrer")
 }
 
-func (g *Gateway) renderConsentPage(w http.ResponseWriter, consentID string, p *oauth.PendingAuth) {
+func (g *Server) renderConsentPage(w http.ResponseWriter, consentID string, p *oauth.PendingAuth) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     csrfCookieName,
+		Name:     CSRFCookieName,
 		Value:    p.CSRF,
 		Path:     "/",
 		HttpOnly: true,
@@ -86,7 +88,8 @@ func (g *Gateway) renderConsentPage(w http.ResponseWriter, consentID string, p *
 	})
 }
 
-func (g *Gateway) consentPostHandler(w http.ResponseWriter, r *http.Request) {
+// ConsentPost handles POST /consent.
+func (g *Server) ConsentPost(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxFormBodyBytes)
 	if err := r.ParseForm(); err != nil {
 		clearCSRFCookie(w)
@@ -96,7 +99,7 @@ func (g *Gateway) consentPostHandler(w http.ResponseWriter, r *http.Request) {
 
 	consentID := r.PostFormValue("id")
 	formCSRF := r.PostFormValue("csrf")
-	cookie, cookieErr := r.Cookie(csrfCookieName)
+	cookie, cookieErr := r.Cookie(CSRFCookieName)
 
 	if consentID == "" || cookieErr != nil || formCSRF == "" ||
 		subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(formCSRF)) != 1 {
@@ -107,7 +110,7 @@ func (g *Gateway) consentPostHandler(w http.ResponseWriter, r *http.Request) {
 
 	clearCSRFCookie(w)
 
-	p, ok, err := g.popPending(r.Context(), kindPendingConsent, consentID)
+	p, ok, err := g.PopPending(r.Context(), session.KindPendingConsent, consentID)
 	if err != nil {
 		slog.Warn("pop pending consent failed", "error", err)
 		renderErrorPage(w, http.StatusServiceUnavailable, "Tjenesten er ikke tilgjengelig", "Gatewayen får ikke kontakt med lageret sitt akkurat nå.", "Vent litt, og logg så inn på nytt fra verktøyet ditt.")
@@ -125,7 +128,7 @@ func (g *Gateway) consentPostHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "invalid stored redirect_uri", http.StatusInternalServerError)
 			return
 		}
-		redirectWithValues(w, r, target, url.Values{
+		RedirectWithValues(w, r, target, url.Values{
 			"error": {"access_denied"},
 			"state": {p.State},
 			"iss":   {g.cfg.BaseURL},
@@ -138,7 +141,7 @@ func (g *Gateway) consentPostHandler(w http.ResponseWriter, r *http.Request) {
 		g.redirectToEntra(w, r, p)
 		return
 	}
-	if err = g.rememberConsent(r.Context(), p.Issued.Session.NAVIdent, p.ClientID, p.Resource); err != nil {
+	if err = g.RememberConsent(r.Context(), p.Issued.Session.NAVIdent, p.ClientID, p.Resource); err != nil {
 		slog.Warn("remember consent failed", "error", err)
 	}
 	gwCode, err := randomToken()
@@ -151,7 +154,7 @@ func (g *Gateway) consentPostHandler(w http.ResponseWriter, r *http.Request) {
 
 func clearCSRFCookie(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     csrfCookieName,
+		Name:     CSRFCookieName,
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,

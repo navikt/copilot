@@ -6,21 +6,23 @@ current package layout, the target layout and the order of the moves (#2926).
 
 ## Current structure
 
-About 6,500 lines of non-test Go sit in `package main`, almost all as methods on
-`*Gateway`:
+About 2,000 lines of non-test Go remain in `package main`:
 
 - `main.go`: `Gateway`, `newGateway`, store wiring, the mux, logging and rate-limit
   middleware, health handlers and the `lockout` subcommand.
-- `authorize.go`, `consent.go`, `token.go`, `dcr.go`, `prm.go`: the OAuth
-  endpoints, the Entra round trip, CIMD fetch, consent and DCR.
-- `team_token.go`: OBO and refresh strategies for upstream team tokens.
-- `routes.go`, `routetable.go`, `fleet_control.go`: route loading, validation and the route table.
-- `store_gateway.go`, `session.go`: typed wrappers and aliases over `internal/session`.
-- `config.go`: env parsing, validation and the generic `ttlMap`.
+- `oauth_server.go`: builds an `internal/oauth/server` `Server` per request from
+  the current `Config` and binds its handlers to the mux.
+- `team_token.go`: picks the `internal/teamtoken` strategy.
+- `routetable.go`, `routes_shadow.go`, `fleet_control.go`: route loading, the
+  fleet-control source and the route table.
+- `session.go`: aliases over `internal/session`.
+- `config.go`: env parsing and validation.
 - `lockout.go`: a thin shim over `internal/lockout`.
 
-`internal/` already holds `audit`, `config` (env helpers), `identity`, `lockout`,
-`policy` and `session`.
+Everything else is in `internal/`: `audit`, `config` (env helpers), `httpx`,
+`identity`, `inflight`, `lockout`, `metrics`, `oauth`, `oauth/entra`,
+`oauth/server`, `policy`, `proxy`, `ratelimit`, `routing`, `session`,
+`teamtoken` and `ttlmap`.
 
 ## Target layout
 
@@ -34,19 +36,19 @@ there are two implementations or a test seam that tests use.
 | `internal/inflight` | Global, per-user and per-route concurrency slots | `Slots`, `PerKey` |
 | `internal/ttlmap` | Bounded generic TTL map | `Map[V]` |
 | `internal/session` | Store interface, memory and Postgres stores, sealing, key ring (exists) | `Store` |
-| `internal/oauth` | Typed records over the store: pending auth, codes, sessions, consent. Refresh grace and DCR clients move with `oauth/server` | `PendingAuth`, `IssuedCode`, `Session`, `HashToken`; functions take a `session.Store` |
+| `internal/oauth` | Typed records over the store: pending auth, codes, sessions, consent. Refresh grace and DCR clients live in `oauth/server` | `PendingAuth`, `IssuedCode`, `Session`, `HashToken`; functions take a `session.Store` |
 | `internal/oauth/entra` | Entra authorize endpoint, code and refresh redemption, ID-token checks, state cookie signing | `Client`, `SignState`, `VerifyState`, `ValidateIDTokenClaims` |
 | `internal/teamtoken` | OBO and refresh strategies | `OBO`, `Refresh`. Their interface, `proxy.TeamTokenSource`, lives at the consumer |
 | `internal/policy`, `internal/lockout`, `internal/audit`, `internal/identity` | As today | `lockout.Manager` |
 | `internal/metrics` | Collectors and `Observe*` helpers, `Init`, the `/metrics` server | none |
 | `internal/proxy` | MCP handler, header allowlists, SSE streaming, over-capacity replies | `Handler`, `Config`, `TeamTokenSource`. `main` builds a `Handler` per request from the current `Config` |
-| `internal/httpx` | `WriteJSON`, `StatusWriter`, `MarkShed`. Error pages and security headers move with `oauth/server` | none |
+| `internal/oauth/server` | Authorize, callback, consent, token, revoke, register and the metadata endpoints; PKCE, refresh grace, DCR clients, CIMD fetch, error pages and security headers | `Server`, `Config`, `Deps`. `main` builds a `Server` per request from the current `Config` |
+| `internal/httpx` | `WriteJSON`, `StatusWriter`, `MarkShed`. Error pages and security headers live in `oauth/server` | none |
 | `main` | Config loading, `newGateway` wiring, the mux, the `lockout` subcommand | none |
 
-The OAuth handlers (`authorize`, `token`, `revoke`, `register`, consent, PRM) stay
-in `main` until `oauth` and `entra` exist. They then move as one package
-`internal/oauth/server`, because they share `pendingAuth`, the cookie key and the
-redirect allowlist.
+The OAuth handlers (`authorize`, `token`, `revoke`, `register`, consent, PRM) moved
+as one package, `internal/oauth/server`, because they share `pendingAuth`, the
+cookie key and the redirect allowlist.
 
 ## Import-cycle risks
 
@@ -73,6 +75,9 @@ One package per PR, each behaviour-neutral with the same test count:
 6. `oauth/entra`, then `teamtoken`.
 7. `proxy`.
 8. `oauth/server` handlers; `main` keeps wiring only.
+
+Steps 1 to 8 are merged. Most tests still sit in `package main` and reach the
+packages through exported names; moving them next to their package is open.
 
 A separate PR cleans comments under the AGENTS.md comment rule. Correctness or
 security findings go to their own issues, not into the moves.

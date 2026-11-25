@@ -242,7 +242,7 @@ func TestSessionAbsoluteCap(t *testing.T) {
 	// Even if putSession is called directly with a longer Expiry and TTL, absolute cap holds.
 	extended := *sess
 	extended.Expiry = issuedAt.Add(48 * time.Hour)
-	if putErr := te.gw.putSession(context.Background(), oauth.HashToken(tok), &extended, 48*time.Hour); putErr != nil {
+	if putErr := te.gw.oauth().PutSession(context.Background(), oauth.HashToken(tok), &extended, 48*time.Hour); putErr != nil {
 		t.Fatalf("putSession failed: %v", putErr)
 	}
 	reloaded, ok, err := te.gw.getSession(context.Background(), oauth.HashToken(tok))
@@ -580,7 +580,7 @@ func TestPendingAndCode_HashedKeysAndPlaintextFallback(t *testing.T) {
 			State:       "client-state",
 			Resource:    te.resource,
 		}
-		if err := te.gw.putPending(ctx, kindPendingEntra, key, want); err != nil {
+		if err := te.gw.oauth().PutPending(ctx, kindPendingEntra, key, want); err != nil {
 			t.Fatalf("putPending: %v", err)
 		}
 		if _, ok, err := te.gw.store.Get(ctx, kindPendingEntra, key); err != nil || ok {
@@ -590,14 +590,14 @@ func TestPendingAndCode_HashedKeysAndPlaintextFallback(t *testing.T) {
 			t.Fatalf("expected row under oauth.HashToken(key), got ok=%v err=%v", ok, err)
 		}
 
-		got, ok, err := te.gw.popPending(ctx, kindPendingEntra, key)
+		got, ok, err := te.gw.oauth().PopPending(ctx, kindPendingEntra, key)
 		if err != nil || !ok {
 			t.Fatalf("popPending: ok=%v err=%v", ok, err)
 		}
 		if got.ClientID != want.ClientID || got.State != want.State {
 			t.Fatalf("popPending mismatch: got %+v, want %+v", got, want)
 		}
-		if _, ok, err := te.gw.popPending(ctx, kindPendingEntra, key); err != nil || ok {
+		if _, ok, err := te.gw.oauth().PopPending(ctx, kindPendingEntra, key); err != nil || ok {
 			t.Fatalf("expected second popPending to miss, got ok=%v err=%v", ok, err)
 		}
 	})
@@ -612,7 +612,7 @@ func TestPendingAndCode_HashedKeysAndPlaintextFallback(t *testing.T) {
 				NAVIdent: "Z123456",
 			},
 		}
-		if err := te.gw.putCode(ctx, code, want); err != nil {
+		if err := te.gw.oauth().PutCode(ctx, code, want); err != nil {
 			t.Fatalf("putCode: %v", err)
 		}
 		if _, ok, err := te.gw.store.Get(ctx, kindCode, code); err != nil || ok {
@@ -622,14 +622,14 @@ func TestPendingAndCode_HashedKeysAndPlaintextFallback(t *testing.T) {
 			t.Fatalf("expected row under oauth.HashToken(code), got ok=%v err=%v", ok, err)
 		}
 
-		got, ok, err := te.gw.popCode(ctx, code)
+		got, ok, err := te.gw.oauth().PopCode(ctx, code)
 		if err != nil || !ok {
 			t.Fatalf("popCode: ok=%v err=%v", ok, err)
 		}
 		if got.ClientID != want.ClientID || got.Session.NAVIdent != want.Session.NAVIdent {
 			t.Fatalf("popCode mismatch: got %+v, want %+v", got, want)
 		}
-		if _, ok, err := te.gw.popCode(ctx, code); err != nil || ok {
+		if _, ok, err := te.gw.oauth().PopCode(ctx, code); err != nil || ok {
 			t.Fatalf("expected second popCode to miss, got ok=%v err=%v", ok, err)
 		}
 	})
@@ -648,7 +648,7 @@ func TestPendingAndCode_HashedKeysAndPlaintextFallback(t *testing.T) {
 			t.Fatalf("store.Put: %v", putErr)
 		}
 
-		got, ok, err := te.gw.popPending(ctx, kindPendingConsent, key)
+		got, ok, err := te.gw.oauth().PopPending(ctx, kindPendingConsent, key)
 		if err != nil || !ok {
 			t.Fatalf("popPending fallback: ok=%v err=%v", ok, err)
 		}
@@ -676,7 +676,7 @@ func TestPendingAndCode_HashedKeysAndPlaintextFallback(t *testing.T) {
 			t.Fatalf("store.Put: %v", putErr)
 		}
 
-		got, ok, err := te.gw.popCode(ctx, code)
+		got, ok, err := te.gw.oauth().PopCode(ctx, code)
 		if err != nil || !ok {
 			t.Fatalf("popCode fallback: ok=%v err=%v", ok, err)
 		}

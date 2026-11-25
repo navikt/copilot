@@ -20,6 +20,7 @@ import (
 
 	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
 	"github.com/navikt/copilot/fleet-gateway/internal/oauth"
+	"github.com/navikt/copilot/fleet-gateway/internal/oauth/server"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
@@ -268,7 +269,7 @@ func TestRefreshToken_TamperWrongKIDAndKeyRotation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parseKeyRing other: %v", err)
 	}
-	wrongKIDBlob, err := otherKR.Seal([]byte(rtSealAAD), []byte(`{"v":1,"jti":"x","iat":1700000000,"client_id":"`+te.clientID+`","resource":"`+te.resource+`","nav_ident":"Z123456","entra_rt":"rt"}`))
+	wrongKIDBlob, err := otherKR.Seal([]byte(server.RTSealAAD), []byte(`{"v":1,"jti":"x","iat":1700000000,"client_id":"`+te.clientID+`","resource":"`+te.resource+`","nav_ident":"Z123456","entra_rt":"rt"}`))
 	if err != nil {
 		t.Fatalf("seal wrong kid: %v", err)
 	}
@@ -569,7 +570,7 @@ func TestRefreshToken_ClientAndResourceMismatch(t *testing.T) {
 	}
 	status, body = te.postToken(url.Values{
 		"grant_type":    {"refresh_token"},
-		"refresh_token": {strings.Repeat("a", maxLegacyRefreshTokenLen+1)},
+		"refresh_token": {strings.Repeat("a", server.MaxLegacyRefreshTokenLen+1)},
 		"client_id":     {te.clientID},
 	})
 	if status != http.StatusBadRequest || body["error"] != "invalid_grant" {
@@ -1050,7 +1051,7 @@ func TestRefreshToken_InFlightRetryGets503AndRecovers(t *testing.T) {
 		t.Fatalf("bad Retry-After %q", rec.Header().Get("Retry-After"))
 	}
 
-	te.advance(refreshPendingTTL + time.Second)
+	te.advance(server.RefreshPendingTTL + time.Second)
 	if status, body := te.postToken(refreshForm(te, rt)); status != http.StatusOK {
 		t.Fatalf("retry after pending TTL: want 200, got %d (%v)", status, body)
 	}
@@ -1094,7 +1095,7 @@ func TestRefreshToken_RevokedDuringInFlightIssuesNothing(t *testing.T) {
 		t.Run(tc, func(t *testing.T) {
 			te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
 			_, rt, _ := te.obtainTokensForResource(te.resource)
-			payload, err := te.gw.openRefreshToken(rt)
+			payload, err := te.gw.oauth().OpenRefreshToken(rt)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1161,7 +1162,7 @@ func TestRefreshToken_BurnFailureServesNoGracePair(t *testing.T) {
 func TestRefreshToken_GraceRechecksFamilyAfterRevoke(t *testing.T) {
 	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
 	_, rt, _ := te.obtainTokensForResource(te.resource)
-	payload, err := te.gw.openRefreshToken(rt)
+	payload, err := te.gw.oauth().OpenRefreshToken(rt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1169,7 +1170,7 @@ func TestRefreshToken_GraceRechecksFamilyAfterRevoke(t *testing.T) {
 		t.Fatalf("refresh: %d (%v)", status, body)
 	}
 	ctx := context.Background()
-	if _, ok, gerr := te.gw.graceResponse(ctx, payload.JTI, payload.FID); gerr != nil || !ok {
+	if _, ok, gerr := te.gw.oauth().GraceResponse(ctx, payload.JTI, payload.FID); gerr != nil || !ok {
 		t.Fatalf("grace pair should be served before revoke: %v %v", ok, gerr)
 	}
 	raw, ok, err := te.gw.store.Get(ctx, kindRefreshGrace, payload.JTI)
@@ -1183,7 +1184,7 @@ func TestRefreshToken_GraceRechecksFamilyAfterRevoke(t *testing.T) {
 	if err = te.gw.store.Put(ctx, kindRefreshGrace, payload.JTI, raw, time.Minute); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok, err = te.gw.graceResponse(ctx, payload.JTI, payload.FID); err != nil || ok {
+	if _, ok, err = te.gw.oauth().GraceResponse(ctx, payload.JTI, payload.FID); err != nil || ok {
 		t.Fatalf("grace pair served after /revoke: %v %v", ok, err)
 	}
 }
@@ -1300,7 +1301,7 @@ func TestRevoke_UnknownKIDReturns503AndOtherErrorsReturn200(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parseKeyRing: %v", err)
 	}
-	rawPayload, err := json.Marshal(rtPayload{
+	rawPayload, err := json.Marshal(server.RTPayload{
 		V:        1,
 		JTI:      "jti-other",
 		FID:      "fid-other",
@@ -1312,9 +1313,9 @@ func TestRevoke_UnknownKIDReturns503AndOtherErrorsReturn200(t *testing.T) {
 		EntraRT:  "entra-rt",
 	})
 	if err != nil {
-		t.Fatalf("marshal rtPayload: %v", err)
+		t.Fatalf("marshal RTPayload: %v", err)
 	}
-	unknownKIDBlob, err := otherKR.Seal([]byte(rtSealAAD), rawPayload)
+	unknownKIDBlob, err := otherKR.Seal([]byte(server.RTSealAAD), rawPayload)
 	if err != nil {
 		t.Fatalf("seal unknown kid: %v", err)
 	}
@@ -1360,7 +1361,7 @@ func TestRevoke_UnknownKIDReturns503AndOtherErrorsReturn200(t *testing.T) {
 func TestRefreshToken_ClientCancelCompletesRefreshAndServesGracePair(t *testing.T) {
 	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
 	_, rt, _ := te.obtainTokensForResource(te.resource)
-	payload, err := te.gw.openRefreshToken(rt)
+	payload, err := te.gw.oauth().OpenRefreshToken(rt)
 	if err != nil {
 		t.Fatalf("openRefreshToken: %v", err)
 	}
@@ -1392,7 +1393,7 @@ func TestRefreshToken_ClientCancelCompletesRefreshAndServesGracePair(t *testing.
 	// claiming pend:<jti>, so the Entra call and subsequent store writes (new session,
 	// grace pair, and Revoke(jti)) still complete. An immediate retry therefore sees
 	// the burned jti and receives the rotated pair from the grace window (200 OK)
-	// rather than hanging on 503 refresh_in_flight for refreshPendingTTL.
+	// rather than hanging on 503 refresh_in_flight for server.RefreshPendingTTL.
 	if burned, rerr := te.gw.store.IsRevoked(context.Background(), payload.JTI); rerr != nil || !burned {
 		t.Fatalf("expected old jti to be burned after detached completion, got burned=%v err=%v", burned, rerr)
 	}
@@ -1462,7 +1463,7 @@ func TestRevoke_Opaque43CharUnknownTokenTwiceReturns200(t *testing.T) {
 	if len(tok) != 43 {
 		t.Fatalf("expected 43-char opaque token, got %d", len(tok))
 	}
-	if _, err := te.gw.openRefreshToken(tok); !errors.Is(err, errSealUnknownKID) {
+	if _, err := te.gw.oauth().OpenRefreshToken(tok); !errors.Is(err, errSealUnknownKID) {
 		t.Fatalf("test premise: expected errSealUnknownKID from openRefreshToken, got %v", err)
 	}
 

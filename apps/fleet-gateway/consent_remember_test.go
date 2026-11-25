@@ -51,7 +51,7 @@ func TestConsent_RememberedPerUserClientRoute(t *testing.T) {
 			{te.navIdent, te.clientID, te.resource + "-other"},
 			{"X999999", te.clientID, te.resource},
 		} {
-			if err := te.gw.rememberConsent(ctx, c[0], c[1], c[2]); err != nil {
+			if err := te.gw.oauth().RememberConsent(ctx, c[0], c[1], c[2]); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -205,28 +205,28 @@ func TestConsent_EvictsOldestAtCap(t *testing.T) {
 	te.gw.store.Close()
 	te.gw.store = newMemoryStore(te.gw.now, map[string]int{kindConsent: 2})
 
-	if err := te.gw.rememberConsent(ctx, "A100001", te.clientID, te.resource); err != nil {
+	if err := te.gw.oauth().RememberConsent(ctx, "A100001", te.clientID, te.resource); err != nil {
 		t.Fatalf("first rememberConsent: %v", err)
 	}
 	te.advance(time.Hour)
-	if err := te.gw.rememberConsent(ctx, "A100002", te.clientID, te.resource); err != nil {
+	if err := te.gw.oauth().RememberConsent(ctx, "A100002", te.clientID, te.resource); err != nil {
 		t.Fatalf("second rememberConsent: %v", err)
 	}
 	te.advance(time.Hour)
 	// Cap is 2: third consent must succeed by evicting the earliest-expiring one (A100001).
-	if err := te.gw.rememberConsent(ctx, te.navIdent, te.clientID, te.resource); err != nil {
+	if err := te.gw.oauth().RememberConsent(ctx, te.navIdent, te.clientID, te.resource); err != nil {
 		t.Fatalf("third rememberConsent at cap: %v", err)
 	}
 
-	okNew, err := te.gw.hasConsent(ctx, te.navIdent, te.clientID, te.resource)
+	okNew, err := te.gw.oauth().HasConsent(ctx, te.navIdent, te.clientID, te.resource)
 	if err != nil || !okNew {
 		t.Fatalf("expected newest consent to be remembered: ok=%v err=%v", okNew, err)
 	}
-	okKept, err := te.gw.hasConsent(ctx, "A100002", te.clientID, te.resource)
+	okKept, err := te.gw.oauth().HasConsent(ctx, "A100002", te.clientID, te.resource)
 	if err != nil || !okKept {
 		t.Fatalf("expected second consent to remain: ok=%v err=%v", okKept, err)
 	}
-	okEvicted, err := te.gw.hasConsent(ctx, "A100001", te.clientID, te.resource)
+	okEvicted, err := te.gw.oauth().HasConsent(ctx, "A100001", te.clientID, te.resource)
 	if err != nil || okEvicted {
 		t.Fatalf("expected oldest consent to be evicted: ok=%v err=%v", okEvicted, err)
 	}
