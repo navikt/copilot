@@ -388,7 +388,6 @@ func ScopeUser() (*InstallScope, error) {
 	}, nil
 }
 
-// SupportsType returns true if this scope supports the given artifact type.
 func (s *InstallScope) SupportsType(itemType string) bool {
 	for _, t := range s.SupportedTypes {
 		if t == itemType {
@@ -435,7 +434,6 @@ func (s *InstallScope) needsGitHubPrefix(parts []string) bool {
 	return s.Name == "user" && len(parts) > 0 && parts[0] == "instructions"
 }
 
-// StatePath returns the full path to the state file.
 func (s *InstallScope) StatePath() string {
 	return filepath.Join(s.RootDir, s.StateFile)
 }
@@ -533,7 +531,6 @@ func (s *InstallScope) CleanupDirs() {
 	}
 }
 
-// Label returns a display label for UI output.
 func (s *InstallScope) Label() string {
 	if s.Name == "user" {
 		return "~/.copilot (user-wide)"
@@ -541,7 +538,6 @@ func (s *InstallScope) Label() string {
 	return s.RootDir
 }
 
-// IsUser returns true for user-scope installs.
 func (s *InstallScope) IsUser() bool {
 	return s.Name == "user"
 }
