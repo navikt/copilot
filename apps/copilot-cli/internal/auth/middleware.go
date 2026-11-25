@@ -1,4 +1,6 @@
-package gateway
+// Package auth signs nav-pilot callers in: a GitHub App user token issued to
+// this app, held by an active member of the organisation.
+package auth
 
 import (
 	"context"
@@ -13,6 +15,8 @@ import (
 	"time"
 
 	"golang.org/x/time/rate"
+
+	"github.com/navikt/copilot/apps/copilot-cli/internal/httperr"
 )
 
 type contextKey string
@@ -32,12 +36,12 @@ type AuthenticatedUser struct {
 	expiresAt time.Time
 }
 
-// authenticator resolves a GitHub bearer token to a navikt member.
-type authenticator struct {
+// Authenticator resolves a GitHub bearer token to a navikt member.
+type Authenticator struct {
 	github *GitHubClient
 	org    string
 	// isMember asks copilot-api whether a login is an active org member
-	// (upstream.isOrgMember). Any error refuses the sign-in.
+	// (upstream.IsOrgMember). Any error refuses the sign-in.
 	isMember func(ctx context.Context, login string) (bool, error)
 	cache    *tokenCache
 	// limit is the global ceiling on GitHub token checks on a cache miss,
@@ -55,6 +59,18 @@ type authenticator struct {
 	mu       sync.Mutex
 	perToken map[string]*tokenBucket
 	inflight map[string]*inflightCheck
+}
+
+// New returns an Authenticator. isMember decides org membership; limit is the
+// global ceiling on GitHub checks; successes are cached for at most cacheTTL.
+func New(github *GitHubClient, org string, isMember func(ctx context.Context, login string) (bool, error), cacheTTL time.Duration, limit *rate.Limiter) *Authenticator {
+	return &Authenticator{
+		github:   github,
+		org:      org,
+		isMember: isMember,
+		cache:    newTokenCache(cacheTTL),
+		limit:    limit,
+	}
 }
 
 type inflightCheck struct {
@@ -78,7 +94,7 @@ const (
 
 // allow spends one GitHub check for the token hashed to key: first from its
 // own bucket, then from the global one.
-func (a *authenticator) allow(key string) bool {
+func (a *Authenticator) allow(key string) bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	now := time.Now()
@@ -106,7 +122,7 @@ func (a *authenticator) allow(key string) bool {
 	return true
 }
 
-func (a *authenticator) resolve(ctx context.Context, token string) (*AuthenticatedUser, error) {
+func (a *Authenticator) resolve(ctx context.Context, token string) (*AuthenticatedUser, error) {
 	if user, ok, err := a.cache.get(token); ok {
 		return user, err
 	}
@@ -289,14 +305,14 @@ func hashToken(token string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// authMiddleware resolves the caller before the handler runs and puts the
+// Middleware resolves the caller before the handler runs and puts the
 // user in the request context. Fail closed: any error talking to an issuer
 // rejects the request. Neither the token nor the identity is logged.
-func authMiddleware(a *authenticator, next http.HandlerFunc) http.HandlerFunc {
+func Middleware(a *Authenticator, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token, err := bearerToken(r)
 		if err != nil {
-			writeError(w, http.StatusUnauthorized, err.Error())
+			httperr.Write(w, http.StatusUnauthorized, err.Error())
 			return
 		}
 		user, err := a.resolve(r.Context(), token)
@@ -304,40 +320,40 @@ func authMiddleware(a *authenticator, next http.HandlerFunc) http.HandlerFunc {
 		case err == nil:
 		case errors.Is(err, errRateLimited):
 			w.Header().Set("Retry-After", "10")
-			writeError(w, http.StatusTooManyRequests, err.Error())
+			httperr.Write(w, http.StatusTooManyRequests, err.Error())
 			return
 		case errors.Is(err, errNotOrgMember):
-			writeError(w, http.StatusForbidden, fmt.Sprintf("user is not a member of %s", a.org))
+			httperr.Write(w, http.StatusForbidden, fmt.Sprintf("user is not a member of %s", a.org))
 			return
 		case errors.Is(err, errInvalidToken):
-			writeError(w, http.StatusUnauthorized, err.Error())
+			httperr.Write(w, http.StatusUnauthorized, err.Error())
 			return
 		case errors.Is(err, errIssuerOffline):
-			writeError(w, http.StatusServiceUnavailable, err.Error())
+			httperr.Write(w, http.StatusServiceUnavailable, err.Error())
 			return
 		default:
 			slog.Warn("token validation failed upstream", "error", err)
-			writeError(w, http.StatusBadGateway, "could not validate token")
+			httperr.Write(w, http.StatusBadGateway, "could not validate token")
 			return
 		}
 		next(w, r.WithContext(context.WithValue(r.Context(), requestUserContextKey, user)))
 	}
 }
 
-// revokeHandler revokes the caller's own token (nav-pilot auth logout). It
+// RevokeHandler revokes the caller's own token (nav-pilot auth logout). It
 // takes no body: the token revoked is the bearer token presented, so a caller
 // can only revoke a token it holds. No org check, so someone who has left the
 // organisation can still sign out.
-func revokeHandler(a *authenticator) http.HandlerFunc {
+func RevokeHandler(a *Authenticator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token, err := bearerToken(r)
 		if err != nil {
-			writeError(w, http.StatusUnauthorized, err.Error())
+			httperr.Write(w, http.StatusUnauthorized, err.Error())
 			return
 		}
 		if !a.allow(hashToken(token)) {
 			w.Header().Set("Retry-After", "10")
-			writeError(w, http.StatusTooManyRequests, errRateLimited.Error())
+			httperr.Write(w, http.StatusTooManyRequests, errRateLimited.Error())
 			return
 		}
 		// Refuse the token here before asking GitHub, so a timeout or 5xx
@@ -350,12 +366,12 @@ func revokeHandler(a *authenticator) http.HandlerFunc {
 		case err == nil:
 			w.WriteHeader(http.StatusNoContent)
 		case errors.Is(err, errInvalidToken):
-			writeError(w, http.StatusUnauthorized, err.Error())
+			httperr.Write(w, http.StatusUnauthorized, err.Error())
 		case errors.Is(err, errIssuerOffline):
-			writeError(w, http.StatusServiceUnavailable, err.Error())
+			httperr.Write(w, http.StatusServiceUnavailable, err.Error())
 		default:
 			slog.Warn("token revoke failed upstream", "error", err)
-			writeError(w, http.StatusBadGateway, "could not revoke token")
+			httperr.Write(w, http.StatusBadGateway, "could not revoke token")
 		}
 	}
 }
@@ -376,13 +392,8 @@ func bearerToken(r *http.Request) (string, error) {
 	return fields[1], nil
 }
 
-func userFromContext(ctx context.Context) (*AuthenticatedUser, bool) {
+// UserFromContext returns the user Middleware put in ctx.
+func UserFromContext(ctx context.Context) (*AuthenticatedUser, bool) {
 	user, ok := ctx.Value(requestUserContextKey).(*AuthenticatedUser)
 	return user, ok
-}
-
-func writeError(w http.ResponseWriter, status int, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_, _ = fmt.Fprintf(w, `{"error":%q}`, message)
 }

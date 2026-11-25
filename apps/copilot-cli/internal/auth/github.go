@@ -1,4 +1,4 @@
-package gateway
+package auth
 
 import (
 	"bytes"
@@ -16,10 +16,11 @@ import (
 
 var validGitHubUsername = regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$`)
 
-const githubAPIBaseURL = "https://api.github.com"
+// GitHubAPIBaseURL is the GitHub REST API that NewGitHubClient is given in production.
+const GitHubAPIBaseURL = "https://api.github.com"
 
 // GitHubClient validates GitHub user tokens. Org membership is checked by
-// copilot-api (see upstream.isOrgMember), so the tokens need no permissions.
+// copilot-api (see upstream.IsOrgMember), so the tokens need no permissions.
 //
 // A token is accepted only when GitHub confirms, through this app's own
 // credentials, that it was issued to this app (POST
@@ -34,16 +35,19 @@ type GitHubClient struct {
 	clientSecret string
 }
 
-func newGitHubClient(clientID, clientSecret string) *GitHubClient {
+// NewGitHubClient returns a client for this app's credentials. Without both,
+// every sign-in is refused as not configured.
+func NewGitHubClient(baseURL, clientID, clientSecret string) *GitHubClient {
 	return &GitHubClient{
 		httpClient:   &http.Client{Timeout: 5 * time.Second},
-		baseURL:      githubAPIBaseURL,
+		baseURL:      baseURL,
 		clientID:     clientID,
 		clientSecret: clientSecret,
 	}
 }
 
-func (c *GitHubClient) configured() bool { return c.clientID != "" && c.clientSecret != "" }
+// Configured reports whether the app credentials are set.
+func (c *GitHubClient) Configured() bool { return c.clientID != "" && c.clientSecret != "" }
 
 var (
 	errInvalidToken  = errors.New("invalid or expired token")
@@ -54,7 +58,7 @@ var (
 // 404 and 422 mean the token is not valid for this app: revoked, expired, or
 // another app's.
 func (c *GitHubClient) resolveUser(ctx context.Context, token string) (*AuthenticatedUser, error) {
-	if !c.configured() {
+	if !c.Configured() {
 		return nil, errIssuerOffline
 	}
 	resp, err := c.appTokenRequest(ctx, http.MethodPost, token)
@@ -110,7 +114,7 @@ func (c *GitHubClient) resolveUser(ctx context.Context, token string) (*Authenti
 // answers 404 or 422 for any other token, so nothing but our own tokens can
 // be revoked through this.
 func (c *GitHubClient) revoke(ctx context.Context, token string) error {
-	if !c.configured() {
+	if !c.Configured() {
 		return errIssuerOffline
 	}
 	resp, err := c.appTokenRequest(ctx, http.MethodDelete, token)
