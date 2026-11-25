@@ -1,9 +1,7 @@
 package main
 
 import (
-	"context"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -57,25 +55,6 @@ func TestHTTPMetricsUseRoutePattern(t *testing.T) {
 	}
 	if found < 2 {
 		t.Errorf("no series for pattern %q", pattern)
-	}
-}
-
-func TestConsoleMetrics(t *testing.T) {
-	ctx := context.Background()
-	var calls int
-	ok := fakeConsole(t, map[string][]string{"kari@nav.no": {"team-a"}}, &calls)
-	defer ok.Close()
-	unavailable := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusServiceUnavailable) }))
-	defer unavailable.Close()
-	broken := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("not json")) }))
-	defer broken.Close()
-
-	for _, tc := range []struct{ url, outcome string }{{ok.URL, "ok"}, {unavailable.URL, "503"}, {broken.URL, "error"}} {
-		before := testutil.ToFloat64(metrics.ConsoleLookups.WithLabelValues(tc.outcome))
-		_, _ = newConsoleTeams(tc.url, tokenFile(t)).Teams(ctx, "kari@nav.no")
-		if got := testutil.ToFloat64(metrics.ConsoleLookups.WithLabelValues(tc.outcome)) - before; got != 1 {
-			t.Errorf("%s: %v, want 1", tc.outcome, got)
-		}
 	}
 }
 

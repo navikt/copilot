@@ -12,6 +12,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
+	"github.com/navikt/copilot/fleet-control/internal/auth"
 	"github.com/navikt/copilot/fleet-control/internal/metrics"
 	"github.com/navikt/copilot/fleet-control/internal/model"
 )
@@ -23,13 +24,13 @@ import (
 //
 // The /runtime routes exist only when ra is set (FLEET_RUNTIME_CLIENT_IDS),
 // and need an Entra app token from an allowlisted fleet-runtime client.
-func (s *server) routes(a *authz, adminClientID string, teams teamDirectory, ra *runtimeAuth) http.Handler {
+func (s *server) routes(a *auth.Authz, adminClientID string, teams auth.TeamDirectory, ra *runtimeAuth) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 	mux.HandleFunc("GET /ready", s.ready)
 	mux.Handle("GET /metrics", promhttp.Handler())
-	mux.HandleFunc("GET /internal/v1/snapshots/routes", a.require(s.snapshotOf("routes"), callerGateway))
-	mux.HandleFunc("GET /internal/v1/snapshots/registry", a.require(s.snapshotOf("registry"), callerRegistry))
+	mux.HandleFunc("GET /internal/v1/snapshots/routes", a.Require(s.snapshotOf("routes"), auth.CallerGateway))
+	mux.HandleFunc("GET /internal/v1/snapshots/registry", a.Require(s.snapshotOf("registry"), auth.CallerRegistry))
 	if adminClientID != "" {
 		// The only /admin/v1 route left (#2895): everything else is under /apis.
 		mux.HandleFunc("PUT /admin/v1/jobs/{namespace}/kill-switch", s.admin(a, adminClientID, teams, putKillSwitch(s.operatorTeam)))

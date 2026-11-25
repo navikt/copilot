@@ -11,6 +11,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/navikt/copilot/fleet-control/internal/auth"
 )
 
 // Agent profiles (#2582): a caller app may use listed tools on listed routes
@@ -158,7 +160,7 @@ func seedAgentsFromEnv(ctx context.Context, db *DB) error {
 	if path == "" {
 		return nil
 	}
-	if !devCluster(os.Getenv("NAIS_CLUSTER_NAME")) {
+	if !auth.DevCluster(os.Getenv("NAIS_CLUSTER_NAME")) {
 		return errors.New("SEED_AGENTS_FILE is for dev-* clusters only")
 	}
 	raw, err := os.ReadFile(path) //nolint:gosec // operator-set path baked into the image

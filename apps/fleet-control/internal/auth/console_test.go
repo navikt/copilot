@@ -1,4 +1,4 @@
-package main
+package auth
 
 import (
 	"context"
@@ -13,6 +13,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/navikt/copilot/fleet-control/internal/metrics"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 )
 
 // fakeConsole serves the user(email).teams query from members (email to
@@ -129,31 +132,20 @@ func TestConsoleTeamsFailClosed(t *testing.T) {
 			t.Errorf("%s: got %v, %v, want error", name, ok, err)
 		}
 	}
-
-	// Through the write guard: a failed lookup is 503, not 403 or 2xx.
-	srv := newServer()
-	h := srv.routes(testAuthz(t), adminID, newConsoleTeams(down.URL, tokenFile(t)), nil)
-	req := httptest.NewRequest(http.MethodPut, "/admin/v1/jobs/team-a/kill-switch", strings.NewReader(`{"scope":"team","on":false}`))
-	req.Header.Set("Authorization", "Bearer "+userTok("A111111")+":kari@nav.no")
-	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, req)
-	if rec.Code != http.StatusServiceUnavailable {
-		t.Fatalf("write guard with API down: got %d, want 503", rec.Code)
-	}
 }
 
 func TestTeamsFromEnvConsole(t *testing.T) {
 	t.Setenv("NAIS_SERVICE_ACCOUNT_TOKEN_PATH", "/var/run/token")
 	t.Setenv("FLEET_CONTROL_STATIC_TEAMS", "")
-	d, err := teamsFromEnv("prod-gcp")
+	d, err := TeamsFromEnv("prod-gcp")
 	if _, ok := d.(*consoleTeams); err != nil || !ok {
 		t.Fatalf("got %T, %v", d, err)
 	}
 	t.Setenv("FLEET_CONTROL_STATIC_TEAMS", `{"team-a":["a@nav.no"]}`)
-	if _, err := teamsFromEnv("prod-gcp"); err == nil {
+	if _, err := TeamsFromEnv("prod-gcp"); err == nil {
 		t.Fatal("static list in prod: want error")
 	}
-	if d, err := teamsFromEnv("dev-gcp"); err != nil {
+	if d, err := TeamsFromEnv("dev-gcp"); err != nil {
 		t.Fatal(err)
 	} else if _, ok := d.(*consoleTeams); !ok {
 		t.Fatalf("dev with both: got %T, want console", d)
@@ -269,7 +261,7 @@ func TestConsoleTeamsCacheBounded(t *testing.T) {
 func TestTeamsFromEnvUnboundOutsideDev(t *testing.T) {
 	t.Setenv("NAIS_SERVICE_ACCOUNT_TOKEN_PATH", "")
 	t.Setenv("FLEET_CONTROL_STATIC_TEAMS", "")
-	d, err := teamsFromEnv("prod-gcp")
+	d, err := TeamsFromEnv("prod-gcp")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -279,7 +271,26 @@ func TestTeamsFromEnvUnboundOutsideDev(t *testing.T) {
 	if _, err := d.Teams(context.Background(), "a@nav.no"); !errors.Is(err, errNoServiceAccount) {
 		t.Fatalf("Teams err = %v", err)
 	}
-	if d, _ := teamsFromEnv("dev-gcp"); d == (unboundTeams{}) {
+	if d, _ := TeamsFromEnv("dev-gcp"); d == (UnboundTeams{}) {
 		t.Fatal("dev without binding: want empty static list, got unbound")
+	}
+}
+
+func TestConsoleMetrics(t *testing.T) {
+	ctx := context.Background()
+	var calls int
+	ok := fakeConsole(t, map[string][]string{"kari@nav.no": {"team-a"}}, &calls)
+	defer ok.Close()
+	unavailable := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusServiceUnavailable) }))
+	defer unavailable.Close()
+	broken := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("not json")) }))
+	defer broken.Close()
+
+	for _, tc := range []struct{ url, outcome string }{{ok.URL, "ok"}, {unavailable.URL, "503"}, {broken.URL, "error"}} {
+		before := testutil.ToFloat64(metrics.ConsoleLookups.WithLabelValues(tc.outcome))
+		_, _ = newConsoleTeams(tc.url, tokenFile(t)).Teams(ctx, "kari@nav.no")
+		if got := testutil.ToFloat64(metrics.ConsoleLookups.WithLabelValues(tc.outcome)) - before; got != 1 {
+			t.Errorf("%s: %v, want 1", tc.outcome, got)
+		}
 	}
 }

@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/navikt/copilot/fleet-control/internal/auth"
 	"github.com/navikt/copilot/fleet-control/internal/model"
 )
 
@@ -34,36 +35,36 @@ func run() error {
 	if port == "" {
 		port = "8080"
 	}
-	auth, err := newAuthzFromEnv()
+	authz, err := auth.NewAuthzFromEnv()
 	if err != nil {
 		return err
 	}
 	cluster := os.Getenv("NAIS_CLUSTER_NAME")
-	teams, err := teamsFromEnv(cluster)
+	teams, err := auth.TeamsFromEnv(cluster)
 	if err != nil {
 		return err
 	}
 	srv := newServer()
-	myCopilotID, err := clientIDFromEnv("MY_COPILOT_CLIENT_ID", "my-copilot")
+	myCopilotID, err := auth.ClientIDFromEnv("MY_COPILOT_CLIENT_ID", "my-copilot")
 	if err != nil {
 		return err
 	}
 	adminClientID := myCopilotID
 	srv.cluster = cluster
-	if srv.pilotTeams, err = pilotTeamsFromEnv(); err != nil {
+	if srv.pilotTeams, err = auth.PilotTeamsFromEnv(); err != nil {
 		return err
 	}
-	if !devCluster(cluster) && len(srv.pilotTeams) == 0 {
+	if !auth.DevCluster(cluster) && len(srv.pilotTeams) == 0 {
 		slog.Warn("FLEET_CONTROL_PILOT_TEAMS empty outside dev: every write is refused", "cluster", cluster)
 	}
 	srv.notifier = newSlackNotifier(os.Getenv("FLEET_SLACK_WEBHOOK_URL"))
-	if _, ok := teams.(unboundTeams); ok {
+	if _, ok := teams.(auth.UnboundTeams); ok {
 		srv.teamsUnbound = true
 		slog.Warn("no Console service account bound: team lookups answer 503")
 	}
 	// FLEET_CONTROL_OPERATOR_TEAM may set the global job kill switch; unset, nobody can.
 	srv.operatorTeam = strings.TrimSpace(os.Getenv("FLEET_CONTROL_OPERATOR_TEAM"))
-	ra, err := runtimeAuthFromEnv(auth)
+	ra, err := runtimeAuthFromEnv(authz)
 	if err != nil {
 		return err
 	}
@@ -71,7 +72,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	httpSrv := newHTTPServer(port, srv.routes(auth, adminClientID, teams, ra))
+	httpSrv := newHTTPServer(port, srv.routes(authz, adminClientID, teams, ra))
 
 	go func() {
 		db, err := connect(ctx)

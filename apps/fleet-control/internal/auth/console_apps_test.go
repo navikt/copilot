@@ -1,4 +1,4 @@
-package main
+package auth
 
 import (
 	"context"
@@ -74,54 +74,5 @@ func TestConsoleAppsFailClosed(t *testing.T) {
 	}
 	if _, err := newConsoleTeams("http://127.0.0.1:1", tokenFile(t)).Apps(context.Background(), "../x"); err == nil {
 		t.Fatal("invalid team must fail before any call")
-	}
-}
-
-func TestListTeamApps(t *testing.T) {
-	ts := fakeConsoleApps(t, appsBody(node("a-mcp", "dev-gcp")))
-	ct := newConsoleTeams(ts.URL, tokenFile(t))
-	call := func(teams teamDirectory, c caller) (int, string, error) {
-		r := httptest.NewRequest("GET", nsBase+"team-a/apps", nil)
-		r.SetPathValue("namespace", "team-a")
-		w := httptest.NewRecorder()
-		err := listTeamApps(teams)(w, r, c, nil)
-		return w.Code, w.Body.String(), err
-	}
-	code, body, err := call(ct, caller{Teams: []string{"team-a"}})
-	if err != nil || code != 200 || !strings.Contains(body, `"a-mcp"`) || !strings.Contains(body, `"TeamAppList"`) {
-		t.Fatalf("member: %d %s %v", code, body, err)
-	}
-	if _, _, err = call(ct, caller{Teams: []string{"team-b"}}); err != errV1NotFound {
-		t.Fatalf("non-member must get 404, got %v", err)
-	}
-	_, _, err = call(staticTeams{"team-a": {"x@nav.no"}}, caller{Teams: []string{"team-a"}})
-	if se, ok := err.(*statusError); !ok || se.code != http.StatusServiceUnavailable {
-		t.Fatalf("no Console must be 503, got %v", err)
-	}
-}
-
-// A Console failure is logged, never answered: the 503 body holds only the generic message.
-func TestListTeamAppsHidesConsoleError(t *testing.T) {
-	const secret = "kari.nordmann@nav.no is not allowed"
-	for name, ts := range map[string]*httptest.Server{
-		"graphql error": fakeConsoleApps(t, `{"errors":[{"message":"`+secret+`"}],"data":null}`),
-		"http error": httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			http.Error(w, secret, http.StatusBadGateway)
-		})),
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Cleanup(ts.Close)
-			r := httptest.NewRequest("GET", nsBase+"team-a/apps", nil)
-			r.SetPathValue("namespace", "team-a")
-			w := httptest.NewRecorder()
-			err := listTeamApps(newConsoleTeams(ts.URL, tokenFile(t)))(w, r, caller{Teams: []string{"team-a"}}, nil)
-			if err == nil {
-				t.Fatal("want error")
-			}
-			writeStatus(w, r, "", err)
-			if w.Code != http.StatusServiceUnavailable || strings.Contains(w.Body.String(), "kari") || strings.Contains(w.Body.String(), "allowed") {
-				t.Fatalf("%d %s", w.Code, w.Body.String())
-			}
-		})
 	}
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/navikt/copilot/fleet-control/internal/auth"
 	"github.com/navikt/copilot/fleet-control/internal/canon"
 	"github.com/navikt/copilot/fleet-control/internal/model"
 	"github.com/navikt/copilot/fleet-control/internal/store"
@@ -157,7 +158,7 @@ func validateServerSpec(cluster, platform, ns, name string, spec MCPServerSpec) 
 		return spec, model.Server{}, invalid("spec.rosRef", "spec.rosRef has no surrounding spaces and is at most %d bytes", maxRosRefBytes)
 	}
 	// Outside dev-* (an unset cluster included) write tools need a ROS.
-	if !devCluster(cluster) && spec.RosRef == "" && slices.ContainsFunc(spec.AllowedTools, func(t string) bool { return toolRiskOf(resolved, t) == "write" }) {
+	if !auth.DevCluster(cluster) && spec.RosRef == "" && slices.ContainsFunc(spec.AllowedTools, func(t string) bool { return toolRiskOf(resolved, t) == "write" }) {
 		return spec, model.Server{}, invalid("spec.rosRef", "MCP-serveren har skriveverktøy, og i prod krever det en ROS. Legg til spec.rosRef med lenke til ROS-en, eller sett spec.defaultRisk eller spec.toolRisk til read eller propose for verktøy som ikke skriver.")
 	}
 	var draft draftSpec

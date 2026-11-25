@@ -3,32 +3,14 @@ package main
 import (
 	"strings"
 	"testing"
-)
 
-func TestPilotTeamsFromEnv(t *testing.T) {
-	t.Setenv("FLEET_CONTROL_PILOT_TEAMS", " copilot, aksel-studio ,,copilot ")
-	if got, err := pilotTeamsFromEnv(); err != nil || strings.Join(got, ",") != "copilot,aksel-studio" {
-		t.Errorf("got %v %v", got, err)
-	}
-	for _, v := range []string{"", " ", " , "} {
-		t.Setenv("FLEET_CONTROL_PILOT_TEAMS", v)
-		if got, err := pilotTeamsFromEnv(); err != nil || len(got) != 0 {
-			t.Errorf("%q: want none, got %v %v", v, got, err)
-		}
-	}
-	// Not folded into a match: a wrong-case or odd entry refuses startup.
-	for _, v := range []string{"Copilot", "copilot,team a", "team_a"} {
-		t.Setenv("FLEET_CONTROL_PILOT_TEAMS", v)
-		if _, err := pilotTeamsFromEnv(); err == nil {
-			t.Errorf("%q: want error", v)
-		}
-	}
-}
+	"github.com/navikt/copilot/fleet-control/internal/auth"
+)
 
 // Outside dev-* a write needs a pilot team and membership; reads are untouched.
 // No database here: a write that passes every guard ends in "database unavailable".
 func TestPilotWriteGate(t *testing.T) {
-	prod := func(_ teamDirectory, pilot ...string) *server {
+	prod := func(_ auth.TeamDirectory, pilot ...string) *server {
 		s := newServer()
 		s.cluster = "prod-gcp"
 		s.pilotTeams = pilot
@@ -40,7 +22,7 @@ func TestPilotWriteGate(t *testing.T) {
 		name    string
 		cluster string
 		pilot   []string
-		teams   teamDirectory
+		teams   auth.TeamDirectory
 		team    string
 		code    int
 		msg     string
@@ -50,7 +32,7 @@ func TestPilotWriteGate(t *testing.T) {
 		{"prod, member, team not in allowlist", "prod-gcp", []string{"copilot", "aksel-studio"}, apisTeams, "team-a", 403, "not enabled"},
 		{"prod, allowlisted, not a member", "prod-gcp", []string{"platform"}, apisTeams, "platform", 403, "not a member"},
 		{"prod, allowlisted and member", "prod-gcp", []string{"copilot", "aksel-studio"}, apisTeams, "aksel-studio", 503, "database unavailable"},
-		{"prod, Console SA unbound", "prod-gcp", []string{"copilot"}, unboundTeams{}, "copilot", 503, "team lookup unavailable"},
+		{"prod, Console SA unbound", "prod-gcp", []string{"copilot"}, auth.UnboundTeams{}, "copilot", 503, "team lookup unavailable"},
 		{"dev, no allowlist", "dev-gcp", nil, apisTeams, "team-a", 503, "database unavailable"},
 	} {
 		s := prod(tc.teams, tc.pilot...)

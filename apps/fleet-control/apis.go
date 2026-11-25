@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/navikt/copilot/fleet-control/internal/auth"
 )
 
 // API v1alpha1 (#2748, design: copilot-intern fleet/api-v1alpha1.md v0.6).
@@ -178,13 +180,13 @@ type apisHandler func(w http.ResponseWriter, r *http.Request, c caller, db *DB) 
 // person, an oid or the right azp is 401; Texas, the team lookup or the
 // database unavailable is 503. Membership is checked by the handler, before
 // any lookup.
-func (s *server) apis(a *authz, adminClientID string, teams teamDirectory, kind string, h apisHandler) http.HandlerFunc {
+func (s *server) apis(a *auth.Authz, adminClientID string, teams auth.TeamDirectory, kind string, h apisHandler) http.HandlerFunc {
 	return s.apisFor(a, adminClientID, teams, kind, false, h)
 }
 
 // apisFor is apis; delegated also lets a person's token from another app
 // through, with caller.ClientID set and no team lookup.
-func (s *server) apisFor(a *authz, adminClientID string, teams teamDirectory, kind string, delegated bool, h apisHandler) http.HandlerFunc {
+func (s *server) apisFor(a *auth.Authz, adminClientID string, teams auth.TeamDirectory, kind string, delegated bool, h apisHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if ns, name := r.PathValue("namespace"), r.PathValue("name"); (ns != "" && !dnsLabelRegex.MatchString(ns)) || (name != "" && !dnsLabelRegex.MatchString(name)) {
 			writeStatus(w, r, kind, stErr(http.StatusBadRequest, "BadRequest", "namespace and name must be lowercase DNS labels"))
@@ -192,8 +194,8 @@ func (s *server) apisFor(a *authz, adminClientID string, teams teamDirectory, ki
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()
-		ident, email, oid, azp, err := a.orderer(ctx, r.Header.Get("Authorization"), adminClientID, delegated)
-		if errors.Is(err, errUnauthorized) {
+		ident, email, oid, azp, err := a.Orderer(ctx, r.Header.Get("Authorization"), adminClientID, delegated)
+		if errors.Is(err, auth.ErrUnauthorized) {
 			writeStatus(w, r, kind, stErr(http.StatusUnauthorized, "Unauthorized", "a person's token with NAVident and oid is required"))
 			return
 		}
@@ -227,7 +229,7 @@ func (s *server) apisFor(a *authz, adminClientID string, teams teamDirectory, ki
 
 // apisRoutes mounts v1alpha1. Like /admin/v1 it needs the admin client.
 // Outside dev-* writes pass only for pilot teams (writeAllowed in apisFor).
-func (s *server) apisRoutes(mux *http.ServeMux, a *authz, adminClientID string, teams teamDirectory) {
+func (s *server) apisRoutes(mux *http.ServeMux, a *auth.Authz, adminClientID string, teams auth.TeamDirectory) {
 	if adminClientID == "" {
 		return
 	}
@@ -453,6 +455,27 @@ func historyOf(kind string, legacyActions []string) apisHandler {
 			return errV1NotFound
 		}
 		writeObject(w, http.StatusOK, map[string]any{"apiVersion": apiGroupVersion, "kind": "AuditEventList", "items": items})
+		return nil
+	}
+}
+
+// listTeamApps answers the team's Nais applications to its members. A
+// non-member gets 404 like every other team route; no Console client is 503.
+func listTeamApps(teams auth.TeamDirectory) apisHandler {
+	return func(w http.ResponseWriter, r *http.Request, c caller, _ *DB) error {
+		ns := r.PathValue("namespace")
+		if err := memberOf(c, ns); err != nil {
+			return err
+		}
+		l, ok := teams.(auth.AppLister)
+		if !ok {
+			return stErr(http.StatusServiceUnavailable, "ServiceUnavailable", "the Nais application list is not available here")
+		}
+		apps, err := l.Apps(r.Context(), ns)
+		if err != nil {
+			return fmt.Errorf("list apps: %w", err)
+		}
+		writeObject(w, http.StatusOK, map[string]any{"apiVersion": apiGroupVersion, "kind": "TeamAppList", "items": apps})
 		return nil
 	}
 }

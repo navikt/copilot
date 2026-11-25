@@ -1,4 +1,6 @@
-package main
+// Package auth validates Entra tokens through Texas, and resolves team
+// membership through the Nais Console API or a dev-only static list.
+package auth
 
 import (
 	"bytes"
@@ -19,26 +21,28 @@ import (
 // Callers allowed to read the internal API. Each is matched by its full Entra
 // client id, read from config, never by a name.
 const (
-	callerGateway  = "fleet-gateway"
-	callerRegistry = "mcp-registry"
+	CallerGateway  = "fleet-gateway"
+	CallerRegistry = "mcp-registry"
 )
 
-// authz is the M2M guard: a Texas-validated Entra app token whose azp maps
+// Authz is the M2M guard: a Texas-validated Entra app token whose azp maps
 // to a caller allowed on the route.
-type authz struct {
+type Authz struct {
 	introspectURL string
 	client        *http.Client
 	callers       map[string]string // azp -> caller
 	homeTenant    string            // Entra tenant id; person tokens from any other tid are refused
 }
 
-func newAuthzFromEnv() (*authz, error) {
+// NewAuthzFromEnv builds the guard from the Nais environment; a missing or
+// invalid setting is an error, so startup is refused.
+func NewAuthzFromEnv() (*Authz, error) {
 	endpoint := os.Getenv("NAIS_TOKEN_INTROSPECTION_ENDPOINT")
-	gw, err := clientIDFromEnv("FLEET_GATEWAY_CLIENT_ID", "fleet-gateway")
+	gw, err := ClientIDFromEnv("FLEET_GATEWAY_CLIENT_ID", "fleet-gateway")
 	if err != nil {
 		return nil, err
 	}
-	reg, err := clientIDFromEnv("MCP_REGISTRY_CLIENT_ID", "mcp-registry")
+	reg, err := ClientIDFromEnv("MCP_REGISTRY_CLIENT_ID", "mcp-registry")
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +54,7 @@ func newAuthzFromEnv() (*authz, error) {
 	return a, err
 }
 
-func newAuthz(endpoint, gatewayID, registryID string) (*authz, error) {
+func newAuthz(endpoint, gatewayID, registryID string) (*Authz, error) {
 	if u, err := url.Parse(endpoint); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
 		return nil, errors.New("NAIS_TOKEN_INTROSPECTION_ENDPOINT must be an http(s) URL")
 	}
@@ -60,25 +64,26 @@ func newAuthz(endpoint, gatewayID, registryID string) (*authz, error) {
 	if gatewayID == registryID {
 		return nil, errors.New("FLEET_GATEWAY_CLIENT_ID and MCP_REGISTRY_CLIENT_ID must differ")
 	}
-	return &authz{
+	return &Authz{
 		introspectURL: endpoint,
 		client:        &http.Client{Timeout: 5 * time.Second},
-		callers:       map[string]string{gatewayID: callerGateway, registryID: callerRegistry},
+		callers:       map[string]string{gatewayID: CallerGateway, registryID: CallerRegistry},
 	}, nil
 }
 
 var (
-	errUnauthorized = errors.New("invalid token")
+	// ErrUnauthorized means the token is missing, invalid or not accepted here.
+	ErrUnauthorized = errors.New("invalid token")
 	errTexas        = errors.New("token validation unavailable")
 )
 
-// require wraps h so only the listed callers reach it: 401 for a missing or
+// Require wraps h so only the listed callers reach it: 401 for a missing or
 // invalid token, 403 for another caller, 503 when Texas fails.
-func (a *authz) require(h http.HandlerFunc, allowed ...string) http.HandlerFunc {
+func (a *Authz) Require(h http.HandlerFunc, allowed ...string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		caller, err := a.caller(r.Context(), r.Header.Get("Authorization"))
 		switch {
-		case errors.Is(err, errUnauthorized):
+		case errors.Is(err, ErrUnauthorized):
 			w.Header().Set("WWW-Authenticate", `Bearer error="invalid_token"`)
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
@@ -97,21 +102,28 @@ func (a *authz) require(h http.HandlerFunc, allowed ...string) http.HandlerFunc 
 	}
 }
 
+// KnownClient reports whether azp is already mapped to an M2M caller.
+func (a *Authz) KnownClient(azp string) bool {
+	_, ok := a.callers[azp]
+	return ok
+}
+
 // caller returns the caller name for a valid app token, "" for a valid app
 // token from an unknown client.
-func (a *authz) caller(ctx context.Context, header string) (string, error) {
-	claims, err := a.introspect(ctx, header)
+func (a *Authz) caller(ctx context.Context, header string) (string, error) {
+	claims, err := a.Introspect(ctx, header)
 	if err != nil {
 		return "", err
 	}
 	// Only app tokens: a user token on behalf of fleet-gateway also has its azp.
 	if claims.Idtyp != "app" {
-		return "", errUnauthorized
+		return "", ErrUnauthorized
 	}
 	return a.callers[claims.Azp], nil
 }
 
-type tokenClaims struct {
+// TokenClaims are the Texas introspection claims fleet-control reads.
+type TokenClaims struct {
 	Active   bool   `json:"active"`
 	Idtyp    string `json:"idtyp"`
 	Azp      string `json:"azp"`
@@ -130,7 +142,7 @@ type tokenClaims struct {
 // missing or unexpected counts as a guest. acct decides when present.
 // Otherwise the token must come from the home tenant and preferred_username
 // must not be a B2B guest UPN (#EXT#).
-func (c *tokenClaims) guest(homeTenant string) bool {
+func (c *TokenClaims) guest(homeTenant string) bool {
 	if c.Acct != nil {
 		return c.Acct.String() != "0"
 	}
@@ -139,42 +151,42 @@ func (c *tokenClaims) guest(homeTenant string) bool {
 
 var navIdentRegex = regexp.MustCompile(`^[A-Z][0-9]{6}$`)
 
-// user returns the NAVident and normalised preferred_username of a valid user token that adminClientID obtained
+// User returns the NAVident and normalised preferred_username of a valid User token that adminClientID obtained
 // on behalf of a person (OBO). App tokens and other clients are rejected.
-func (a *authz) user(ctx context.Context, header, adminClientID string) (ident, email string, err error) {
-	claims, err := a.introspect(ctx, header)
+func (a *Authz) User(ctx context.Context, header, adminClientID string) (ident, email string, err error) {
+	claims, err := a.Introspect(ctx, header)
 	if err != nil {
 		return "", "", err
 	}
 	return a.checkUser(claims, adminClientID)
 }
 
-func (a *authz) checkUser(claims *tokenClaims, adminClientID string) (ident, email string, err error) {
+func (a *Authz) checkUser(claims *TokenClaims, adminClientID string) (ident, email string, err error) {
 	// Person routes: idtyp absent or "user", and no guest accounts.
 	if (claims.Idtyp != "" && claims.Idtyp != "user") || claims.guest(a.homeTenant) || adminClientID == "" || claims.Azp != adminClientID || !navIdentRegex.MatchString(claims.NAVident) {
-		return "", "", errUnauthorized
+		return "", "", ErrUnauthorized
 	}
 	// Team membership is keyed on preferred_username; without it there is
 	// nothing to look up, so refuse.
 	email = normEmail(claims.Email)
 	if email == "" {
-		return "", "", errUnauthorized
+		return "", "", ErrUnauthorized
 	}
 	return claims.NAVident, email, nil
 }
 
-// orderer is user plus the Entra oid, for /apis: a person token without a
+// Orderer is user plus the Entra oid, for /apis: a person token without a
 // lowercase-UUID oid is refused like any invalid token. When delegated is set, it also passes a
 // person's OBO token obtained by another app. azp is then that app's client
 // id, and the handler must bind it to a published agent profile. Texas has
 // checked aud, so the app is one preauthorized in accessPolicy.inbound.
-func (a *authz) orderer(ctx context.Context, header, adminClientID string, delegated bool) (ident, email, oid, azp string, err error) {
-	claims, err := a.introspect(ctx, header)
+func (a *Authz) Orderer(ctx context.Context, header, adminClientID string, delegated bool) (ident, email, oid, azp string, err error) {
+	claims, err := a.Introspect(ctx, header)
 	if err != nil {
 		return "", "", "", "", err
 	}
 	if !uuidRe.MatchString(claims.Oid) {
-		return "", "", "", "", errUnauthorized
+		return "", "", "", "", ErrUnauthorized
 	}
 	client := adminClientID
 	if delegated && adminClientID != "" && claims.Azp != adminClientID && uuidRe.MatchString(claims.Azp) {
@@ -184,12 +196,12 @@ func (a *authz) orderer(ctx context.Context, header, adminClientID string, deleg
 	return ident, email, claims.Oid, claims.Azp, err
 }
 
-// introspect validates the bearer token with Texas and returns its claims
+// Introspect validates the bearer token with Texas and returns its claims
 // when active.
-func (a *authz) introspect(ctx context.Context, header string) (*tokenClaims, error) {
+func (a *Authz) Introspect(ctx context.Context, header string) (*TokenClaims, error) {
 	tok, ok := strings.CutPrefix(header, "Bearer ")
 	if !ok || tok == "" || len(header) > 16*1024 || strings.ContainsAny(tok, " \t\r\n") {
-		return nil, errUnauthorized
+		return nil, ErrUnauthorized
 	}
 	body, _ := json.Marshal(map[string]string{"identity_provider": "entra_id", "token": tok})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, a.introspectURL, bytes.NewReader(body))
@@ -205,7 +217,7 @@ func (a *authz) introspect(ctx context.Context, header string) (*tokenClaims, er
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("%w: status %d", errTexas, resp.StatusCode)
 	}
-	var claims tokenClaims
+	var claims TokenClaims
 	const maxBody = 1 << 20
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxBody+1))
 	if err != nil {
@@ -219,16 +231,16 @@ func (a *authz) introspect(ctx context.Context, header string) (*tokenClaims, er
 		return nil, fmt.Errorf("%w: decode: %v", errTexas, err)
 	}
 	if !claims.Active {
-		return nil, errUnauthorized
+		return nil, ErrUnauthorized
 	}
 	return &claims, nil
 }
 
-// clientIDFromEnv resolves app's Entra client id from AZURE_APP_PRE_AUTHORIZED_APPS,
+// ClientIDFromEnv resolves app's Entra client id from AZURE_APP_PRE_AUTHORIZED_APPS,
 // which Nais fills from accessPolicy.inbound, matched on
 // "<NAIS_CLUSTER_NAME>:copilot:<app>". Not listed there: the explicit envVar.
 // Unparseable JSON refuses startup rather than falling back.
-func clientIDFromEnv(envVar, app string) (string, error) {
+func ClientIDFromEnv(envVar, app string) (string, error) {
 	if raw := strings.TrimSpace(os.Getenv("AZURE_APP_PRE_AUTHORIZED_APPS")); raw != "" {
 		var apps []struct {
 			Name     string `json:"name"`

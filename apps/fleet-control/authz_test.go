@@ -1,13 +1,14 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/fleet-control/internal/auth"
 )
 
 const (
@@ -84,13 +85,20 @@ func testOid(ident string) string {
 	return fmt.Sprintf("00000000-0000-4000-8000-%06x%06s", ident[0], ident[1:])
 }
 
-func testAuthz(t *testing.T) *authz {
+const testTenant = "62366534-1ec3-4962-8869-9b5535279d0b"
+
+// testAuthz builds the guard the way main does, from the Nais environment.
+func testAuthz(t *testing.T) *auth.Authz {
 	t.Helper()
-	a, err := newAuthz(fakeTexas(t).URL, gatewayID, registryID)
+	t.Setenv("NAIS_TOKEN_INTROSPECTION_ENDPOINT", fakeTexas(t).URL)
+	t.Setenv("AZURE_APP_PRE_AUTHORIZED_APPS", "")
+	t.Setenv("FLEET_GATEWAY_CLIENT_ID", gatewayID)
+	t.Setenv("MCP_REGISTRY_CLIENT_ID", registryID)
+	t.Setenv("AZURE_APP_TENANT_ID", testTenant)
+	a, err := auth.NewAuthzFromEnv()
 	if err != nil {
 		t.Fatal(err)
 	}
-	a.homeTenant = testTenant
 	return a
 }
 
@@ -126,107 +134,5 @@ func TestAuthzMatrix(t *testing.T) {
 				t.Errorf("%s with %.20q: got %d, want 401", path, hdr, rec.Code)
 			}
 		}
-	}
-}
-
-func TestAuthzTexasFailures(t *testing.T) {
-	down := httptest.NewServer(http.NotFoundHandler())
-	down.Close()
-	deadAuthz, err := newAuthz(down.URL, gatewayID, registryID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	cases := map[string]struct {
-		a   *authz
-		tok string
-	}{
-		"texas 500":      {testAuthz(t), "texas-500"},
-		"texas garbage":  {testAuthz(t), "texas-garbage"},
-		"texas trailing": {testAuthz(t), "texas-trailing"},
-		"texas oversize": {testAuthz(t), "texas-oversize"},
-		"texas down":     {deadAuthz, gatewayID},
-	}
-	for name, c := range cases {
-		reached := false
-		h := c.a.require(func(http.ResponseWriter, *http.Request) { reached = true }, callerGateway)
-		req := httptest.NewRequest(http.MethodGet, "/internal/v1/snapshots/routes", nil)
-		req.Header.Set("Authorization", "Bearer "+c.tok)
-		rec := httptest.NewRecorder()
-		h(rec, req)
-		if rec.Code != http.StatusServiceUnavailable || reached {
-			t.Errorf("%s: got %d reached=%v, want 503 and no data", name, rec.Code, reached)
-		}
-	}
-}
-
-func TestNewAuthzFailsClosed(t *testing.T) {
-	for name, args := range map[string][3]string{
-		"no endpoint":     {"", gatewayID, registryID},
-		"bad endpoint":    {"ftp://x", gatewayID, registryID},
-		"no gateway id":   {"http://texas", "", registryID},
-		"no registry id":  {"http://texas", gatewayID, ""},
-		"same client ids": {"http://texas", gatewayID, gatewayID},
-	} {
-		if _, err := newAuthz(args[0], args[1], args[2]); err == nil {
-			t.Errorf("%s: want error", name)
-		}
-	}
-}
-
-const testTenant = "62366534-1ec3-4962-8869-9b5535279d0b"
-
-// Person routes take member accounts of the home tenant only. A claim that is
-// missing or unexpected is refused like a guest.
-func TestUserRefusesGuests(t *testing.T) {
-	a := testAuthz(t)
-	tok := func(extra string) string {
-		return `claims:{"azp":"` + adminID + `","NAVident":"A111111","preferred_username":"kari.nordmann@example.com"` + extra + `}`
-	}
-	cases := map[string]struct {
-		tok string
-		ok  bool
-	}{
-		"member, acct 0":        {tok(`,"acct":0,"tid":"` + testTenant + `"`), true},
-		"member, no acct":       {tok(`,"tid":"` + testTenant + `"`), true},
-		"member, idtyp user":    {tok(`,"idtyp":"user","tid":"` + testTenant + `"`), true},
-		"guest, acct 1":         {tok(`,"acct":1,"tid":"` + testTenant + `"`), false},
-		"acct unexpected":       {tok(`,"acct":2,"tid":"` + testTenant + `"`), false},
-		"no acct, no tid":       {tok(``), false},
-		"no acct, other tenant": {tok(`,"tid":"00000000-0000-4000-8000-000000000001"`), false},
-		"idtyp unexpected":      {tok(`,"idtyp":"device","tid":"` + testTenant + `"`), false},
-		"no acct, #EXT# upn":    {`claims:{"azp":"` + adminID + `","NAVident":"A111111","tid":"` + testTenant + `","preferred_username":"kari_example.com#ext#@nav.onmicrosoft.com"}`, false},
-	}
-	for name, c := range cases {
-		_, _, err := a.user(context.Background(), "Bearer "+c.tok, adminID)
-		if (err == nil) != c.ok {
-			t.Errorf("%s: err %v, want ok=%v", name, err, c.ok)
-		}
-	}
-	a.homeTenant = ""
-	if _, _, err := a.user(context.Background(), "Bearer "+tok(`,"tid":"`+testTenant+`"`), adminID); err == nil {
-		t.Error("no home tenant configured: want refusal")
-	}
-}
-
-func TestClientIDFromEnv(t *testing.T) {
-	t.Setenv("NAIS_CLUSTER_NAME", "prod-gcp")
-	t.Setenv("FLEET_GATEWAY_CLIENT_ID", "explicit")
-	t.Setenv("AZURE_APP_PRE_AUTHORIZED_APPS", `[{"name":"dev-gcp:copilot:fleet-gateway","clientId":"wrong-cluster"},{"name":"prod-gcp:other:fleet-gateway","clientId":"wrong-ns"},{"name":"prod-gcp:copilot:fleet-gateway","clientId":"injected"}]`)
-	if id, err := clientIDFromEnv("FLEET_GATEWAY_CLIENT_ID", "fleet-gateway"); err != nil || id != "injected" {
-		t.Fatalf("got %q, %v; want injected", id, err)
-	}
-	// Not pre-authorized: explicit var.
-	t.Setenv("MCP_REGISTRY_CLIENT_ID", "explicit-reg")
-	if id, _ := clientIDFromEnv("MCP_REGISTRY_CLIENT_ID", "mcp-registry"); id != "explicit-reg" {
-		t.Fatalf("got %q, want explicit-reg", id)
-	}
-	// Missing from both: empty, which newAuthz refuses.
-	t.Setenv("MCP_REGISTRY_CLIENT_ID", "")
-	if id, _ := clientIDFromEnv("MCP_REGISTRY_CLIENT_ID", "mcp-registry"); id != "" {
-		t.Fatalf("got %q, want empty", id)
-	}
-	t.Setenv("AZURE_APP_PRE_AUTHORIZED_APPS", "{not json")
-	if _, err := clientIDFromEnv("FLEET_GATEWAY_CLIENT_ID", "fleet-gateway"); err == nil {
-		t.Fatal("bad JSON: want error")
 	}
 }
