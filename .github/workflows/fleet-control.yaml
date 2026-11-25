@@ -86,5 +86,5 @@ jobs:
         with:
           experimental: true
           working_directory: apps/fleet-control
-      # -p 1: the main and store packages share one database and its roles.
+      # -p 1: the api and store packages share one database and its roles.
       - run: go test -count=1 -p 1 -v ./...
