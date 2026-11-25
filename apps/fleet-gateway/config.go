@@ -82,16 +82,18 @@ type TeamTokenSource interface {
 
 // Config holds validated runtime configuration for fleet-gateway.
 type Config struct {
-	Port                    string
-	LogLevel                slog.Level
-	BaseURL                 string
-	AllowedClientIDs        map[string]bool
-	AllowedRedirectURIs     map[string]bool
-	AllowedResources        map[string]bool
-	PrimaryResource         string
-	Routes                  []routing.Route
-	RoutesByPath            map[string]routing.Route
-	GatewayDisabled         bool
+	Port                string
+	LogLevel            slog.Level
+	BaseURL             string
+	AllowedClientIDs    map[string]bool
+	AllowedRedirectURIs map[string]bool
+	AllowedResources    map[string]bool
+	PrimaryResource     string
+	Routes              []routing.Route
+	RoutesByPath        map[string]routing.Route
+	GatewayDisabled     bool
+	// RiskEnforcement is report (default: count would_deny, refuse nothing) or enforce (#2964).
+	RiskEnforcement         string
 	TeamTokenStrategy       string
 	TexasExchangeEndpoint   string
 	TexasIntrospectEndpoint string // validates the Entra access token at login for NAVident (#2594)
@@ -227,6 +229,7 @@ func loadConfigFromEnv() (*Config, error) {
 		TexasIntrospectEndpoint: strings.TrimSpace(os.Getenv("NAIS_TOKEN_INTROSPECTION_ENDPOINT")),
 		IdentitySource:          strings.TrimSpace(os.Getenv("IDENTITY_SOURCE")),
 		RoutesSource:            strings.TrimSpace(os.Getenv("ROUTES_SOURCE")),
+		RiskEnforcement:         strings.ToLower(strings.TrimSpace(os.Getenv("RISK_ENFORCEMENT"))),
 		RoutesShadowSource:      strings.TrimSpace(os.Getenv("ROUTES_SHADOW_SOURCE")),
 		FleetControlURL:         strings.TrimRight(strings.TrimSpace(os.Getenv("FLEET_CONTROL_URL")), "/"),
 		FleetControlAudience:    strings.TrimSpace(os.Getenv("FLEET_CONTROL_AUDIENCE")),
@@ -312,6 +315,13 @@ func validateConfig(cfg *Config) error {
 		return err
 	}
 	cfg.Routes = validatedRoutes
+	switch cfg.RiskEnforcement {
+	case "":
+		cfg.RiskEnforcement = "report"
+	case "report", "enforce":
+	default:
+		return fmt.Errorf("unsupported RISK_ENFORCEMENT %q (report or enforce)", cfg.RiskEnforcement)
+	}
 	switch cfg.RoutesSource {
 	case "", routesSourceGit:
 		cfg.RoutesSource = routesSourceGit

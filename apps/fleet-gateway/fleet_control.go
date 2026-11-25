@@ -65,6 +65,9 @@ type routesSnapshot struct {
 		UpstreamURL string   `json:"upstream_url"`
 		Enabled     bool     `json:"enabled"`
 		Tools       []string `json:"tools"`
+		// toolRisk is decoded apart (decodeToolRisk) so the routes hash, and
+		// with it every stored snapshot, stays as before #2964.
+		toolRisk map[string]string
 	} `json:"routes"`
 }
 
@@ -187,6 +190,7 @@ func (f *fleetControlRoutes) parseSnapshot(raw []byte, current *routing.Table, c
 		return snap, nil, hash, err
 	}
 	hash = sha256.Sum256(routesJSON)
+	decodeToolRisk(raw, &snap)
 	routes, err := snapshotRoutes(snap)
 	if err != nil {
 		return snap, nil, hash, err
@@ -369,7 +373,7 @@ func snapshotRoutes(snap routesSnapshot) ([]routing.Route, error) {
 			return nil, fmt.Errorf("route %q does not match %s/%s", r.Path, r.Namespace, r.Name)
 		}
 		enabled := r.Enabled
-		pr := routing.Route{Route: r.Path, Team: r.Namespace, Target: r.Target, UpstreamURL: r.UpstreamURL, Enabled: &enabled, Tools: r.Tools}
+		pr := routing.Route{Route: r.Path, Team: r.Namespace, Target: r.Target, UpstreamURL: r.UpstreamURL, Enabled: &enabled, Tools: r.Tools, ToolRisk: r.toolRisk}
 		// Same rules as the Git file; passAllTools is operator-only and never comes from fleet-control.
 		if err := routing.ApplyToolPolicy(&pr); err != nil {
 			return nil, err
@@ -377,4 +381,32 @@ func snapshotRoutes(snap routesSnapshot) ([]routing.Route, error) {
 		routes = append(routes, pr)
 	}
 	return routing.Validate(routes) // rejects an empty list
+}
+
+// decodeToolRisk reads each route's tool_risk leniently (#2964): a missing or
+// malformed map, or a non-string value, leaves the tool unknown, which counts
+// as write. It never rejects a snapshot.
+func decodeToolRisk(raw []byte, snap *routesSnapshot) {
+	var doc struct {
+		Routes []json.RawMessage `json:"routes"`
+	}
+	if json.Unmarshal(raw, &doc) != nil || len(doc.Routes) != len(snap.Routes) {
+		return
+	}
+	for i, route := range doc.Routes {
+		var r struct {
+			ToolRisk map[string]any `json:"tool_risk"`
+		}
+		if json.Unmarshal(route, &r) != nil {
+			continue
+		}
+		for tool, v := range r.ToolRisk {
+			if s, ok := v.(string); ok {
+				if snap.Routes[i].toolRisk == nil {
+					snap.Routes[i].toolRisk = map[string]string{}
+				}
+				snap.Routes[i].toolRisk[tool] = s
+			}
+		}
+	}
 }

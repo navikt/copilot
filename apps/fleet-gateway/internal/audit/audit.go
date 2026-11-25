@@ -34,6 +34,8 @@ type MCP struct {
 	DurationMS      int64
 	Decision        string // "allow", "deny" or "" when stopped before the policy
 	DecisionReason  string
+	// Risk and RiskDecision are set on tools/call: the tool's risk and allow or would_deny (#2964).
+	Risk, RiskDecision string
 }
 
 // LogMCP emits the `audit mcp` line.
@@ -73,7 +75,7 @@ func LogMCP(m MCP) {
 	slog.Info("audit mcp", append(attrs,
 		slog.Group("action",
 			"name", Sanitize(m.Method),
-			slog.Group("properties", "tool", Sanitize(m.Tool)),
+			slog.Group("properties", actionProps(m)...),
 		),
 		slog.Group("resource",
 			"type", "mcp_route",
@@ -121,4 +123,13 @@ func LogLockout(e LockoutEntry) {
 		"operator", Sanitize(e.Operator),
 		"at", e.At,
 	)
+}
+
+// actionProps adds risk only on a risk-checked tools/call, so other records keep their shape.
+func actionProps(m MCP) []any {
+	props := []any{"tool", Sanitize(m.Tool)}
+	if m.RiskDecision != "" {
+		props = append(props, "risk", m.Risk, "risk_decision", m.RiskDecision)
+	}
+	return props
 }

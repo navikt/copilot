@@ -118,6 +118,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 		rawTool := ""
 		decision := ""
 		decisionReason := ""
+		risk, riskDecision := "", ""
 		headerMismatch := false
 		scanIncomplete := false
 
@@ -139,6 +140,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 				HasMcpName:      r.Header.Get("Mcp-Name") != "",
 				Outcome:         outcome, DurationMS: g.now().Sub(start).Milliseconds(),
 				Decision: decision, DecisionReason: decisionReason,
+				Risk: risk, RiskDecision: riskDecision,
 			})
 		}()
 
@@ -363,6 +365,21 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 			outcome = "tool_denied"
 			writeToolDenied(w, pd.Reason)
 			return
+		}
+
+		// Tool risk at tools/call (#2964). A batch with a call counts as write.
+		if pd.RawTool != "" || (pd.Method == "batch" && pd.Tool != "") {
+			// TODO(#2964): the gateway does not identify agent profiles yet, so
+			// every caller is a logged-in human and nothing would be refused.
+			rc := policy.Caller{}
+			r, rd, refuse := policy.CheckRisk(route.ToolRisk, pd.RawTool, rc, g.cfg.RiskEnforcement == "enforce")
+			risk, riskDecision = r.String(), rd
+			metrics.ObserveRiskDecision(route, pd.RawTool, r, rc.Kind(), rd)
+			if refuse {
+				outcome, decision, decisionReason = "tool_denied", "deny", policy.ReasonRisk
+				writeRiskDenied(w, pd.RawTool, r)
+				return
+			}
 		}
 
 		// Reserve the SSE slot before the upstream call: a 503 after the tool
@@ -827,6 +844,19 @@ func writeToolDenied(w http.ResponseWriter, reason string) {
 		"jsonrpc": "2.0",
 		"id":      nil,
 		"error":   map[string]any{"code": code, "message": msg},
+	})
+}
+
+// writeRiskDenied refuses a tool above the caller's max_risk.
+func writeRiskDenied(w http.ResponseWriter, tool string, r policy.Risk) {
+	msg := fmt.Sprintf("tool %q has risk %s, above what this caller may use", tool, r)
+	if tool == "" {
+		msg = fmt.Sprintf("batch has risk %s, above what this caller may use", r)
+	}
+	httpx.WriteJSON(w, http.StatusForbidden, map[string]any{
+		"jsonrpc": "2.0",
+		"id":      nil,
+		"error":   map[string]any{"code": -32602, "message": msg},
 	})
 }
 
