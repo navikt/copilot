@@ -129,6 +129,15 @@ func setupDB(ctx context.Context) (*DB, error) {
 	} else if n > 0 {
 		slog.Info("backfilled v1alpha1 specs", "versions", n)
 	}
+	entraIssuer = strings.TrimSpace(os.Getenv("AZURE_OPENID_CONFIG_ISSUER"))
+	if entraIssuer == "" {
+		slog.Warn("AZURE_OPENID_CONFIG_ISSUER is not set; agent profiles and delegated jobs are refused")
+	}
+	if n, err := owner.BackfillIdentity(ctx, entraIssuer); err != nil {
+		return nil, fmt.Errorf("backfill identity: %w", err)
+	} else if n > 0 {
+		slog.Info("backfilled issuer and subject", "rows", n)
+	}
 	if err := seedAgentsFromEnv(ctx, owner); err != nil {
 		return nil, err
 	}

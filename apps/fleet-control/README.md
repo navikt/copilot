@@ -144,16 +144,17 @@ Migrations run at startup under an advisory lock (`db.go`). During a rolling dep
 
 Existing migrations, checked against the rule (#2761):
 
-| Migration     | Verdict                                                                                                                                                                    |
-| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 001, 003, 004 | New tables only                                                                                                                                                            |
-| 002           | Drops `NOT NULL` and widens the status check (loosening). Adds `servers_published_status`, which old code already satisfied                                                |
-| 005           | Additive; new columns nullable or defaulted                                                                                                                                |
-| 006           | Revokes rights from the runtime role on `audit_events`. Old code never updated or deleted audit rows                                                                       |
-| 007           | Defaulted columns; replaces the `(team, name)` unique index with a wider one (loosening)                                                                                   |
-| 008           | New unique index on `lower(registry_name)`. Tightening: an old image that writes a case-only duplicate now gets an error instead of a second row. Intended (#2853)         |
-| 010           | Adds `runtime_kill_switches.set_by_operator` with a default. An old image ignores it, so it can clear an operator-set switch (#2854)                                       |
-| 011           | **Destructive, the approved exception (#2895).** Drops `agent_profiles`, `agent_profile_approvals` and `server_versions.content_hash` in one release, before prod has data |
+| Migration     | Verdict                                                                                                                                                                                                                                                              |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 001, 003, 004 | New tables only                                                                                                                                                                                                                                                      |
+| 002           | Drops `NOT NULL` and widens the status check (loosening). Adds `servers_published_status`, which old code already satisfied                                                                                                                                          |
+| 005           | Additive; new columns nullable or defaulted                                                                                                                                                                                                                          |
+| 006           | Revokes rights from the runtime role on `audit_events`. Old code never updated or deleted audit rows                                                                                                                                                                 |
+| 007           | Defaulted columns; replaces the `(team, name)` unique index with a wider one (loosening)                                                                                                                                                                             |
+| 008           | New unique index on `lower(registry_name)`. Tightening: an old image that writes a case-only duplicate now gets an error instead of a second row. Intended (#2853)                                                                                                   |
+| 010           | Adds `runtime_kill_switches.set_by_operator` with a default. An old image ignores it, so it can clear an operator-set switch (#2854)                                                                                                                                 |
+| 011           | **Destructive, the approved exception (#2895).** Drops `agent_profiles`, `agent_profile_approvals` and `server_versions.content_hash` in one release, before prod has data                                                                                           |
+| 012           | Nullable columns `identity_issuer`/`identity_subject` and `orderer_issuer`/`orderer_client`/`orderer_sub`, filled on each start from `AZURE_OPENID_CONFIG_ISSUER` (#2896); drops `NOT NULL` on `entra_client_id` (loosening). Checks old rows and old images satisfy |
 
 ### Rollback after 011
 

@@ -8,6 +8,8 @@ import (
 	"testing"
 )
 
+const testIssuer = "https://login.microsoftonline.com/test-tenant/v2.0"
+
 // openTestDB connects to TEST_DATABASE_URL on a clean schema. Skips when unset.
 func openTestDB(t *testing.T) *DB {
 	t.Helper()
@@ -24,6 +26,7 @@ func openTestDB(t *testing.T) *DB {
 		t.Fatal(err)
 	}
 	t.Cleanup(db.Close)
+	entraIssuer = testIssuer
 	if _, err := db.pool.Exec(ctx, "DROP SCHEMA public CASCADE; CREATE SCHEMA public"); err != nil {
 		t.Fatal(err)
 	}
