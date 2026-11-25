@@ -3,6 +3,7 @@
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "io.github.nais/nais-mcp",
+      "owner": "nais",
       "title": "Nais",
       "description": "Les kontekst fra Nais-plattformen via Nais CLI på maskinen din, kjørt av cplt.",
       "version": "6.6.1",
@@ -39,6 +40,7 @@
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "io.github.navikt/github-mcp",
+      "owner": "copilot",
       "title": "GitHub",
       "description": "Bruk repoer, issues og pull requests på GitHub via et sikkert API.",
       "version": "1.0.0",
@@ -83,6 +85,7 @@
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "io.github.navikt/mcp-onboarding",
+      "owner": "copilot",
       "title": "Nav onboarding",
       "description": "Finn Copilot-tilpasninger fra Nav, vurder om repoene er klare for agenter og lag AGENTS.md for dem.",
       "version": "1.0.0",
@@ -120,6 +123,7 @@
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "io.github.navikt/kodeverk",
+      "owner": "copilot",
       "title": "Felles kodeverk",
       "description": "Navs felles kodeverk (referansedata, kun lesing) via gatewayen med Nav-innlogging.",
       "version": "1.0.0",
@@ -144,6 +148,7 @@
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "io.github.navikt/dolly",
+      "owner": "copilot",
       "title": "Dolly",
       "description": "Søk etter og bestill syntetiske testpersoner, grupper og bestillinger i Dolly, med Nav-innlogging.",
       "version": "1.0.0",
@@ -169,6 +174,7 @@
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "io.github.navikt/team-catalog",
+      "owner": "copilot",
       "title": "Teamkatalogen",
       "description": "Slå opp Nav-team, produktområder og klynger i Teamkatalogen (kun lesing), med Nav-innlogging.",
       "version": "1.0.0",
@@ -193,6 +199,7 @@
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "io.github.navikt/aksel-mcp",
+      "owner": "designsystem",
       "title": "Aksel",
       "description": "Kontekst fra designsystemet Aksel for frontendutvikling og dokumentasjon.",
       "version": "1.0.0",
@@ -234,6 +241,7 @@
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "com.figma/figma-mcp",
+      "owner": "copilot",
       "title": "Figma",
       "description": "Hent designkontekst fra Figma inn i kodingen og lag kode fra design.",
       "version": "1.0.0",
@@ -275,6 +283,7 @@
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "com.vercel/next-devtools-mcp",
+      "owner": "copilot",
       "title": "Next.js DevTools",
       "description": "Diagnostikk, dokumentasjon og oppgraderingsverktøy fra utviklingsserveren til Next.js.",
       "version": "0.3.10",
@@ -315,6 +324,7 @@
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "dev.svelte/svelte-mcp",
+      "owner": "copilot",
       "title": "Svelte",
       "description": "Søk i dokumentasjonen for Svelte 5 og SvelteKit, med statisk kodeanalyse.",
       "version": "0.1.20",
@@ -354,6 +364,7 @@
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "com.microsoft/playwright-mcp",
+      "owner": "copilot",
       "title": "Playwright",
       "description": "Nettleserautomatisering for testing av brukergrensesnitt og feilsøking, med nettverkskontroll.",
       "version": "0.0.80",
@@ -457,6 +468,7 @@
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "build.astro.docs/astro-docs-mcp",
+      "owner": "copilot",
       "title": "Astro Docs",
       "description": "Søk i den offentlige dokumentasjonen for Astro.",
       "version": "1.0.0",
@@ -485,6 +497,7 @@
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "com.google/chrome-devtools-mcp",
+      "owner": "copilot",
       "title": "Chrome DevTools",
       "description": "Undersøk ytelse, nettverk og konsoll i en isolert Chrome via DevTools.",
       "version": "1.10.1",
@@ -524,6 +537,7 @@
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "com.jetbrains/intellij",
+      "owner": "copilot",
       "title": "IntelliJ",
       "description": "Bruk kodeintelligens, inspeksjoner og refaktorering fra IntelliJ via MCP.",
       "version": "2026.2.1",
@@ -557,6 +571,7 @@
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "no.nav.aksel/aksel-arcade",
+      "owner": "designsystem",
       "title": "Aksel Arcade",
       "description": "Lokal MCP innebygd i Aksel Arcade for redigering av JSX, hooks og sider.",
       "version": "1.0.0",
@@ -586,6 +601,7 @@
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "io.aha/aha-mcp",
+      "owner": "holmes",
       "title": "Aha!",
       "description": "Les og oppdater veikart, funksjoner og ideer i Navs Aha!-konto (Team Holmes).",
       "version": "1.0.0",

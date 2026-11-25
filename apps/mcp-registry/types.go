@@ -205,9 +205,11 @@ type StaticServerData struct {
 	ToolRisk          map[string]string  `json:"toolRisk,omitempty"`
 	Audience          *Audience          `json:"audience,omitempty"`
 	ProtocolVersions  []string           `json:"protocolVersions,omitempty"`
-	Remotes           []Transport        `json:"remotes,omitempty"`
-	Packages          []Package          `json:"packages,omitempty"`
-	Meta              *ServerMeta        `json:"_meta,omitempty"`
+	// Owner is the Nais team that answers for the catalogue entry.
+	Owner    string      `json:"owner,omitempty"`
+	Remotes  []Transport `json:"remotes,omitempty"`
+	Packages []Package   `json:"packages,omitempty"`
+	Meta     *ServerMeta `json:"_meta,omitempty"`
 }
 
 type StaticRegistryData struct {

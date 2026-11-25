@@ -225,7 +225,9 @@ func validateUpstreamURL(raw, ns string) error {
 
 // parseAllowlist reads apps/mcp-registry/allowlist.json. Entries stay as the
 // public JSON they are today, except that remotes on internal hosts other than
-// fleet-gateway are dropped (owner decision on #2334).
+// fleet-gateway are dropped (owner decision on #2334). Entries without a
+// fleet-gateway remote are skipped: they live only in the catalogue
+// (owner decision 2026-11-25).
 func parseAllowlist(raw []byte) ([]Server, error) {
 	var doc struct {
 		Servers []json.RawMessage `json:"servers"`
@@ -241,6 +243,9 @@ func parseAllowlist(raw []byte) ([]Server, error) {
 		s, err := parseRegistryEntry(rawEntry)
 		if err != nil {
 			return nil, fmt.Errorf("allowlist server[%d]: %w", i, err)
+		}
+		if s.gatewayPath == "" {
+			continue
 		}
 		out = append(out, s)
 	}
