@@ -488,8 +488,6 @@ func toolErrorResult(msg string) *mcpkit.CallToolResult {
 	return res
 }
 
-// --- Argument parsing & validation ---
-
 func decodeArgMap(raw json.RawMessage, allowed map[string]bool) (map[string]json.RawMessage, *mcpWireError) {
 	trimmed := bytes.TrimSpace(raw)
 	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
@@ -912,8 +910,6 @@ func parseSearchArgs(raw json.RawMessage) (searchArgs, *mcpWireError) {
 	return out, nil
 }
 
-// --- Filtering, pagination, and 32 KiB size capping ---
-
 func filterAndPaginateStrings(items []string, filter string, limit, offset int) (page []string, total int) {
 	sorted := make([]string, len(items))
 	copy(sorted, items)
@@ -975,7 +971,6 @@ func fitCappedJSON(totalItems int, alreadyTruncated bool, render func(n int, tru
 	if bestBytes != nil {
 		return string(bestBytes), nil
 	}
-	// Fallback: zero items with truncated=true.
 	_ = bestN
 	fallback, err := json.Marshal(render(0, true))
 	if err != nil {

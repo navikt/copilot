@@ -602,8 +602,6 @@ func toolErrorResult(msg string) map[string]any {
 	}
 }
 
-// --- Argument parsing & validation ---
-
 func decodeArgMap(raw json.RawMessage, allowed map[string]bool) (map[string]json.RawMessage, *mcpRPCError) {
 	trimmed := bytes.TrimSpace(raw)
 	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
@@ -1037,8 +1035,6 @@ func parseNaisTeamArgs(raw json.RawMessage) (naisTeamArgs, *mcpRPCError) {
 	return out, nil
 }
 
-// --- PII Projection & Output Builders ---
-
 // personRole is the only person representation exposed by this server.
 // Email, leave status, employment dates, stale flags, resource types,
 // teamPercent, and NAVidents are never projected.
@@ -1244,8 +1240,6 @@ func findMemberInList(members []upstreamMember, navIdent string) (name string, r
 	}
 	return "", []string{}
 }
-
-// --- Pagination and 32 KiB size capping ---
 
 func serializedToolResultLen(text string) (int, error) {
 	b, err := json.Marshal(toolResult(text))

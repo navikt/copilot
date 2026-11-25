@@ -20,7 +20,6 @@ var (
 	validateHTTPURL        = mcpkit.ValidateHTTPURL
 	extractGatewayClientID = mcpkit.GatewayClientID
 	extractBearerToken     = mcpkit.BearerToken
-	readLimitedBody        = mcpkit.ReadLimited
 )
 
 // texas reads s.cfg on each call, so a config change is seen at once.
