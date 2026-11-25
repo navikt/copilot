@@ -1,0 +1,108 @@
+package storage
+
+import (
+	"context"
+	"embed"
+	"fmt"
+	"log/slog"
+	"strings"
+)
+
+//go:embed views/*.sql
+var viewsFS embed.FS
+
+type viewDefinition struct {
+	name     string
+	filename string
+}
+
+var views = []viewDefinition{
+	{name: "v_daily_summary", filename: "views/v_daily_summary.sql"},
+	{name: "v_language_stats", filename: "views/v_language_stats.sql"},
+	{name: "v_editor_stats", filename: "views/v_editor_stats.sql"},
+	{name: "v_client_stats", filename: "views/v_client_stats.sql"},
+	{name: "v_model_stats", filename: "views/v_model_stats.sql"},
+	{name: "v_code_generation", filename: "views/v_code_generation.sql"},
+	{name: "v_team_daily_summary", filename: "views/v_team_daily_summary.sql"},
+	{name: "v_adoption_cohorts", filename: "views/v_adoption_cohorts.sql"},
+	{name: "v_user_credits_summary", filename: "views/v_user_credits_summary.sql"},
+	{name: "v_billing_monthly_trend", filename: "views/v_billing_monthly_trend.sql"},
+	{name: "v_billing_model_breakdown", filename: "views/v_billing_model_breakdown.sql"},
+	{name: "v_user_budget_trend", filename: "views/v_user_budget_trend.sql"},
+	{name: "v_repository_usage", filename: "views/v_repository_usage.sql"},
+	{name: "v_seat_counts_monthly", filename: "views/v_seat_counts_monthly.sql"},
+}
+
+// EnsureViewsExist creates or replaces every view. A failing view no longer
+// blocks the ones after it — views are independent, and aborting on the first
+// error means a single bad definition silently leaves later views missing.
+func (c *BigQueryClient) EnsureViewsExist(ctx context.Context) error {
+	var failed []string
+	for _, v := range views {
+		if err := c.createOrReplaceView(ctx, v); err != nil {
+			slog.Error("Failed to create view", "view", v.name, "error", err)
+			failed = append(failed, v.name)
+		}
+	}
+	if len(failed) > 0 {
+		return fmt.Errorf("failed to create %d view(s): %s", len(failed), strings.Join(failed, ", "))
+	}
+	return nil
+}
+
+func (c *BigQueryClient) createOrReplaceView(ctx context.Context, v viewDefinition) error {
+	template, err := viewsFS.ReadFile(v.filename)
+	if err != nil {
+		return fmt.Errorf("failed to read view template %s: %w", v.filename, err)
+	}
+
+	sql := string(template)
+
+	// Replace table reference placeholders: %s.%s.%s → projectID.dataset.table
+	tableRef := fmt.Sprintf("`%s.%s.%s`", c.projectID, c.dataset, c.table)
+	// Replace view reference placeholders: %s.%s.viewname → projectID.dataset.viewname
+	viewRef := fmt.Sprintf("`%s.%s.%s`", c.projectID, c.dataset, v.name)
+
+	// The SQL templates use %s.%s.%s for the source table and %s.%s.viewname for the view
+	// First occurrence is the view name in CREATE OR REPLACE VIEW, rest are source table references
+	parts := strings.SplitN(sql, fmt.Sprintf("`%%s.%%s.%s`", v.name), 2)
+	if len(parts) == 2 {
+		sql = parts[0] + viewRef + parts[1]
+	}
+
+	// Replace remaining %s.%s.%s patterns for source table
+	sql = strings.ReplaceAll(sql, "`%s.%s.%s`", tableRef)
+
+	userTeamsRef := fmt.Sprintf("`%s.%s.%s`", c.projectID, c.dataset, c.userTeamsTable)
+	userMetricsRef := fmt.Sprintf("`%s.%s.%s`", c.projectID, c.dataset, c.userMetricsTable)
+	billingUsageRef := fmt.Sprintf("`%s.%s.%s`", c.projectID, c.dataset, billingUsageTable)
+	billingUsageDailyModelRef := fmt.Sprintf("`%s.%s.%s`", c.projectID, c.dataset, billingUsageDailyModelTable)
+	userBudgetSnapshotsRef := fmt.Sprintf("`%s.%s.%s`", c.projectID, c.dataset, userBudgetSnapshotsTable)
+	repoMetricsRef := fmt.Sprintf("`%s.%s.%s`", c.projectID, c.dataset, c.repoMetricsTable)
+	sql = strings.ReplaceAll(sql, "{{user_teams}}", userTeamsRef)
+	sql = strings.ReplaceAll(sql, "{{user_metrics}}", userMetricsRef)
+	sql = strings.ReplaceAll(sql, "{{repository_metrics}}", repoMetricsRef)
+	sql = strings.ReplaceAll(sql, "{{billing_usage_daily_model}}", billingUsageDailyModelRef)
+	sql = strings.ReplaceAll(sql, "{{billing_usage}}", billingUsageRef)
+	sql = strings.ReplaceAll(sql, "{{user_budget_snapshots}}", userBudgetSnapshotsRef)
+	sql = strings.ReplaceAll(sql, "{{seat_counts}}", fmt.Sprintf("`%s.%s.%s`", c.projectID, c.dataset, seatCountsTable))
+
+	slog.Info("Creating/updating view", "view", v.name)
+
+	query := c.Client.Query(sql)
+	job, err := query.Run(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to run view creation: %w", err)
+	}
+
+	status, err := job.Wait(ctx)
+	if err != nil {
+		return fmt.Errorf("view creation job failed: %w", err)
+	}
+	if status.Err() != nil {
+		return fmt.Errorf("view creation query failed: %w", status.Err())
+	}
+
+	slog.Info("View ready", "view", v.name)
+	return nil
+}
