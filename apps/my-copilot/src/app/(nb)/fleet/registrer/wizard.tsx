@@ -92,7 +92,11 @@ export function RegisterWizard({ teams, team, apps, requireRos, discoveryEnabled
   const [newTool, setNewTool] = useState("");
   const [submit, setSubmit] = useState<{ busy?: boolean; error?: string; detail?: string }>({});
   const opts = { requireRos };
-  const set = (patch: Partial<WizardState>) => setS((p) => ({ ...p, ...patch }));
+  // A changed field drops its own error; the others stay until the next «Neste».
+  const set = (patch: Partial<WizardState>) => {
+    setS((p) => ({ ...p, ...patch }));
+    setErrors((e) => Object.fromEntries(Object.entries(e).filter(([k]) => !(k in patch))));
+  };
   const setTool = (name: string, patch: Partial<WizardTool>) =>
     setS((p) => ({ ...p, tools: p.tools.map((t) => (t.name === name ? { ...t, ...patch } : t)) }));
 
@@ -577,7 +581,8 @@ function DiscoveryResult({ discovery: d, app }: { discovery: Discovery; app: str
       <VStack gap="space-12">
         <BodyLong>{d.message}</BodyLong>
         <BodyLong>
-          Legg dette til i <code>nais.yaml</code> for {app ? <code>{app}</code> : "appen"}, deploy og prøv igjen:
+          Legg dette til i <code>nais.yaml</code> for {app ? <code>{app}</code> : "appen"}, deploy på nytt og prøv
+          igjen:
         </BodyLong>
         <Box background="neutral-soft" padding="space-12" borderRadius="8">
           <HStack gap="space-8" justify="space-between" align="start" wrap={false}>

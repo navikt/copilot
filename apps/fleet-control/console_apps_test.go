@@ -99,3 +99,29 @@ func TestListTeamApps(t *testing.T) {
 		t.Fatalf("no Console must be 503, got %v", err)
 	}
 }
+
+// A Console failure is logged, never answered: the 503 body holds only the generic message.
+func TestListTeamAppsHidesConsoleError(t *testing.T) {
+	const secret = "kari.nordmann@nav.no is not allowed"
+	for name, ts := range map[string]*httptest.Server{
+		"graphql error": fakeConsoleApps(t, `{"errors":[{"message":"`+secret+`"}],"data":null}`),
+		"http error": httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			http.Error(w, secret, http.StatusBadGateway)
+		})),
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Cleanup(ts.Close)
+			r := httptest.NewRequest("GET", nsBase+"team-a/apps", nil)
+			r.SetPathValue("namespace", "team-a")
+			w := httptest.NewRecorder()
+			err := listTeamApps(newConsoleTeams(ts.URL, tokenFile(t)))(w, r, caller{Teams: []string{"team-a"}}, nil)
+			if err == nil {
+				t.Fatal("want error")
+			}
+			writeStatus(w, r, "", err)
+			if w.Code != http.StatusServiceUnavailable || strings.Contains(w.Body.String(), "kari") || strings.Contains(w.Body.String(), "allowed") {
+				t.Fatalf("%d %s", w.Code, w.Body.String())
+			}
+		})
+	}
+}

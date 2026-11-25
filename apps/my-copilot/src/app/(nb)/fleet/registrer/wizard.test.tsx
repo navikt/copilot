@@ -114,6 +114,8 @@ describe("RegisterWizard", () => {
     expect(screen.getByRole("radio", { name: "Leser" })).not.toBeChecked();
     next();
     expect(screen.getByText("Velg hva verktøyene gjør som standard.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("radio", { name: "Leser" }));
+    expect(screen.queryByText("Velg hva verktøyene gjør som standard.")).toBeNull();
   });
 
   it("needs a ROS for write tools in prod", async () => {
