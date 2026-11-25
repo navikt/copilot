@@ -26,6 +26,13 @@ type MCPServerSpec struct {
 	Readme string `json:"readme,omitempty"`
 	// Tools describes allowed tools for people. Optional per tool.
 	Tools []ToolDoc `json:"tools,omitempty"`
+	// ToolRisk classes allowed tools as Read or Write (#2903). A tool
+	// without an entry is Write. Empty fields are omitted, so specs from
+	// before #2903 keep their contentHash.
+	ToolRisk map[string]string `json:"toolRisk,omitempty"`
+	// RosRef points to the risk assessment (ROS). Required in prod when any
+	// allowed tool is Write.
+	RosRef string `json:"rosRef,omitempty"`
 	// Authorization is reserved (owner decision 2) and refused with 422.
 	Authorization json.RawMessage `json:"authorization,omitempty"`
 }
@@ -43,6 +50,7 @@ const (
 	// maxServerTools bounds allowedTools and so tools: 256 x 1 KiB keeps a
 	// spec well under 1 MiB, and real MCP servers list tens of tools.
 	maxServerTools = 256
+	maxRosRefBytes = 512
 )
 
 type Upstream struct {
@@ -126,6 +134,21 @@ func validateServerSpec(cluster, platform, ns, name string, spec MCPServerSpec) 
 	if len(spec.Tools) == 0 {
 		spec.Tools = nil
 	}
+	for t, risk := range spec.ToolRisk {
+		if !allowed[t] || (risk != "read" && risk != "write") {
+			return spec, Server{}, invalid("spec.toolRisk", "%q: tool must be in allowedTools and risk read or write", t)
+		}
+	}
+	if len(spec.ToolRisk) == 0 {
+		spec.ToolRisk = nil
+	}
+	if spec.RosRef != strings.TrimSpace(spec.RosRef) || len(spec.RosRef) > maxRosRefBytes {
+		return spec, Server{}, invalid("spec.rosRef", "spec.rosRef has no surrounding spaces and is at most %d bytes", maxRosRefBytes)
+	}
+	// Outside dev-* (an unset cluster included) write tools need a ROS.
+	if !devCluster(cluster) && spec.RosRef == "" && slices.ContainsFunc(spec.AllowedTools, func(t string) bool { return spec.ToolRisk[t] != "read" }) {
+		return spec, Server{}, invalid("spec.rosRef", "MCP-serveren har skriveverktøy, og i prod krever det en ROS. Legg til spec.rosRef med lenke til ROS-en, eller sett spec.toolRisk til read for verktøy som bare leser.")
+	}
 	var draft draftSpec
 	draft.Registry = spec.Registry
 	if u := spec.Upstream; u != nil {
@@ -151,6 +174,9 @@ func validateServerSpec(cluster, platform, ns, name string, spec MCPServerSpec) 
 	}
 	if sv.RegistryName != "" && !registryNameAllowed(platform, ns, sv.RegistryName) {
 		return spec, Server{}, invalid("spec.registry.name", "%q is not yours: team %s may use no.nav.%s/<name> or io.github.navikt/%s; other names are registered by the platform team", sv.RegistryName, ns, ns, ns)
+	}
+	if sv.Route != nil {
+		sv.Route.ToolRisk = spec.ToolRisk
 	}
 	return spec, sv, nil
 }

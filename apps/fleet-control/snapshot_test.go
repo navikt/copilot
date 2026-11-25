@@ -335,3 +335,20 @@ func TestRoutesSnapshotHasClusterAndDataClass(t *testing.T) {
 		t.Errorf("revoked legacy route: %v", rows[1])
 	}
 }
+
+// #2903: the routes snapshot carries toolRisk for the gateway, but not for
+// a revoked route, which is disabled.
+func TestRoutesSnapshotCarriesToolRisk(t *testing.T) {
+	route := func() *Route {
+		return &Route{Path: "/mcp/a/s", Target: "dev-gcp:a:s", UpstreamURL: "http://s.a", Enabled: true, Tools: []string{"x", "y"}, ToolRisk: map[string]string{"x": "read"}}
+	}
+	for status, want := range map[string]bool{"published": true, "revoked": false} {
+		snap, err := buildSnapshot("routes", []Server{{Namespace: "a", Name: "s", Status: status, Route: route()}}, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := strings.Contains(string(snap.Items), `"tool_risk":{"x":"read"}`); got != want {
+			t.Errorf("%s: tool_risk present = %v: %s", status, got, snap.Items)
+		}
+	}
+}
