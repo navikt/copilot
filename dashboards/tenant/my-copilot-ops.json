@@ -1790,7 +1790,7 @@
         {
           "type": "timeseries",
           "title": "Backup age",
-          "description": "Seconds since the newest available backup, from cnpg_collector_last_available_backup_timestamp. Red above 26 h. No data means the cluster has not reported a backup (timestamp 0).",
+          "description": "Seconds since the newest available backup, from barman_cloud_cloudnative_pg_io_last_available_backup_timestamp. Red above 36 h, matching the Nais stale-backup alert. Nais backs up with the Barman Cloud plugin, so the cnpg_collector backup metrics are always 0. No data means no backup reported.",
           "datasource": {
             "type": "prometheus",
             "uid": "${DS_METRICS}"
@@ -1816,7 +1816,7 @@
                   },
                   {
                     "color": "red",
-                    "value": 93600
+                    "value": 129600
                   }
                 ]
               }
@@ -1843,7 +1843,7 @@
           },
           "targets": [
             {
-              "expr": "min by (postgres) (time() - (cnpg_collector_last_available_backup_timestamp{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"} > 0))",
+              "expr": "min by (postgres) (time() - (barman_cloud_cloudnative_pg_io_last_available_backup_timestamp{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"} > 0))",
               "legendFormat": "{{postgres}}",
               "refId": "A"
             }
