@@ -33,6 +33,9 @@ type Server struct {
 	Registry     json.RawMessage `json:"registry,omitempty"`
 	Route        *Route          `json:"-"` // served only by /internal/v1/routes and the routes snapshot
 	Status       string          `json:"-"`
+	// DataClass is spec.dataCategory of the published generation; empty for
+	// generations written before 005 or by /admin/v1.
+	DataClass string `json:"-"`
 	// gatewayPath is the route a registry entry's gateway remote points to.
 	gatewayPath string
 }

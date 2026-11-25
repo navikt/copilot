@@ -175,7 +175,8 @@ type querier interface {
 func queryServers(ctx context.Context, q querier) ([]Server, error) {
 	rows, err := q.Query(ctx, `
 		SELECT s.namespace, s.name, COALESCE(s.registry_name, ''), s.status,
-		       v.registry::text, v.route_path, v.target, v.upstream_url, v.enabled, v.tools
+		       v.registry::text, v.route_path, v.target, v.upstream_url, v.enabled, v.tools,
+		       COALESCE(v.spec->>'dataCategory', '')
 		FROM servers s JOIN server_versions v
 		  ON v.namespace = s.namespace AND v.name = s.name AND v.version = s.published_version
 		ORDER BY s.namespace, s.name`)
@@ -187,7 +188,7 @@ func queryServers(ctx context.Context, q querier) ([]Server, error) {
 		var registry, path, target, upstream *string
 		var enabled bool
 		var tools []string
-		if err := row.Scan(&s.Namespace, &s.Name, &s.RegistryName, &s.Status, &registry, &path, &target, &upstream, &enabled, &tools); err != nil {
+		if err := row.Scan(&s.Namespace, &s.Name, &s.RegistryName, &s.Status, &registry, &path, &target, &upstream, &enabled, &tools, &s.DataClass); err != nil {
 			return s, err
 		}
 		if registry != nil {
