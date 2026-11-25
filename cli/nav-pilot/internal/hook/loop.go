@@ -162,7 +162,6 @@ func SameResult(threshold int) int { return max(2, threshold/2) }
 // (bash|shell|execute) lists them, plus PowerShell on Windows.
 var shellTools = map[string]bool{"bash": true, "shell": true, "execute": true, "powershell": true}
 
-// isShellCall reports whether a Signature is a shell tool's.
 func isShellCall(sig string) bool {
 	tool, _, _ := strings.Cut(sig, "(")
 	return shellTools[strings.ToLower(tool)]
