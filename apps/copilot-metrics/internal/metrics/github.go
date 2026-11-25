@@ -84,7 +84,6 @@ func NewGitHubClient(cfg *config.Config) (*GitHubClient, error) {
 		org:        cfg.OrganizationSlug,
 	}
 
-	// Create separate org client if org installation ID is configured
 	if cfg.GitHubAppOrgInstallationID != 0 {
 		orgTransport, err := ghinstallation.New(
 			http.DefaultTransport,
@@ -111,7 +110,6 @@ func NewGitHubClient(cfg *config.Config) (*GitHubClient, error) {
 func (c *GitHubClient) FetchDailyMetrics(ctx context.Context, day time.Time) (*FetchResult, error) {
 	dayStr := day.Format("2006-01-02")
 
-	// Try enterprise endpoint first
 	enterpriseURL := fmt.Sprintf("https://api.github.com/enterprises/%s/copilot/metrics/reports/enterprise-1-day?day=%s",
 		c.enterprise, dayStr)
 
@@ -132,7 +130,6 @@ func (c *GitHubClient) FetchDailyMetrics(ctx context.Context, day time.Time) (*F
 	enterpriseErr := err
 	slog.Warn("Enterprise endpoint failed, trying organization endpoint", "error", enterpriseErr)
 
-	// Fall back to organization endpoint
 	orgURL := fmt.Sprintf("https://api.github.com/orgs/%s/copilot/metrics/reports/organization-1-day?day=%s",
 		c.org, dayStr)
 	slog.Debug("Fetching metrics report (org fallback)", "url", orgURL, "day", dayStr)
@@ -383,7 +380,6 @@ func (c *GitHubClient) downloadAndParseNDJSON(ctx context.Context, url string) (
 func (c *GitHubClient) FetchDailyUserTeams(ctx context.Context, day time.Time) (*FetchResult, error) {
 	dayStr := day.Format("2006-01-02")
 
-	// Try enterprise endpoint
 	enterpriseURL := fmt.Sprintf("https://api.github.com/enterprises/%s/copilot/metrics/reports/%s?day=%s",
 		c.enterprise, "user-teams-1-day", dayStr)
 	slog.Info("Fetching user-teams report", "scope", "enterprise", "day", dayStr)
@@ -474,7 +470,6 @@ func (c *GitHubClient) FetchDailyUserTeams(ctx context.Context, day time.Time) (
 		}, nil
 	}
 
-	// Both failed
 	if enterpriseErr != nil && orgErr != nil {
 		if isReportNotAvailable(enterpriseErr) {
 			return nil, fmt.Errorf("%w for %s (user-teams-1-day): both endpoints failed", ErrReportNotAvailable, dayStr)

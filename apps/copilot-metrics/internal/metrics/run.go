@@ -661,7 +661,6 @@ func ingestSupplementary(ctx context.Context, gh MetricsFetcher, bq MetricsStore
 
 	dayStr := day.Format("2006-01-02")
 
-	// User-teams report
 	if teamsResult, err := gh.FetchDailyUserTeams(ctx, day); err != nil {
 		if errors.Is(err, ErrReportNotAvailable) {
 			slog.Info("User-teams report not available yet", "day", dayStr)
@@ -680,7 +679,6 @@ func ingestSupplementary(ctx context.Context, gh MetricsFetcher, bq MetricsStore
 		}
 	}
 
-	// Per-user metrics report
 	if usersResult, err := gh.FetchDailyUserMetrics(ctx, day); err != nil {
 		if errors.Is(err, ErrReportNotAvailable) {
 			slog.Info("Per-user metrics report not available yet", "day", dayStr)
@@ -776,7 +774,6 @@ func ingestMissingSupplementary(ctx context.Context, gh MetricsFetcher, bq Metri
 			continue
 		}
 
-		// Check and fill user-teams
 		teamsExists, err := bq.UserTeamsDayExists(ctx, day, cfg.EnterpriseSlug)
 		if err != nil {
 			slog.Warn("Failed to check user-teams existence", "day", dayStr, "error", err)
@@ -809,7 +806,6 @@ func ingestMissingSupplementary(ctx context.Context, gh MetricsFetcher, bq Metri
 			}
 		}
 
-		// Check and fill per-user metrics
 		usersExists, err := bq.UserMetricsDayExists(ctx, day, cfg.EnterpriseSlug)
 		if err != nil {
 			slog.Warn("Failed to check user-metrics existence", "day", dayStr, "error", err)
@@ -833,7 +829,6 @@ func ingestMissingSupplementary(ctx context.Context, gh MetricsFetcher, bq Metri
 			}
 		}
 
-		// Check and fill per-repository metrics
 		reposExists, err := dayExistsInAnyScope(ctx, bq.RepoMetricsDayExists, day, scopeIDs)
 		if err != nil {
 			slog.Warn("Failed to check repo-metrics existence", "day", dayStr, "error", err)
@@ -992,7 +987,6 @@ func ingestBillingMonth(ctx context.Context, billing *BillingClient, bq *BigQuer
 		return fmt.Errorf("fetch billing data: %w", err)
 	}
 
-	// Filter to items with actual usage
 	var items []BillingUsageItem
 	for _, item := range resp.UsageItems {
 		if item.GrossQuantity > 0 {

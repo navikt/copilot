@@ -73,7 +73,6 @@ func (c *BigQueryClient) createOrReplaceView(ctx context.Context, v viewDefiniti
 	// Replace remaining %s.%s.%s patterns for source table
 	sql = strings.ReplaceAll(sql, "`%s.%s.%s`", tableRef)
 
-	// Replace named table placeholders for supplementary tables
 	userTeamsRef := fmt.Sprintf("`%s.%s.%s`", c.projectID, c.dataset, c.userTeamsTable)
 	userMetricsRef := fmt.Sprintf("`%s.%s.%s`", c.projectID, c.dataset, c.userMetricsTable)
 	billingUsageRef := fmt.Sprintf("`%s.%s.%s`", c.projectID, c.dataset, billingUsageTable)

@@ -70,7 +70,6 @@ func runBackfill(ctx context.Context, gh MetricsFetcher, bq MetricsStore, cfg *c
 			)
 			errorCount++
 
-			// Check if error rate exceeds threshold
 			totalAttempted := successCount + errorCount
 			if totalAttempted >= 10 && (errorCount*100)/totalAttempted > maxErrorRate {
 				return fmt.Errorf("aborting backfill: error rate %d%% exceeds threshold %d%% (success: %d, errors: %d)",
