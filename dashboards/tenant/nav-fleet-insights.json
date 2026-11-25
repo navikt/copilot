@@ -37,7 +37,7 @@
     {
       "title": "Copilot: overview",
       "type": "link",
-      "url": "/d/copilot-ecosystem",
+      "url": "/d/copilot-ecosystem?${__url_time_range}&${env:queryparam}",
       "icon": "dashboard",
       "targetBlank": false,
       "keepTime": false,
