@@ -215,10 +215,14 @@ func logName(v string) string {
 	if len(v) > 200 {
 		v = v[:200]
 	}
-	return strings.Map(func(r rune) rune {
+	v = strings.Map(func(r rune) rune {
 		if unicode.IsControl(r) {
 			return -1
 		}
 		return r
 	}, v)
+	// No-op after the strip above; CodeQL's go/log-injection only recognises this replacer as a barrier.
+	return logNewlines.Replace(v)
 }
+
+var logNewlines = strings.NewReplacer("\n", "", "\r", "")
