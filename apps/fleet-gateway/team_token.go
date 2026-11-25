@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/navikt/copilot/fleet-gateway/internal/proxy"
 	"github.com/navikt/copilot/fleet-gateway/internal/teamtoken"
 )
 
@@ -12,7 +13,7 @@ const (
 	strategyRefresh = "refresh"
 )
 
-func newTeamTokenSource(cfg *Config, store SessionStore, now func() time.Time) (TeamTokenSource, error) {
+func newTeamTokenSource(cfg *Config, store SessionStore, now func() time.Time) (proxy.TeamTokenSource, error) {
 	if now == nil {
 		now = time.Now
 	}

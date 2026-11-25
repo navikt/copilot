@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/navikt/copilot/fleet-gateway/internal/policy"
+	"github.com/navikt/copilot/fleet-gateway/internal/proxy"
 	"io"
 	"log/slog"
 	"net/http"
@@ -169,7 +171,7 @@ func TestAuditMCP_ToolName_LogInjection(t *testing.T) {
 
 func TestAuditMCP_OversizedBody_NoToolLogged(t *testing.T) {
 	body := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"big","arguments":{"x":"` +
-		strings.Repeat("a", maxMCPRequestBodyBytes) + `"}}}`
+		strings.Repeat("a", proxy.MaxMCPRequestBodyBytes) + `"}}}`
 	audit, got, code := auditPost(t, body)
 	if code != http.StatusRequestEntityTooLarge {
 		t.Fatalf("expected 413, got %d", code)
@@ -181,7 +183,7 @@ func TestAuditMCP_OversizedBody_NoToolLogged(t *testing.T) {
 
 func TestAuditMCP_Batch(t *testing.T) {
 	var parts []string
-	for i := 0; i < maxAuditBatchTools+2; i++ {
+	for i := 0; i < policy.MaxAuditBatchTools+2; i++ {
 		parts = append(parts, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"t","arguments":{"a":"top-secret-arg"}}}`)
 	}
 	parts = append(parts, `{"jsonrpc":"2.0","method":"notifications/initialized"}`)
@@ -190,7 +192,7 @@ func TestAuditMCP_Batch(t *testing.T) {
 	if audit["method"] != "batch" {
 		t.Fatalf("expected method=batch, got %v", audit["method"])
 	}
-	want := `[` + strings.Repeat(`"t",`, maxAuditBatchTools) + `"..."]`
+	want := `[` + strings.Repeat(`"t",`, policy.MaxAuditBatchTools) + `"..."]`
 	if audit["tool"] != want {
 		t.Fatalf("expected tool=%q, got %v", want, audit["tool"])
 	}

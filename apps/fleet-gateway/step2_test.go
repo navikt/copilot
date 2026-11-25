@@ -6,6 +6,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/navikt/copilot/fleet-gateway/internal/policy"
+	"github.com/navikt/copilot/fleet-gateway/internal/proxy"
 	"io"
 	"log/slog"
 	"net/http"
@@ -293,7 +295,7 @@ func TestProxy_OBO_Headers_StreamableHTTP_SSE_Limits_And_Redirects(t *testing.T)
 	}
 
 	// 5. Oversized request body returns 413.
-	bigBody := bytes.Repeat([]byte("a"), maxMCPRequestBodyBytes+10)
+	bigBody := bytes.Repeat([]byte("a"), proxy.MaxMCPRequestBodyBytes+10)
 	bigReq := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", bytes.NewReader(bigBody))
 	bigReq.Header.Set("Authorization", "Bearer "+gwToken)
 	bigRec := httptest.NewRecorder()
@@ -315,7 +317,7 @@ func TestProxy_OBO_Headers_StreamableHTTP_SSE_Limits_And_Redirects(t *testing.T)
 	}
 
 	// 7. Upstream header timeout -> 502.
-	te.gw.proxyClient = newHardenedProxyClient(50 * time.Millisecond)
+	te.gw.proxyClient = proxy.NewHardenedClient(50 * time.Millisecond)
 	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		time.Sleep(200 * time.Millisecond)
 		w.WriteHeader(http.StatusOK)
@@ -711,8 +713,8 @@ func TestAuditMCP_LogsFields_BoundsMethod_And_NoSecretsOrArgs(t *testing.T) {
 		t.Fatal("expected duration_ms in audit log")
 	}
 	loggedMethod, _ := foundAudit["method"].(string)
-	if len(loggedMethod) != maxAuditMethodLen+len(`"..."`) || !strings.HasSuffix(loggedMethod, `"...`) {
-		t.Fatalf("expected method quoted and cut at %d with a ... marker, got %q", maxAuditMethodLen, loggedMethod)
+	if len(loggedMethod) != policy.MaxAuditMethodLen+len(`"..."`) || !strings.HasSuffix(loggedMethod, `"...`) {
+		t.Fatalf("expected method quoted and cut at %d with a ... marker, got %q", policy.MaxAuditMethodLen, loggedMethod)
 	}
 
 	allLogs := logBuf.String()

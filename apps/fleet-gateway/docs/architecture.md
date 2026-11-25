@@ -14,7 +14,6 @@ About 6,500 lines of non-test Go sit in `package main`, almost all as methods on
 - `authorize.go`, `consent.go`, `token.go`, `dcr.go`, `prm.go`: the OAuth
   endpoints, the Entra round trip, CIMD fetch, consent and DCR.
 - `team_token.go`: OBO and refresh strategies for upstream team tokens.
-- `proxy.go`, `inflight.go`: the MCP proxy, SSE streaming and concurrency slots.
 - `routes.go`, `routetable.go`, `fleet_control.go`: route loading, validation and the route table.
 - `store_gateway.go`, `session.go`: typed wrappers and aliases over `internal/session`.
 - `config.go`: env parsing, validation and the generic `ttlMap`.
@@ -37,10 +36,10 @@ there are two implementations or a test seam that tests use.
 | `internal/session` | Store interface, memory and Postgres stores, sealing, key ring (exists) | `Store` |
 | `internal/oauth` | Typed records over the store: pending auth, codes, sessions, consent. Refresh grace and DCR clients move with `oauth/server` | `PendingAuth`, `IssuedCode`, `Session`, `HashToken`; functions take a `session.Store` |
 | `internal/oauth/entra` | Entra authorize endpoint, code and refresh redemption, ID-token checks, state cookie signing | `Client`, `SignState`, `VerifyState`, `ValidateIDTokenClaims` |
-| `internal/teamtoken` | OBO and refresh strategies | `OBO`, `Refresh`. Their interface, `TeamTokenSource`, stays at the consumer in `main` until `proxy` moves |
+| `internal/teamtoken` | OBO and refresh strategies | `OBO`, `Refresh`. Their interface, `proxy.TeamTokenSource`, lives at the consumer |
 | `internal/policy`, `internal/lockout`, `internal/audit`, `internal/identity` | As today | `lockout.Manager` |
 | `internal/metrics` | Collectors and `Observe*` helpers, `Init`, the `/metrics` server | none |
-| `internal/proxy` | MCP handler, header allowlists, SSE streaming | defines the team-token interface it consumes; uses `routing` |
+| `internal/proxy` | MCP handler, header allowlists, SSE streaming, over-capacity replies | `Handler`, `Config`, `TeamTokenSource`. `main` builds a `Handler` per request from the current `Config` |
 | `internal/httpx` | `WriteJSON`, `StatusWriter`, `MarkShed`. Error pages and security headers move with `oauth/server` | none |
 | `main` | Config loading, `newGateway` wiring, the mux, the `lockout` subcommand | none |
 
