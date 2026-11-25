@@ -543,8 +543,6 @@ func TestLoadInvalidManifestFailsClosed(t *testing.T) {
 	}
 }
 
-// --- ValidateSource ---
-
 // sync ignores a malformed retired record silently, so validate must report it.
 func TestValidateSourceRetiredRecord(t *testing.T) {
 	blob := strings.Repeat("a", 40)
@@ -736,8 +734,6 @@ func TestValidateSourceNoManifest(t *testing.T) {
 		t.Fatalf("ValidateSource = %v, want a single ErrNoManifest", errs)
 	}
 }
-
-// --- helpers ---
 
 // patchManifest decodes a manifest, applies a mutation, and re-encodes it, so
 // each test case states only what it changes.

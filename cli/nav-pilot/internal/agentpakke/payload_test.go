@@ -23,8 +23,6 @@ var refPayloadFiles = []payloadFile{
 	{rel: "scripts/hook.sh", content: "#!/bin/sh\nexit 0\n", mode: 0o755},
 }
 
-// --- ParsePayloadManifest ---
-
 func TestParsePayloadManifest(t *testing.T) {
 	m, err := ParsePayloadManifest(payloadManifestBytes(t, payloadManifestDoc(refPayloadFiles)))
 	if err != nil {
@@ -196,8 +194,6 @@ func TestParsePayloadManifestFailsClosed(t *testing.T) {
 		})
 	}
 }
-
-// --- VerifyPayload ---
 
 func TestVerifyPayload(t *testing.T) {
 	tests := []struct {
@@ -582,8 +578,6 @@ func TestVerifyPayloadReferenceFixture(t *testing.T) {
 	}
 }
 
-// --- validate wiring ---
-
 // tier2Manifest is a minimal Tier 2 agentpakke manifest: one client, one
 // payload, no layout.
 const tier2Manifest = `{
@@ -675,8 +669,6 @@ func TestValidateSourceSkipsPayloadVerificationWithoutManifest(t *testing.T) {
 		t.Errorf("violation %q should name the missing payload manifest", joined)
 	}
 }
-
-// --- helpers ---
 
 // payloadFile is one file in a synthetic payload tree.
 type payloadFile struct {

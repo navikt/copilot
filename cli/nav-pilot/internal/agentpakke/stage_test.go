@@ -10,8 +10,6 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// --- StagePayload ---
-
 // TestStagePayloadRoundTrip pins the contract the launch path depends on: what
 // comes back is a tree that passes the exact verifier, byte-identical to the
 // source, at the manifest's modes and not the source's.
@@ -390,8 +388,6 @@ func TestStagePayloadConcurrent(t *testing.T) {
 	}
 }
 
-// --- VerifyPayloadExact ---
-
 // TestVerifyPayloadExactRejectsWhatVerifyPayloadTolerates asserts the delta
 // between the two verifiers directly: the umask-cleared modes that a source
 // checkout is allowed to have are exactly what a tree nav-pilot chmod'd must
@@ -431,8 +427,6 @@ func TestVerifyPayloadExactAcceptsTheDeclaredModes(t *testing.T) {
 		t.Fatalf("VerifyPayloadExact = %v, want nil", err)
 	}
 }
-
-// --- helpers ---
 
 // writeStageSource writes a conforming payload tree plus its manifest and
 // returns the tree, the manifest path and the manifest bytes.
