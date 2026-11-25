@@ -5,6 +5,7 @@ import { FleetControlError, fleetApi, fleetLoad, requireFleet } from "@/lib/flee
 import { FleetFrame, fleetRobots } from "../../../frame";
 import { FleetProblemAlert, ServerDetail } from "../../../fleet-ui";
 import { ServerReadOnly } from "../../../catalog";
+import { fleetGrafanaUrl } from "@/lib/fleet-grafana";
 
 export const metadata: Metadata = { title: "MCP-server", robots: fleetRobots };
 
@@ -49,7 +50,11 @@ export default async function ServerPage({ params }: Props) {
       {"problem" in result ? (
         <FleetProblemAlert problem={result.problem} />
       ) : !result.data.owner ? (
-        <ServerReadOnly entry={result.data.entry} myTeams={result.data.myTeams} />
+        <ServerReadOnly
+          entry={result.data.entry}
+          myTeams={result.data.myTeams}
+          grafanaUrl={result.data.entry.status.route && fleetGrafanaUrl(result.data.entry.status.route.path)}
+        />
       ) : (
         <ServerDetail
           server={result.data.server}
@@ -58,6 +63,11 @@ export default async function ServerPage({ params }: Props) {
           owner={result.data.inTeam}
           agents={result.data.agents}
           agentsFailed={result.data.agentsFailed}
+          grafanaUrl={
+            result.data.server.status.publishedGeneration && result.data.server.status.route
+              ? fleetGrafanaUrl(result.data.server.status.route.path)
+              : undefined
+          }
         />
       )}
     </FleetFrame>
