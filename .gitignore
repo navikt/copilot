@@ -1,6 +1,7 @@
 # Build outputs
 apps/mcp-kodeverk/mcp-kodeverk
 apps/mcp-dolly/mcp-dolly
+apps/mcp-team-catalog/mcp-team-catalog
 apps/mcp-registry/bin/mcp-registry
 apps/mcp-onboarding/bin/mcp-onboarding
 apps/mcp-onboarding/bin/generate-manifest

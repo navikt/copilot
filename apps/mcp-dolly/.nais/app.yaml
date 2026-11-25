@@ -26,6 +26,10 @@ spec:
     path: /ready
     initialDelay: 10
     timeout: 5
+  prometheus:
+    enabled: true
+    path: /metrics
+    port: "9090"
   azure:
     application:
       enabled: true

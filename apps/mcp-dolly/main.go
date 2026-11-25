@@ -17,10 +17,13 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/navikt/copilot/lib/mcpkit"
 )
 
 const (
 	defaultPort        = "8080"
+	defaultMetricsPort = "9090"
 	defaultDollyURL    = "https://dolly-backend.ekstern.dev.nav.no"
 	maxRequestBytes    = 1 << 20
 	httpClientTimeout  = 10 * time.Second
@@ -33,6 +36,7 @@ const (
 
 type config struct {
 	Port                  string
+	MetricsPort           string
 	LogLevel              slog.Level
 	IntrospectionEndpoint string
 	ExchangeEndpoint      string
@@ -91,6 +95,7 @@ func loadConfigFromEnv() (*config, error) {
 	return &config{
 		Keys:                  keys,
 		Port:                  getEnv("PORT", defaultPort),
+		MetricsPort:           getEnv("METRICS_PORT", defaultMetricsPort),
 		LogLevel:              parseLogLevel(getEnv("LOG_LEVEL", "INFO")),
 		IntrospectionEndpoint: introspectionEndpoint,
 		ExchangeEndpoint:      exchangeEndpoint,
@@ -118,6 +123,24 @@ type server struct {
 	confirm     *orderConfirm
 	store       orderStore
 	now         func() time.Time
+	metrics     *mcpkit.ToolMetrics
+}
+
+func toolNames() []string {
+	var names []string
+	for _, d := range toolDefinitions(true, true) {
+		names = append(names, d["name"].(string))
+	}
+	return names
+}
+
+// callTool runs a tool and records its per-tool metrics (#2564).
+func (s *server) callTool(ctx context.Context, token, navIdent, name string, args json.RawMessage, el *elicitInput) (any, *mcpRPCError) {
+	start := time.Now()
+	res, rpcErr := s.handleToolCall(ctx, token, navIdent, name, args, el)
+	r, _ := res.(map[string]any)
+	s.metrics.Observe(name, rpcErr != nil || r["isError"] == true, time.Since(start))
+	return res, rpcErr
 }
 
 func newServer(cfg *config) *server {
@@ -128,6 +151,7 @@ func newServer(cfg *config) *server {
 		quota:       newUserQuota(cfg.Keys.userHash),
 		confirm:     newOrderConfirm(cfg.Keys.confirm),
 		now:         time.Now,
+		metrics:     mcpkit.NewToolMetrics(toolNames()),
 	}
 	s.store = memStore{confirm: s.confirm, quota: s.quota}
 	return s
@@ -266,7 +290,7 @@ func (s *server) mcpHandler(w http.ResponseWriter, r *http.Request) {
 	case "tools/list":
 		result = map[string]any{"tools": toolDefinitions(s.cfg.EnableCreateOrder, !s.cfg.TwoStepOrder)}
 	case "tools/call":
-		res, rpcErr := s.handleToolCall(r.Context(), token, navIdent, env.Params.Name, env.Params.Arguments, nil)
+		res, rpcErr := s.callTool(r.Context(), token, navIdent, env.Params.Name, env.Params.Arguments, nil)
 		if rpcErr != nil {
 			writeMCPError(w, http.StatusOK, rpcID, rpcErr)
 			return
@@ -311,7 +335,7 @@ func (s *server) serveModern(w http.ResponseWriter, r *http.Request, env mcpEnve
 		if env.FormElicitation() {
 			el = &elicitInput{responses: env.Params.InputResponses, state: env.Params.RequestState}
 		}
-		res, rpcErr := s.handleToolCall(r.Context(), token, navIdent, env.Params.Name, env.Params.Arguments, el)
+		res, rpcErr := s.callTool(r.Context(), token, navIdent, env.Params.Name, env.Params.Arguments, el)
 		if rpcErr != nil {
 			writeMCPError(w, http.StatusOK, rpcID, rpcErr)
 			return
@@ -433,10 +457,28 @@ func main() {
 		}
 	}()
 
+	// /metrics has its own port so the MCP port serves only MCP.
+	metricsMux := http.NewServeMux()
+	metricsMux.Handle("GET /metrics", srv.metrics)
+	metricsServer := &http.Server{
+		Addr:              ":" + cfg.MetricsPort,
+		Handler:           metricsMux,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      10 * time.Second,
+	}
+	go func() {
+		if err := metricsServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			slog.Error("metrics server failed", "error", err)
+			os.Exit(1)
+		}
+	}()
+
 	<-ctx.Done()
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := httpServer.Shutdown(shutdownCtx); err != nil {
 		slog.Error("server shutdown failed", "error", err)
 	}
+	_ = metricsServer.Shutdown(shutdownCtx)
 }
