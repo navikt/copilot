@@ -6,10 +6,10 @@ Single source of truth for the MCP registry and fleet-gateway routes (#2334). It
 
 Every `/internal/v1` request needs an Entra app token (client credentials) from an allowed caller. fleet-control validates it with Texas and maps `azp` to a caller by the full client id from config, never by name.
 
-| Endpoint | fleet-gateway | mcp-registry |
-| --- | --- | --- |
-| `GET /internal/v1/snapshots/routes` | yes | no |
-| `GET /internal/v1/snapshots/registry` | no | yes |
+| Endpoint                              | fleet-gateway | mcp-registry |
+| ------------------------------------- | ------------- | ------------ |
+| `GET /internal/v1/snapshots/routes`   | yes           | no           |
+| `GET /internal/v1/snapshots/registry` | no            | yes          |
 
 Missing or invalid token, or a user token: 401. Valid app token from another caller: 403. Texas unreachable or failing: 503. None of them return data.
 
@@ -21,14 +21,14 @@ Teams register and change servers through `/apis/fleet.nav.no/v1alpha1` (see bel
 
 Every request needs a person's Entra token that my-copilot obtained on their behalf (OBO), with `azp` equal to `MY_COPILOT_CLIENT_ID`, a `NAVident` and a `preferred_username` (used for team membership). App tokens and guest accounts are refused: `idtyp` must be absent or `user`, and `acct` must be 0 when present; without `acct` the token needs `tid` equal to `AZURE_APP_TENANT_ID` and no `#EXT#` in `preferred_username`. Input is validated like the seed: names, target, upstream URL, tools and the registry entry. A registry name belongs to the team (#2853): team `<ns>` may use `no.nav.<ns>/<name>` or `io.github.navikt/<ns>`. Other names, vendor names such as `com.microsoft/*` included, belong to the platform team (`FLEET_CONTROL_OPERATOR_TEAM`). Registry names are unique regardless of case. Names published before this rule stay; startup logs them as `published registry names outside their team's prefix`, and a rollback to one is refused. Every change writes a row to `audit_events` with the actor and the state before and after, in the same transaction as the change. Writes to one server lock its row, so concurrent approvals publish once.
 
-| Answer | Meaning |
-| --- | --- |
-| 400 | Invalid name or body |
-| 401 | Missing or invalid token, app token, or a token from another client |
-| 403 | Not a member of the owning team, or approving your own draft |
-| 404 | Unknown server |
-| 409 | Not the pending version, wrong hash, wrong state, or registry name taken |
-| 503 | Texas, team lookup or Postgres unavailable |
+| Answer | Meaning                                                                  |
+| ------ | ------------------------------------------------------------------------ |
+| 400    | Invalid name or body                                                     |
+| 401    | Missing or invalid token, app token, or a token from another client      |
+| 403    | Not a member of the owning team, or approving your own draft             |
+| 404    | Unknown server                                                           |
+| 409    | Not the pending version, wrong hash, wrong state, or registry name taken |
+| 503    | Texas, team lookup or Postgres unavailable                               |
 
 Not built yet: GitHub OIDC from the team's CI, team-level policy, the route owner's approval of another team's agent profile, rate limiting, and `force` for the shrink guard.
 
@@ -55,6 +55,7 @@ Agent profiles are written through `/apis/fleet.nav.no/v1alpha1/namespaces/{name
 - `contentHash` is `v1:sha256:` over the normalised spec (sets sorted) in RFC 8785 form. Hashes compare as whole strings. Agent profiles have one hash per grant, which the server's owner team approves.
 - `revocation` (one person in the owner team or `FLEET_CONTROL_OPERATOR_TEAM`) is final for that generation; `rollback` never lifts it and refuses revoked or blocked generations and their content with 409. `block: true` stops the content from ever being submitted again.
 - `mcpservercatalogentries` shows published, unrevoked servers to every signed-in person, with its own field list. The single entry also lists the live agent profiles with access (`status.consumers`, names only).
+- `GET .../namespaces/{team}/apps` lists the team's Nais applications (name and environment) from the Nais Console API, for the registration wizard in `/fleet`. Members only (404 otherwise); 503 where no Console service account is bound.
 - Non-members get 404 whether or not a resource exists. A failed team lookup is 503.
 
 ### AgentJob
@@ -101,11 +102,11 @@ Teams queue jobs through `/apis` `namespaces/{ns}/agentjobs`, which requires an 
 
 fleet-runtime calls, with an Entra app token (`idtyp=app`) whose `azp` is in `FLEET_RUNTIME_CLIENT_IDS`. A runtime claims only jobs of the teams listed for it:
 
-| Route | Body | Answer |
-| --- | --- | --- |
-| `POST /runtime/v1/claim` | `claim_token` (16 to 128 of `[A-Za-z0-9._-]`) | 200 with `lease_id`, `lease_ttl_seconds`, `lease_expires_at` and one job, or 204 after waiting up to 25 s. The same token returns the same lease with its remaining TTL; 410 once that lease has ended |
-| `POST /runtime/v1/heartbeat` | `lease_id` | 200 with `command` (`continue`, `cancel`, `kill`), `lease_ttl_seconds` and `lease_expires_at`. 410: the lease is gone |
-| `POST /runtime/v1/complete`, `/fail` | `lease_id`, `code` (`[a-z0-9_]{1,64}`), `message` (at most 500 characters) | 204. A status, never the job's output |
+| Route                                | Body                                                                       | Answer                                                                                                                                                                                                 |
+| ------------------------------------ | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `POST /runtime/v1/claim`             | `claim_token` (16 to 128 of `[A-Za-z0-9._-]`)                              | 200 with `lease_id`, `lease_ttl_seconds`, `lease_expires_at` and one job, or 204 after waiting up to 25 s. The same token returns the same lease with its remaining TTL; 410 once that lease has ended |
+| `POST /runtime/v1/heartbeat`         | `lease_id`                                                                 | 200 with `command` (`continue`, `cancel`, `kill`), `lease_ttl_seconds` and `lease_expires_at`. 410: the lease is gone                                                                                  |
+| `POST /runtime/v1/complete`, `/fail` | `lease_id`, `code` (`[a-z0-9_]{1,64}`), `message` (at most 500 characters) | 204. A status, never the job's output                                                                                                                                                                  |
 
 The runtime's deadline is the monotonic time it sent the request plus `lease_ttl_seconds`, so time in transit only shortens the lease. `lease_expires_at` uses fleet-control's clock and is for information only. A heartbeat answer other than 200, a timeout, a network error, or an answer that arrives after the deadline is not an ack. Bound each heartbeat request by the time left. The runtime must stop the job on `kill`, on 410, and when the countdown reaches zero. Lost contact therefore stops the job on both sides. On `cancel` it stops and reports with `fail`. After the first cancel, heartbeats repeat it but never extend the lease past one TTL from that delivery. Then the lease expires and the sweeper marks the job cancelled. Kill ends the lease at once. The lease TTL is `FLEET_RUNTIME_LEASE_TTL` (default 60 s); heartbeat at a third of it. An expired lease returns its job to the queue (`requeue`, until `max_attempts`) or fails it. A background worker expires leases every `FLEET_RUNTIME_SWEEP_INTERVAL` (default 15 s), and each claim sweeps first too. The sweep uses `SKIP LOCKED`, so replicas sweeping at once never expire a lease twice, and writes one audit row per expiry.
 
@@ -115,21 +116,21 @@ Not built yet: the public ingress fleet-runtime will reach this through (#2686),
 
 ## Configuration
 
-| Variable | Meaning |
-| --- | --- |
-| `FLEET_GATEWAY_CLIENT_ID` | fleet-gateway's Entra client id in this cluster |
-| `MCP_REGISTRY_CLIENT_ID` | mcp-registry's Entra client id in this cluster |
-| `NAIS_TOKEN_INTROSPECTION_ENDPOINT` | Texas, set by Nais |
-| `SEED_ROUTES_FILE`, `SEED_ALLOWLIST_FILE` | first-run import |
-| `READWRITE_PG*` | The runtime role's connection, set by Nais. Missing in Nais (`NAIS_CLUSTER_NAME` set): startup fails instead of running as the owner role (#2854). Outside Nais, `DB_URL` is used |
-| `MY_COPILOT_CLIENT_ID` | my-copilot's Entra client id. Unset: no `/admin` routes |
-| `NAIS_SERVICE_ACCOUNT_TOKEN_PATH` | Set by Nais when a service account is bound to the workload in Console. When set, team membership comes from the Nais Console GraphQL API (`user(email).teams`), keyed on the token's `preferred_username`, trimmed and lowercased. Answers are cached for one minute; errors are not cached. An unreachable API, a rejected or missing token, a GraphQL error or an empty answer gives 503 |
-| `FLEET_CONTROL_STATIC_TEAMS` | Dev fallback when no service account is bound: JSON of team to member emails, matched trimmed and case-insensitively against the token's `preferred_username`. Read from the `fleet-control-static-teams` secret in dev-gcp; refused outside dev-*. Unset: nobody can write |
-| `FLEET_RUNTIME_CLIENT_IDS` | fleet-runtime's Entra client ids and the teams each serves, comma-separated: `<client-id>=<team>[\|<team>...]`. An entry without teams stops startup. Unset: no `/runtime` routes |
-| `FLEET_RUNTIME_LEASE_TTL` | Lease TTL, 10s to 10m. Default 60s |
-| `FLEET_RUNTIME_SWEEP_INTERVAL` | Lease sweep interval, 1s to 5m. Default 15s |
-| `FLEET_CONTROL_OPERATOR_TEAM` | Team that may set the global job kill switch. Unset: nobody |
-| `NAIS_CLUSTER_NAME` | Set by Nais. The write routes and the static team list run only in a `dev-*` cluster; the static list in prod stops startup |
+| Variable                                  | Meaning                                                                                                                                                                                                                                                                                                                                                                                     |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `FLEET_GATEWAY_CLIENT_ID`                 | fleet-gateway's Entra client id in this cluster                                                                                                                                                                                                                                                                                                                                             |
+| `MCP_REGISTRY_CLIENT_ID`                  | mcp-registry's Entra client id in this cluster                                                                                                                                                                                                                                                                                                                                              |
+| `NAIS_TOKEN_INTROSPECTION_ENDPOINT`       | Texas, set by Nais                                                                                                                                                                                                                                                                                                                                                                          |
+| `SEED_ROUTES_FILE`, `SEED_ALLOWLIST_FILE` | first-run import                                                                                                                                                                                                                                                                                                                                                                            |
+| `READWRITE_PG*`                           | The runtime role's connection, set by Nais. Missing in Nais (`NAIS_CLUSTER_NAME` set): startup fails instead of running as the owner role (#2854). Outside Nais, `DB_URL` is used                                                                                                                                                                                                           |
+| `MY_COPILOT_CLIENT_ID`                    | my-copilot's Entra client id. Unset: no `/admin` routes                                                                                                                                                                                                                                                                                                                                     |
+| `NAIS_SERVICE_ACCOUNT_TOKEN_PATH`         | Set by Nais when a service account is bound to the workload in Console. When set, team membership comes from the Nais Console GraphQL API (`user(email).teams`), keyed on the token's `preferred_username`, trimmed and lowercased. Answers are cached for one minute; errors are not cached. An unreachable API, a rejected or missing token, a GraphQL error or an empty answer gives 503 |
+| `FLEET_CONTROL_STATIC_TEAMS`              | Dev fallback when no service account is bound: JSON of team to member emails, matched trimmed and case-insensitively against the token's `preferred_username`. Read from the `fleet-control-static-teams` secret in dev-gcp; refused outside dev-*. Unset: nobody can write                                                                                                                 |
+| `FLEET_RUNTIME_CLIENT_IDS`                | fleet-runtime's Entra client ids and the teams each serves, comma-separated: `<client-id>=<team>[\|<team>...]`. An entry without teams stops startup. Unset: no `/runtime` routes                                                                                                                                                                                                           |
+| `FLEET_RUNTIME_LEASE_TTL`                 | Lease TTL, 10s to 10m. Default 60s                                                                                                                                                                                                                                                                                                                                                          |
+| `FLEET_RUNTIME_SWEEP_INTERVAL`            | Lease sweep interval, 1s to 5m. Default 15s                                                                                                                                                                                                                                                                                                                                                 |
+| `FLEET_CONTROL_OPERATOR_TEAM`             | Team that may set the global job kill switch. Unset: nobody                                                                                                                                                                                                                                                                                                                                 |
+| `NAIS_CLUSTER_NAME`                       | Set by Nais. The write routes and the static team list run only in a `dev-*` cluster; the static list in prod stops startup                                                                                                                                                                                                                                                                 |
 
 The app refuses to start when a client id or the Texas endpoint is missing, or when both client ids are equal. Client ids are set per cluster in `.nais/<cluster>.yaml`. A change rolls out pod by pod, so for a short time old and new replicas may accept different callers.
 
@@ -143,16 +144,16 @@ Migrations run at startup under an advisory lock (`db.go`). During a rolling dep
 
 Existing migrations, checked against the rule (#2761):
 
-| Migration | Verdict |
-| --- | --- |
-| 001, 003, 004 | New tables only |
-| 002 | Drops `NOT NULL` and widens the status check (loosening). Adds `servers_published_status`, which old code already satisfied |
-| 005 | Additive; new columns nullable or defaulted |
-| 006 | Revokes rights from the runtime role on `audit_events`. Old code never updated or deleted audit rows |
-| 007 | Defaulted columns; replaces the `(team, name)` unique index with a wider one (loosening) |
-| 008 | New unique index on `lower(registry_name)`. Tightening: an old image that writes a case-only duplicate now gets an error instead of a second row. Intended (#2853) |
-| 010 | Adds `runtime_kill_switches.set_by_operator` with a default. An old image ignores it, so it can clear an operator-set switch (#2854) |
-| 011 | **Destructive, the approved exception (#2895).** Drops `agent_profiles`, `agent_profile_approvals` and `server_versions.content_hash` in one release, before prod has data |
+| Migration     | Verdict                                                                                                                                                                    |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 001, 003, 004 | New tables only                                                                                                                                                            |
+| 002           | Drops `NOT NULL` and widens the status check (loosening). Adds `servers_published_status`, which old code already satisfied                                                |
+| 005           | Additive; new columns nullable or defaulted                                                                                                                                |
+| 006           | Revokes rights from the runtime role on `audit_events`. Old code never updated or deleted audit rows                                                                       |
+| 007           | Defaulted columns; replaces the `(team, name)` unique index with a wider one (loosening)                                                                                   |
+| 008           | New unique index on `lower(registry_name)`. Tightening: an old image that writes a case-only duplicate now gets an error instead of a second row. Intended (#2853)         |
+| 010           | Adds `runtime_kill_switches.set_by_operator` with a default. An old image ignores it, so it can clear an operator-set switch (#2854)                                       |
+| 011           | **Destructive, the approved exception (#2895).** Drops `agent_profiles`, `agent_profile_approvals` and `server_versions.content_hash` in one release, before prod has data |
 
 ### Rollback after 011
 
@@ -238,7 +239,7 @@ Needs a human with write access to dev-gcp. Fill in and commit the result here. 
 - [x] Date, who: 2026-11-25, an agent on the owner's authorization, dev-gcp only.
 - [x] Note a test write and its time T: no write was made to the source. The app itself wrote `snapshots` routes generation 2 at 09:30:25Z, after the clone point, which serves as T.
 - [x] Clone started (time): 09:34:33Z, `nais postgres clone fleet-control fleet-control-restore-drill` without `--at`. Clone point 09:24:33Z (latest point, 10 minutes back).
-- [x] Clone `Completed` and `Ready` (time): 09:38:35Z (polled every 20 s).  Clone duration: about 4 minutes.
+- [x] Clone `Completed` and `Ready` (time): 09:38:35Z (polled every 20 s). Clone duration: about 4 minutes.
 - [x] fleet-control deployed against the clone, `/ready` (time): repoint run, clone 09:53:03Z to `Completed` 09:56:50Z (3 min 47 s). Repoint patched 09:57:13Z, rolled out and ready 09:57:49Z (36 s). The repoint used `kubectl patch application` on `spec.uses.postgres[0].name`, not a PR, because CI deploys only from main. Do that in dev only; in prod, follow step 6.
 - [x] fleet-gateway snapshot age dropped (time): snapshot age 6 s after the repoint, 0 sync failures.
 - [x] Data matches T (yes/no, what differed): yes. Row counts are equal in all 12 tables except `snapshots` (source 3, clone 2); the missing row is routes generation 2 from after the clone point. Migration version `011_drop_legacy.sql` in both. `audit_events` and `resource_status` ACLs are identical (only `app` may write), and the `CheckAuditLocked` query returns owner=false, change rights=false on both for a personal read user. Latest `audit_events` row 2026-11-23 in both.
