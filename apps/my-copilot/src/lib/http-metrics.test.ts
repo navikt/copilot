@@ -33,7 +33,10 @@ describe("startHttpMetrics", () => {
     startHttpMetrics("/nonexistent/routes-manifest.json");
     // A publish runs subscribers synchronously; a throw would surface here.
     expect(() => channel("http.server.response.finish").publish({ request: null, response: null })).not.toThrow();
-    channel("http.server.response.finish").publish({ request: { method: "GET", url: "/x" }, response: { statusCode: 418 } });
+    channel("http.server.response.finish").publish({
+      request: { method: "GET", url: "/x" },
+      response: { statusCode: 418 },
+    });
     expect(await register.metrics()).toContain('http_requests_total{method="GET",route="unmatched",code="418"} 1');
   });
 });
