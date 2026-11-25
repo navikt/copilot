@@ -139,6 +139,20 @@ describe("/fleet", () => {
     expect(urls.every((u) => u.startsWith(`http://fc${API}/`))).toBe(true);
   });
 
+  it("wraps every table in its own scroll box, so a phone never scrolls the page sideways", async () => {
+    const { container } = render(
+      <>
+        {await FleetPage(sp())}
+        {await ServerPage(params("team-a", "docs"))}
+        {await AgentPage(params("aksel", "studio"))}
+        {await CatalogPage()}
+      </>
+    );
+    const tables = [...container.querySelectorAll("table")];
+    expect(tables.length).toBeGreaterThan(3);
+    for (const t of tables) expect(t.parentElement).toHaveAttribute("data-fleet-table");
+  });
+
   it("shows Kort fortalt, the inbox and the team's MCP servers with status", async () => {
     render(await FleetPage(sp()));
     expect(screen.getByText("Kort fortalt")).toBeInTheDocument();
