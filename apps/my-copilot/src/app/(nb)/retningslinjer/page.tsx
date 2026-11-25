@@ -81,21 +81,20 @@ export default function RetningslinjerPage() {
                     </NextLink>
                     .
                   </AllowedItem>
-                  <AllowedItem title="Agent mode i editoren">
-                    Du kan bruke Agent mode i VS Code og JetBrains (IntelliJ) til lett og moderat agentbruk: du
-                    godkjenner hver terminalkommando og hvert MCP-kall selv, og vurderer endringene før commit. Ingen
-                    auto-godkjenning: ikke <strong>Allow all</strong>, <strong>Autopilot</strong>,{" "}
-                    <strong>Bypass</strong>
-                    eller global auto-godkjenning. I VS Code på macOS 15+ og Linux skal{" "}
-                    <code>chat.agent.sandbox.enabled</code> være <code>"on"</code>. I JetBrains slår du på lokal
-                    sandboxing der IDE-en har det. Se{" "}
+                  <AllowedItem title="KI-agenter">
+                    <ul className="list-disc" style={{ paddingInlineStart: "var(--ax-space-20)" }}>
+                      <li>
+                        Terminal: start agenter med <code>nav-pilot</code> (cplt).
+                      </li>
+                      <li>VS Code og IntelliJ: greit. Slå på editorens sandkasse hvis den har en.</li>
+                      <li>Aldri bruk Allow all, Autopilot eller global auto-godkjenning.</li>
+                    </ul>
                     <NextLink
-                      href="/nyheter/sandboxing-er-pakrevd-pa-nav-utstyr"
+                      href="/nav-pilot/forklaring/sandkassen#ide-klienter"
                       className="text-blue-600 hover:underline"
                     >
-                      innstillingene per klient
+                      Slik gjør du det
                     </NextLink>
-                    .
                   </AllowedItem>
                   <AllowedItem title="Copilot CLI, opencode og pi i terminalen">
                     Copilot CLI, opencode og pi, installert med{" "}
@@ -148,7 +147,8 @@ export default function RetningslinjerPage() {
                   </ForbiddenItem>
                   <ForbiddenItem title="Agenter uten isolasjon">
                     Å kjøre KI-agenter med ubegrenset tilgang til Nav-utstyr er ikke tillatt. Bruk cplt eller
-                    tilsvarende isolasjon, også for personlig agentarbeid på utstyret.
+                    tilsvarende isolasjon, også for personlig agentarbeid på utstyret. Aldri bruk Allow all, Autopilot
+                    eller global auto-godkjenning.
                   </ForbiddenItem>
                 </HGrid>
               </VStack>
@@ -158,18 +158,26 @@ export default function RetningslinjerPage() {
             <Section icon={<ShieldLockIcon aria-hidden />} title="Krav: agenter skal kjøre isolert">
               <VStack gap="space-8">
                 <BodyLong>
-                  Når du bruker en KI-agent på Nav-utstyr, skal agenten kjøre i en sandbox eller tilsvarende isolasjon.
-                  Kravet gjelder all agentbruk på utstyret, både Nav-relatert arbeid og personlig agentarbeid.
+                  Når du bruker en KI-agent på Nav-utstyr, skal agenten kjøre i en sandkasse eller tilsvarende
+                  isolasjon. Kravet gjelder all agentbruk på utstyret, både Nav-relatert arbeid og personlig
+                  agentarbeid.
                 </BodyLong>
                 <BodyLong>
                   Bruk{" "}
                   <NextLink href="/cplt" className="text-blue-600 hover:underline">
                     cplt
                   </NextLink>
-                  , Navs egen sandbox for KI-agenter. Velger du en annen løsning, må du selv sette deg inn i og aktivere
-                  isolasjonen agentklienten tilbyr, eller bruke en annen mekanisme (for eksempel VM eller container).
-                  Ikke kjør agenter med ubegrenset tilgang til maskinen.
+                  , Navs egen sandkasse for KI-agenter. Velger du en annen løsning, må du selv sette deg inn i og
+                  aktivere isolasjonen agentklienten tilbyr, eller bruke en annen mekanisme (for eksempel VM eller
+                  container). Ikke kjør agenter med ubegrenset tilgang til maskinen.
                 </BodyLong>
+                <ul className="list-disc" style={{ paddingInlineStart: "var(--ax-space-20)" }}>
+                  <li>
+                    Terminal: start agenter med <code>nav-pilot</code> (cplt).
+                  </li>
+                  <li>VS Code og IntelliJ: greit. Slå på editorens sandkasse hvis den har en.</li>
+                  <li>Aldri bruk Allow all, Autopilot eller global auto-godkjenning.</li>
+                </ul>
                 <BodyLong>
                   <NextLink
                     href="/nyheter/sandboxing-er-pakrevd-pa-nav-utstyr"
@@ -316,8 +324,8 @@ export default function RetningslinjerPage() {
                         2026-11-25
                       </td>
                       <td style={{ paddingBlock: "var(--ax-space-8)" }}>
-                        Agent mode i VS Code og JetBrains har unntak fra cplt-kravet ved lett og moderat bruk, uten
-                        auto-godkjenning. <code>chat.agent.sandbox.enabled</code> er påkrevd på macOS 15+ og Linux.
+                        Copilot i VS Code og IntelliJ er greit med editorens sandkasse på. Aldri Allow all, Autopilot
+                        eller global auto-godkjenning.
                       </td>
                     </tr>
                     <tr className="border-b">

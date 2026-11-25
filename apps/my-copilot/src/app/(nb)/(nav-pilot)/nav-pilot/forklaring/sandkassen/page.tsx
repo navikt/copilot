@@ -16,6 +16,7 @@ export const metadata: Metadata = {
 
 const TOC: TocItem[] = [
   { id: "isolasjon-er-pakrevd", label: "Isolasjon er påkrevd" },
+  { id: "ide-klienter", label: "VS Code og IntelliJ" },
   { id: "prosjektkatalogen", label: "Prosjektkatalogen" },
   { id: "sikkerhetsniva", label: "Sikkerhetsnivå i cplt" },
   { id: "autonomi", label: "Kommandoer og git" },
@@ -55,11 +56,13 @@ export default function Sandkassen() {
                 en annen måte, for eksempel med en VM eller en container. Ikke kjør agenter med full tilgang til
                 maskinen.
               </BodyLong>
-              <BodyLong>
-                Unntak fra 25.11.2026: GitHub Copilot i VS Code og JetBrains kan brukes uten cplt ved lett og moderat
-                agentbruk: ingen auto-godkjenning, og klientens egen sandkasse slått på (påkrevd i VS Code på macOS 15+
-                og Linux). Agenter i terminalen skal fortsatt kjøre i cplt.
-              </BodyLong>
+              <Bullets>
+                <li>
+                  Terminal: start agenter med <code className={code}>nav-pilot</code> (cplt).
+                </li>
+                <li>VS Code og IntelliJ: greit. Slå på editorens sandkasse hvis den har en.</li>
+                <li>Aldri bruk Allow all, Autopilot eller global auto-godkjenning.</li>
+              </Bullets>
               <BodyLong>
                 <NextLink href="/nyheter/sandboxing-er-pakrevd-pa-nav-utstyr" className={linkClass}>
                   Kortversjonen av kravet
@@ -68,6 +71,70 @@ export default function Sandkassen() {
               </BodyLong>
             </VStack>
           </Box>
+        </VStack>
+      </section>
+
+      <section>
+        <VStack gap="space-16">
+          <LinkableHeading id="ide-klienter" size="medium" level="2">
+            Slik gjør du det i VS Code og IntelliJ
+          </LinkableHeading>
+          <BodyLong>
+            <strong>VS Code</strong>
+          </BodyLong>
+          <Bullets>
+            <li>
+              Sett <code className={code}>chat.agent.sandbox.enabled</code> til <code className={code}>"on"</code>{" "}
+              (standard er <code className={code}>off</code>). Virker på macOS 15 eller nyere og Linux med glibc og
+              bubblewrap 0.5.0+. På Windows er sandkassen eksperimentell: slå den på der den virker.
+            </li>
+            <li>
+              Hold <code className={code}>chat.tools.global.autoApprove</code> av, og legg ikke inn brede regler med{" "}
+              <code className={code}>true</code> i <code className={code}>chat.tools.terminal.autoApprove</code>.
+            </li>
+            <li>Ikke velg Allow all eller Autopilot.</li>
+            <li>
+              Sandkassen dekker terminalkommandoer, MCP-servere og språkservere. Den dekker ikke filredigering, og
+              utgående nettverk er åpent som standard. Kommandoer i sandkassen kan kjøre uten å spørre.
+            </li>
+          </Bullets>
+          <BodyLong>
+            <strong>IntelliJ og andre JetBrains-IDE-er</strong>
+          </BodyLong>
+          <Bullets>
+            <li>
+              Slå på lokal sandkasse i versjoner som har den.{" "}
+              <a
+                href="https://github.blog/changelog/2026-10-28-github-copilot-in-jetbrains-universe-releases/"
+                className={linkClass}
+              >
+                Allment tilgjengelig fra 28.10.2026
+              </a>
+              .
+            </li>
+            <li>
+              Hold <strong>Settings &gt; GitHub Copilot &gt; Chat &gt; Auto Approve &gt; Global Auto Approve</strong>{" "}
+              av, og auto-godkjenning av kommandoer og filendringer som ingen regel dekker.
+            </li>
+          </Bullets>
+          <BodyLong>
+            Kilder:{" "}
+            <a href="https://code.visualstudio.com/docs/agents/run/agent-sandboxing" className={linkClass}>
+              Agent sandboxing
+            </a>
+            ,{" "}
+            <a href="https://code.visualstudio.com/docs/agents/run/approvals" className={linkClass}>
+              Approvals
+            </a>{" "}
+            (VS Code),{" "}
+            <a
+              href="https://github.blog/changelog/2026-04-24-inline-agent-mode-in-preview-and-more-in-github-copilot-for-jetbrains-ides/"
+              className={linkClass}
+            >
+              auto-godkjenning i JetBrains
+            </a>{" "}
+            (GitHub, 24.04.2026).
+          </BodyLong>
         </VStack>
       </section>
 

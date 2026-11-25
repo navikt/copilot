@@ -1289,6 +1289,11 @@
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/sandkassen/page.tsx",
         "docs/cplt-copilot-sandbox.md"
       ],
+      "ide-klienter": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/sandkassen/page.tsx",
+        "apps/my-copilot/src/app/(nb)/retningslinjer/page.tsx",
+        "docs/news/articles/sandboxing-er-pakrevd-pa-nav-utstyr.md"
+      ],
       "isolasjon-er-pakrevd": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/sandkassen/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/sandkassen/page.tsx"

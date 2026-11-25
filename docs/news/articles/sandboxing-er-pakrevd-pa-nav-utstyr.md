@@ -3,7 +3,7 @@ title: "Sandboxing og isolasjon er påkrevd på Nav-utstyr"
 date: 2026-08-10
 author: starefossen
 category: praksis
-excerpt: "AI-agenter skal alltid kjøre isolert på Nav-utstyr. Bruk cplt som standard, også når agentarbeidet er personlig."
+excerpt: "KI-agenter på Nav-utstyr: start dem med nav-pilot i terminalen. VS Code og IntelliJ er greit med editorens sandkasse på. Aldri Allow all, Autopilot eller global auto-godkjenning."
 tags:
   - cplt
   - security
@@ -11,7 +11,7 @@ tags:
   - coding-agents
 ---
 
-Når du bruker en AI-agent på Nav-utstyr, skal agenten kjøre i en sandbox eller
+Når du bruker en KI-agent på Nav-utstyr, skal agenten kjøre i en sandkasse eller
 tilsvarende isolasjon. Dette er et krav, ikke et valgfritt sikkerhetstiltak.
 
 Kravet gjelder alt agentarbeid på utstyret:
@@ -26,36 +26,11 @@ tilgangsinformasjon eller interne tjenester på maskinen.
 
 ## Oppdatert 25.11.2026: Agenter i VS Code og IntelliJ
 
-GitHub Copilot i VS Code og JetBrains (IntelliJ) har unntak fra kravet om å
-bruke cplt. Du kan fortsatt bruke Agent mode og nav-pilots agentpakke der ved
-lett og moderat agentbruk.
+- Terminal: start agenter med `nav-pilot` (cplt).
+- VS Code og IntelliJ: greit. Slå på editorens sandkasse hvis den har en.
+- Aldri bruk Allow all, Autopilot eller global auto-godkjenning.
 
-Lett og moderat betyr ingen auto-godkjenning: du godkjenner hver
-terminalkommando og hvert MCP-kall selv. Full auto er ikke tillatt. Agenter i
-terminalen, som Copilot CLI, opencode og pi, skal fortsatt kjøre i cplt.
-
-**VS Code**
-
-- Påkrevd på macOS 15 eller nyere og Linux: `chat.agent.sandbox.enabled` satt
-  til `"on"`. På Windows er sandboxen eksperimentell, så der er den anbefalt.
-- Sandboxen dekker terminalkommandoer og MCP-servere. Den dekker ikke
-  redigering av filer, og den stopper ikke utgående nettverk med mindre du
-  begrenser det.
-- Skal være av: `chat.tools.global.autoApprove`.
-- Ikke legg inn egne regler med `true` i `chat.tools.terminal.autoApprove`.
-- Ikke velg **Allow all**, **Autopilot** eller **Bypass**.
-
-**JetBrains (IntelliJ)**
-
-- Skal være av: **Settings > GitHub Copilot > Chat > Auto Approve > Global
-  Auto Approve**, og auto-godkjenning av kommandoer og filendringer som ingen
-  regel dekker.
-- Ikke slå på auto-godkjenning av MCP-servere og -verktøy.
-- Bruker du Copilot CLI-agenten i IDE-en: ikke velg **Bypass** eller
-  **Autopilot**.
-- Slå på lokal sandboxing der IDE-en har det. Den ble allment tilgjengelig
-  28.10.2026 og begrenser tilgangen til filsystem, nettverk og
-  tilgangsinformasjon for verktøy og kommandoer Copilot starter.
+[Slik gjør du det i VS Code og IntelliJ](/nav-pilot/forklaring/sandkassen#ide-klienter)
 
 ## Bruk cplt
 
@@ -91,7 +66,7 @@ Det første aliaset sender vanlig bruk av `copilot` gjennom cplt. `--` gjør at
 Copilot-flagg sendes videre til Copilot CLI. Det andre er bare en kortform for
 `nav-pilot`, som allerede bruker cplt.
 
-Aliasene gjelder bare i terminalen. For VS Code og JetBrains gjelder unntaket
+Aliasene gjelder bare i terminalen. For VS Code og IntelliJ gjelder reglene
 over. Andre klienter må bruke klientens sandboxing eller en annen
 isolasjonsmekanisme.
 
@@ -103,7 +78,7 @@ tilstrekkelig beskyttelse, må du bruke en annen mekanisme, for eksempel en VM
 eller container.
 
 Vi går ikke nærmere inn på oppsett av alternative løsninger her. Hovedregelen er
-enkel: Ikke kjør en AI-agent med ubegrenset tilgang til Nav-utstyret.
+enkel: Ikke kjør en KI-agent med ubegrenset tilgang til Nav-utstyret.
 
 ## Hvorfor godkjenning ikke er nok
 
@@ -117,10 +92,11 @@ gjør noe uventet. Derfor skal isolasjonen være på plass før agenten starter.
 
 ## Kortversjonen
 
-**På Nav-utstyr skal AI-agenter alltid kjøre isolert. Bruk cplt. Velger du noe
-annet, er du ansvarlig for å sikre tilsvarende isolasjon. Kravet gjelder både
-Nav-relatert og personlig agentarbeid. Unntak: Copilot i VS Code og IntelliJ,
-med sandbox i VS Code og uten auto-godkjenning.**
+**På Nav-utstyr skal KI-agenter kjøre isolert, også ved personlig bruk.**
+
+- Terminal: start agenter med `nav-pilot` (cplt).
+- VS Code og IntelliJ: greit. Slå på editorens sandkasse hvis den har en.
+- Aldri bruk Allow all, Autopilot eller global auto-godkjenning.
 
 **Kilder:**
 

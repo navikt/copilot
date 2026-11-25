@@ -55,7 +55,9 @@ export default function MaVitePage() {
                 Agenter skal kjøre i sandkassen
               </Heading>
               <BodyLong>
-                En agent som kjører kommandoer på maskinen din, skal kjøre isolert. Lokalt gjør du det med cplt.{" "}
+                En agent som kjører kommandoer på maskinen din, skal kjøre isolert. Lokalt gjør du det med cplt. I VS
+                Code og IntelliJ slår du på editorens sandkasse. Aldri bruk Allow all, Autopilot eller global
+                auto-godkjenning.{" "}
                 <NextLink href="/nav-pilot/forklaring/sandkassen" className={link}>
                   Slik virker sandkassen
                 </NextLink>
