@@ -1443,6 +1443,493 @@
           "type": "traces"
         }
       ]
+    },
+    {
+      "type": "row",
+      "title": "Database (CNPG Postgres)",
+      "collapsed": true,
+      "id": 20,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 29
+      },
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "Postgres instances up",
+          "description": "Instances per CNPG cluster whose metrics collector reports up. Each cluster runs 2 instances (primary and replica).",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_METRICS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "min": 0,
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "decimals": 0
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "calcs": [
+                "mean",
+                "max",
+                "lastNotNull"
+              ],
+              "sortBy": "Max",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "expr": "sum by (postgres) (cnpg_collector_up{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"})",
+              "legendFormat": "{{postgres}}",
+              "refId": "A"
+            }
+          ],
+          "id": 21,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 30
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "Connections vs max_connections",
+          "description": "Highest share of max_connections in use on any instance of the cluster.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_METRICS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "min": 0,
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "max": 1,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 0.7
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.9
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "calcs": [
+                "mean",
+                "max",
+                "lastNotNull"
+              ],
+              "sortBy": "Max",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "expr": "max by (postgres) (sum by (postgres, pod) (cnpg_pg_stat_activity_count{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}) / on (postgres, pod) max by (postgres, pod) (cnpg_pg_settings_setting{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", name=\"max_connections\"})) >= 0",
+              "legendFormat": "{{postgres}}",
+              "refId": "A"
+            }
+          ],
+          "id": 22,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 30
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "Replication lag",
+          "description": "Seconds the replica is behind the primary.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_METRICS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "min": 0,
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "calcs": [
+                "mean",
+                "max",
+                "lastNotNull"
+              ],
+              "sortBy": "Max",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "expr": "max by (postgres) (cnpg_pg_replication_lag{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"})",
+              "legendFormat": "{{postgres}}",
+              "refId": "A"
+            }
+          ],
+          "id": 23,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 38
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "Database size",
+          "description": "Size of the app database.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_METRICS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "min": 0,
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "calcs": [
+                "mean",
+                "max",
+                "lastNotNull"
+              ],
+              "sortBy": "Max",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "expr": "max by (postgres) (cnpg_pg_database_size_bytes{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", datname=\"app\"})",
+              "legendFormat": "{{postgres}}",
+              "refId": "A"
+            }
+          ],
+          "id": 24,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 38
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "Transactions/s",
+          "description": "Commits and rollbacks per second in the app database, all instances.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_METRICS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "min": 0,
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "calcs": [
+                "mean",
+                "max",
+                "lastNotNull"
+              ],
+              "sortBy": "Max",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "expr": "sum by (postgres) (rate(cnpg_pg_stat_database_xact_commit{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", datname=\"app\"}[$__rate_interval]) + rate(cnpg_pg_stat_database_xact_rollback{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", datname=\"app\"}[$__rate_interval]))",
+              "legendFormat": "{{postgres}}",
+              "refId": "A"
+            }
+          ],
+          "id": 25,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 46
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "Deadlocks",
+          "description": "Deadlocks detected in the app database per interval.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_METRICS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "min": 0,
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "calcs": [
+                "mean",
+                "max",
+                "lastNotNull"
+              ],
+              "sortBy": "Max",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "expr": "sum by (postgres) (increase(cnpg_pg_stat_database_deadlocks{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", datname=\"app\"}[$__rate_interval]))",
+              "legendFormat": "{{postgres}}",
+              "refId": "A"
+            }
+          ],
+          "id": 26,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 46
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "Backup age",
+          "description": "Seconds since the newest available backup, from barman_cloud_cloudnative_pg_io_last_available_backup_timestamp. Red above 36 h, matching the Nais stale-backup alert. Nais backs up with the Barman Cloud plugin, so the cnpg_collector backup metrics are always 0. No data means no backup reported.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_METRICS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "min": 0,
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1,
+                "thresholdsStyle": {
+                  "mode": "dashed"
+                }
+              },
+              "noValue": "No backup reported",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 129600
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "calcs": [
+                "mean",
+                "max",
+                "lastNotNull"
+              ],
+              "sortBy": "Max",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "expr": "min by (postgres) (time() - (barman_cloud_cloudnative_pg_io_last_available_backup_timestamp{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"} > 0))",
+              "legendFormat": "{{postgres}}",
+              "refId": "A"
+            }
+          ],
+          "id": 27,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 54
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "WAL archiving failures",
+          "description": "Failed WAL archive attempts per interval. A failure is current when the last failure is newer than the last successful archive: the second series is then above 0, in seconds.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_METRICS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "min": 0,
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1,
+                "thresholdsStyle": {
+                  "mode": "dashed"
+                }
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 1
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "calcs": [
+                "mean",
+                "max",
+                "lastNotNull"
+              ],
+              "sortBy": "Max",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "expr": "sum by (postgres) (increase(cnpg_pg_stat_archiver_failed_count{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}[$__rate_interval]))",
+              "legendFormat": "{{postgres}} failures",
+              "refId": "A"
+            },
+            {
+              "expr": "max by (postgres) (cnpg_pg_stat_archiver_last_failed_time{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"} - cnpg_pg_stat_archiver_last_archived_time{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}) > 0",
+              "legendFormat": "{{postgres}} failing for (s)",
+              "refId": "B"
+            }
+          ],
+          "id": 28,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 54
+          }
+        }
+      ]
     }
   ],
   "timepicker": {

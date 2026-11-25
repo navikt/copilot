@@ -2279,7 +2279,7 @@
               "custom": {
                 "fillOpacity": 10,
                 "lineWidth": 1,
-                "axisSoftMax": 20,
+                "axisSoftMax": 4,
                 "thresholdsStyle": {
                   "mode": "dashed"
                 }
@@ -2293,8 +2293,12 @@
                     "value": null
                   },
                   {
+                    "color": "yellow",
+                    "value": 1
+                  },
+                  {
                     "color": "red",
-                    "value": 10
+                    "value": 2
                   }
                 ]
               }
