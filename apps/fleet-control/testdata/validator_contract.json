@@ -1,0 +1,36 @@
+{
+  "_comment": "Shared by fleet-control and fleet-gateway tests (#2894). Every name and URL fleet-control accepts must pass the gateway too, or the gateway rejects the whole snapshot. Change both validators together.",
+  "tools": [
+    {"name": "search", "valid": true},
+    {"name": "get_issue.v2-beta", "valid": true},
+    {"name": "A", "valid": true},
+    {"name": "x128", "repeat": 128, "valid": true},
+    {"name": "x129", "repeat": 129, "valid": false},
+    {"name": "", "valid": false},
+    {"name": "has space", "valid": false},
+    {"name": "slash/name", "valid": false},
+    {"name": "quote\"", "valid": false},
+    {"name": "æøå", "valid": false},
+    {"name": "colon:x", "valid": false}
+  ],
+  "upstreams": [
+    {"url": "http://app.team", "ns": "team", "valid": true},
+    {"url": "https://app.team:8443/mcp", "ns": "team", "valid": true},
+    {"url": "http://app.team.svc.cluster.local/mcp", "ns": "team", "valid": true},
+    {"url": "https://mcp.intern.nav.no/mcp", "ns": "team", "valid": true},
+    {"url": "https://mcp.intern.dev.nav.no", "ns": "team", "valid": true},
+    {"url": "https://mcp.nais.adeo.no", "ns": "team", "valid": true},
+    {"url": "http://mcp.intern.nav.no", "ns": "team", "valid": false},
+    {"url": "http://app.other", "ns": "team", "valid": false},
+    {"url": "http://a.b.team", "ns": "team", "valid": false},
+    {"url": "http://10.0.0.1", "ns": "team", "valid": false},
+    {"url": "http://127.0.0.1", "ns": "team", "valid": false},
+    {"url": "http://localhost", "ns": "team", "valid": false},
+    {"url": "http://user:pw@app.team", "ns": "team", "valid": false},
+    {"url": "ftp://app.team", "ns": "team", "valid": false},
+    {"url": "https://example.com", "ns": "team", "valid": false},
+    {"url": "http://xn--app-xxa.team", "ns": "team", "valid": false},
+    {"url": "http://-app.team", "ns": "team", "valid": false},
+    {"url": "https://mcp.ekstern.dev.nav.no", "ns": "team", "valid": false}
+  ]
+}

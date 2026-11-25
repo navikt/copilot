@@ -148,6 +148,8 @@ jobs:
               - 'apps/mcp-kodeverk/**'
               - 'apps/mcp-dolly/**'
               - 'apps/mcp-team-catalog/**'
+              # validator_contract_test.go reads fleet-control's shared table (#2894).
+              - 'apps/fleet-control/testdata/validator_contract.json'
               - '.github/workflows/fleet-gateway.yaml'
               - '.github/workflows/mise-build-deploy-nais.yaml'
               - '.github/workflows/ci.yaml'
