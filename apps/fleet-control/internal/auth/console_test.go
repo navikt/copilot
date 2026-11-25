@@ -226,7 +226,7 @@ func TestNormEmailRefusesNonASCII(t *testing.T) {
 	if got := normEmail("Kari@nav.no"); got != "" {
 		t.Fatalf("kelvin sign: got %q, want \"\"", got)
 	}
-	if ok, _ := (StaticTeams{"team-a": {"kari@nav.no"}}).IsMember(context.Background(), "team-a", "Kari@nav.no"); ok {
+	if ok, _ := (staticTeams{"team-a": {"kari@nav.no"}}).IsMember(context.Background(), "team-a", "Kari@nav.no"); ok {
 		t.Fatal("kelvin sign matched kari@nav.no")
 	}
 	if got := normEmail(" Kari@NAV.no "); got != "kari@nav.no" {

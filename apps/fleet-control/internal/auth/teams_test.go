@@ -53,7 +53,7 @@ func TestTeamsFromEnv(t *testing.T) {
 		t.Errorf("resolvePerson with an app token: %v", err)
 	}
 	// A mixed-case preferred_username in the token resolves to its teams.
-	_, list, err = resolvePerson(context.Background(), testAuthz(t), "Bearer "+userTok("A111111")+":Kari.Nordmann@Example.com", adminID, StaticTeams{"team-a": {"kari.nordmann@example.com"}})
+	_, list, err = resolvePerson(context.Background(), testAuthz(t), "Bearer "+userTok("A111111")+":Kari.Nordmann@Example.com", adminID, staticTeams{"team-a": {"kari.nordmann@example.com"}})
 	if err != nil || strings.Join(list, ",") != "team-a" {
 		t.Errorf("resolvePerson by email: %v %v", list, err)
 	}
@@ -71,6 +71,6 @@ func TestTeamsFromEnv(t *testing.T) {
 
 const adminID = "44444444-4444-4444-4444-444444444444"
 
-var testTeams = StaticTeams{"team-a": {"A111111", "A222222"}, "team-b": {"B111111"}}
+var testTeams = staticTeams{"team-a": {"A111111", "A222222"}, "team-b": {"B111111"}}
 
 func userTok(ident string) string { return "user:" + adminID + ":" + ident }

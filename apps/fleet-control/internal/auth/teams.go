@@ -33,14 +33,14 @@ func normEmail(s string) string {
 	return strings.ToLower(s)
 }
 
-// StaticTeams is a fixed team -> member email list, compared with normEmail.
+// staticTeams is a fixed team -> member email list, compared with normEmail.
 // Members live in a Nais secret, never in the repo (it is public).
 // It is the dev fallback when no Nais service account is bound; see
 // consoleTeams for the real lookup.
-type StaticTeams map[string][]string
+type staticTeams map[string][]string
 
 // IsMember reports whether email is listed under team.
-func (s StaticTeams) IsMember(_ context.Context, team, email string) (bool, error) {
+func (s staticTeams) IsMember(_ context.Context, team, email string) (bool, error) {
 	email = normEmail(email)
 	if email == "" {
 		return false, nil
@@ -49,7 +49,7 @@ func (s StaticTeams) IsMember(_ context.Context, team, email string) (bool, erro
 }
 
 // Teams lists the teams email is listed under.
-func (s StaticTeams) Teams(ctx context.Context, email string) ([]string, error) {
+func (s staticTeams) Teams(ctx context.Context, email string) ([]string, error) {
 	out := []string{}
 	for team := range s {
 		if ok, _ := s.IsMember(ctx, team, email); ok {
@@ -130,7 +130,7 @@ func TeamsFromEnv(cluster string) (TeamDirectory, error) {
 		// Prod before the Console binding exists: start, but fail every lookup closed (503).
 		return UnboundTeams{}, nil
 	}
-	t := StaticTeams{}
+	t := staticTeams{}
 	if raw == "" {
 		return t, nil
 	}
