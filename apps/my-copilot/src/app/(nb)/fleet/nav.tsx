@@ -13,6 +13,12 @@ export const LinkButton = ({ href, children }: { href: string; children: ReactNo
   </Button>
 );
 
+export const LinkText = ({ href, children }: { href: string; children: ReactNode }) => (
+  <Link as={NextLink} href={href}>
+    {children}
+  </Link>
+);
+
 export type Crumb = { label: string; href?: string };
 
 /** Client side, since a server component cannot pass NextLink to Link. */

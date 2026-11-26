@@ -5,15 +5,8 @@ import { BodyLong, Heading, HStack, VStack } from "@navikt/ds-react";
 import { fleetApi, fleetLoad, requireFleet } from "@/lib/fleet-control";
 import { TEAM_COOKIE } from "@/lib/fleet-names";
 import { FleetFrame, fleetRobots } from "./frame";
-import {
-  FleetProblemAlert,
-  KortFortalt,
-  PendingInbox,
-  RegisterButton,
-  ServerInbox,
-  TeamSections,
-  TeamStats,
-} from "./fleet-ui";
+import { LinkText } from "./nav";
+import { FleetProblemAlert, KortFortalt, RegisterButton, ServerInbox, TeamSections, TeamStats } from "./fleet-ui";
 import { TeamChooser, UnknownTeam } from "./catalog";
 
 const DNS_LABEL = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
@@ -97,7 +90,13 @@ export default async function FleetPage({ searchParams }: Props) {
                 </BodyLong>
               </HStack>
               <ServerInbox servers={picked.servers} me={me} />
-              {pending.length > 0 && <PendingInbox agents={pending} />}
+              {pending.length > 0 && (
+                <BodyLong>
+                  {pending.length === 1 ? "1 agentprofil venter" : `${pending.length} agentprofiler venter`} på at dere
+                  gir tilgang.{" "}
+                  <LinkText href={`/fleet/agenter?team=${picked.team}#venter-pa-tilgang`}>Se agentprofilene</LinkText>
+                </BodyLong>
+              )}
             </VStack>
           )}
           <TeamSections teams={[picked]} me={me} />

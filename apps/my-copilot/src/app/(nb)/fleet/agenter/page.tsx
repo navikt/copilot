@@ -4,7 +4,7 @@ import { BodyLong } from "@navikt/ds-react";
 import { fleetApi, fleetLoad, requireFleet } from "@/lib/fleet-control";
 import { TEAM_COOKIE, isName } from "@/lib/fleet-names";
 import { FleetFrame, fleetRobots } from "../frame";
-import { AgentTable, FleetProblemAlert } from "../fleet-ui";
+import { AgentTable, FleetProblemAlert, PendingInbox } from "../fleet-ui";
 
 export const metadata: Metadata = { title: "Agentprofiler – Fleet", robots: fleetRobots };
 
@@ -17,8 +17,11 @@ export default async function AgentsPage({ searchParams }: Props) {
   const result = await fleetLoad(async () => {
     const me = await fleetApi.whoami();
     const team = asked && isName(asked) && me.teams.includes(asked) ? asked : me.teams[0];
-    const agents = team ? (await fleetApi.agents(team)).items : [];
-    return { team, teams: me.teams, agents };
+    const [agents, pending] = await Promise.all([
+      team ? fleetApi.agents(team).then((l) => l.items) : [],
+      fleetApi.pending().then((l) => l.items),
+    ]);
+    return { team, teams: me.teams, agents, pending };
   });
   if ("problem" in result)
     return (
@@ -26,16 +29,19 @@ export default async function AgentsPage({ searchParams }: Props) {
         <FleetProblemAlert problem={result.problem} />
       </FleetFrame>
     );
-  const { team, teams, agents } = result.data;
+  const { team, teams, agents, pending } = result.data;
   return (
     <FleetFrame
       title="Agentprofiler"
       description="Hvilke MCP-servere KI-agentene i teamet får bruke."
       crumbs={team ? [{ label: team, href: `/fleet?team=${team}` }] : []}
-      nav={team ? { team, teams, hasAgents: true } : undefined}
+      nav={team ? { team, teams, hasAgents: true, pending: pending.length } : undefined}
     >
       {team ? (
-        <AgentTable t={{ team, servers: [], agents }} />
+        <>
+          {pending.length > 0 && <PendingInbox agents={pending} />}
+          <AgentTable t={{ team, servers: [], agents }} />
+        </>
       ) : (
         <BodyLong>Du må være med i et team i Nais for å ha agentprofiler.</BodyLong>
       )}

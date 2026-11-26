@@ -47,13 +47,9 @@ export function FleetFrame({
             <VStack gap="space-32" className="min-w-0 flex-1 break-words">
               <VStack gap="space-12">
                 {crumbs !== false && title !== "Fleet" && <Breadcrumbs trail={trail} current={title} />}
-                <Stack
-                  direction={{ xs: "column", sm: "row" }}
-                  gap="space-16"
-                  justify="space-between"
-                  align={{ sm: "start" }}
-                >
-                  <VStack gap="space-8" className="min-w-0">
+                {/* The action sits on the H1 row and wraps below it on a narrow screen. */}
+                <HStack gap="space-16" justify="space-between" align="start">
+                  <VStack gap="space-8" className="min-w-0 flex-1 basis-80">
                     <HStack gap="space-12" align="center">
                       <Heading level="1" size="xlarge" className="[overflow-wrap:anywhere]">
                         {title}
@@ -63,7 +59,7 @@ export function FleetFrame({
                     {typeof description === "string" ? <BodyLong>{description}</BodyLong> : description}
                   </VStack>
                   {action && <div className="shrink-0">{action}</div>}
-                </Stack>
+                </HStack>
               </VStack>
               {children}
             </VStack>

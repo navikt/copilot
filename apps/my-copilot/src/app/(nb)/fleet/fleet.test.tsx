@@ -158,14 +158,17 @@ describe("/fleet", () => {
     expect(screen.getByText("Kort fortalt: hva er Fleet?")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Til godkjenning" })).toBeInTheDocument();
     // Main: the stat strip and the team's own versions waiting for approval.
-    expect(screen.getByText("Publiserte MCP-servere")).toBeInTheDocument();
+    expect(screen.getByText("Publisert")).toBeInTheDocument();
+    // The agent profiles waiting for «gi tilgang» moved to /fleet/agenter; the overview links there.
+    expect(screen.getByRole("link", { name: "Se agentprofilene" })).toHaveAttribute(
+      "href",
+      "/fleet/agenter?team=team-a#venter-pa-tilgang"
+    );
     expect(
       within(screen.getByRole("list", { name: "MCP-servere til godkjenning" })).getByRole("button", {
         name: "Se endringen",
       })
     ).toHaveAttribute("href", "/fleet/mcp-servere/team-a/docs");
-    expect(screen.getByRole("link", { name: "studio" })).toHaveAttribute("href", "/fleet/agenter/aksel/studio");
-    expect(screen.getByText("MCP-server team-a/docs")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "team-a" })).toBeInTheDocument();
     expect(screen.queryByRole("tab")).not.toBeInTheDocument();
     // The header button and the side navigation's button; Aksel's Button as a link keeps role="button".
@@ -302,6 +305,8 @@ describe("/fleet", () => {
     });
     stub({ [`${API}/namespaces/team-a/mcpservers/docs`]: s });
     const { container } = render(await ServerPage(params("team-a", "docs")));
+    // The readme sits in a collapsed «Om MCP-serveren», after Nødtiltak.
+    fireEvent.click(within(container.querySelector('[aria-label="Om MCP-serveren"]')!).getByRole("button"));
     expect(screen.getByRole("heading", { name: "Om docs", level: 3 })).toBeInTheDocument();
     expect(container.querySelector("script")).toBeNull();
     expect(container.querySelector("#raw")).toBeNull();
@@ -354,7 +359,7 @@ describe("/fleet", () => {
     });
     stub({ [`${API}/namespaces/team-a/mcpservers/docs`]: draft });
     render(await ServerPage(params("team-a", "docs")));
-    expect(screen.getAllByText("Ikke publisert ennå").length).toBeGreaterThan(0);
+    expect(screen.getByText(/^Ikke publisert ennå: alt under er nytt/)).toBeInTheDocument();
     // Table on a wide screen, changed fields as a list on a phone.
     expect(screen.getAllByText("1.2.0")).toHaveLength(2);
     expect(screen.getAllByText("streamable-http https://x")).toHaveLength(2);
@@ -501,7 +506,8 @@ describe("/fleet", () => {
 
   it("offers «gi tilgang» in the inbox and on the MCP server page, with the grant's hash", async () => {
     stub({ [`${API}/agentprofiles?awaitingApprovalBy=me`]: { items: [waiting()] } });
-    const { unmount } = render(await FleetPage(sp()));
+    const { default: AgentsPage } = await import("./agenter/page");
+    const { unmount } = render(await AgentsPage(sp("team-a")));
     expect(screen.getByRole("button", { name: "Gi tilgang til docs" })).toBeInTheDocument();
     unmount();
     render(await ServerPage(params("team-a", "docs")));
@@ -539,7 +545,8 @@ describe("/fleet", () => {
 
   it("posts «gi tilgang» with the profile, the MCP server and the grant's hash", async () => {
     stub({ [`${API}/agentprofiles?awaitingApprovalBy=me`]: { items: [waiting()] } });
-    render(await FleetPage(sp()));
+    const { default: AgentsPage } = await import("./agenter/page");
+    render(await AgentsPage(sp("team-a")));
     const post = vi.fn(async () => new Response(JSON.stringify({ error: "Nei" }), { status: 403 }));
     vi.stubGlobal("fetch", post);
     fireEvent.click(screen.getByRole("button", { name: "Gi tilgang til docs" }));
@@ -590,5 +597,17 @@ describe("/fleet", () => {
   it("states: after sending in, the MCP server page shows the receipt", async () => {
     render(await ServerPage({ ...params("team-a", "docs"), searchParams: Promise.resolve({ sendt: "1" }) }));
     expect(screen.getByRole("heading", { name: "docs er sendt til godkjenning" })).toBeInTheDocument();
+  });
+
+  it("Hva endres marks added and removed tools, and unchanged fields once", async () => {
+    const s = server();
+    s.spec = { ...s.spec, allowedTools: ["search", "old"] };
+    s.status.pending.spec = { ...s.status.pending.spec, ...s.spec, allowedTools: ["search", "new"] };
+    stub({ [`${API}/namespaces/team-a/mcpservers/docs`]: s });
+    render(await ServerPage(params("team-a", "docs")));
+    const table = screen.getByRole("table", { name: /versjonen som venter/ });
+    expect(within(table).getByText("+ new")).toBeInTheDocument();
+    expect(within(table).getByText("− old")).toBeInTheDocument();
+    expect(within(table).getAllByText("Uendret").length).toBeGreaterThan(0);
   });
 });

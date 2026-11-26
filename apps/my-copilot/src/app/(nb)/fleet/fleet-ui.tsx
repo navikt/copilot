@@ -125,11 +125,21 @@ export function FleetProblemAlert({ problem }: { problem: FleetProblem }) {
 /** Every /fleet table: scrolls inside its own box so a narrow screen never scrolls the page sideways. */
 export function FleetTable({ "aria-label": label, children }: { "aria-label": string; children: ReactNode }) {
   return (
-    <div className="overflow-x-auto" role="region" tabIndex={0} aria-label={label} data-fleet-table="">
+    <Box
+      className="overflow-x-auto [&_thead]:bg-[var(--ax-bg-neutral-soft)]"
+      background="default"
+      borderWidth="1"
+      borderColor="neutral-subtle"
+      borderRadius="12"
+      role="region"
+      tabIndex={0}
+      aria-label={label}
+      data-fleet-table=""
+    >
       <Table size="small" aria-label={label}>
         {children}
       </Table>
-    </div>
+    </Box>
   );
 }
 
@@ -207,7 +217,7 @@ export function SubmittedAlert({ server }: { server: MCPServer }) {
 }
 
 /** A number with a label, as in the stat strip on top of the overview. */
-function Stat({ label, value, help }: { label: string; value: ReactNode; help?: string }) {
+export function Stat({ label, value, help }: { label: string; value: ReactNode; help?: string }) {
   return (
     <Box background="default" borderWidth="1" borderColor="neutral-subtle" borderRadius="12" padding="space-20">
       <VStack gap="space-4">
@@ -230,15 +240,11 @@ export function TeamStats({ servers, me }: { servers: MCPServer[]; me?: string }
   ).length;
   return (
     <HGrid columns={{ xs: 2, md: 4 }} gap="space-16">
-      <Stat
-        label="Publiserte MCP-servere"
-        value={published}
-        help={`av ${servers.length} ${servers.length === 1 ? "registrert" : "registrerte"}`}
-      />
+      <Stat label="Publisert" value={published} help={`av ${servers.length} registrerte`} />
       <Stat label="Venter på godkjenning" value={pending.length} help={`${forMe} venter på deg`} />
       {/* shortcut: Fleet has no calls or users per team yet (#2753); the cards stay so the layout matches. */}
-      <Stat label="Kall siste 7 dager" value="–" help="Kommer" />
-      <Stat label="Unike brukere, 7 dager" value="–" help="Kommer" />
+      <Stat label="Kall, 7 dager" value="–" help="Kommer" />
+      <Stat label="Brukere, 7 dager" value="–" help="Kommer" />
     </HGrid>
   );
 }
@@ -577,8 +583,8 @@ function WaitingForAccess({ server, agents }: { server: MCPServer; agents: Agent
 export function PendingInbox({ agents }: { agents: AgentProfile[] }) {
   return (
     <VStack gap="space-8">
-      <Heading level="3" size="small">
-        Agentprofiler som venter på tilgang
+      <Heading id="venter-pa-tilgang" level="2" size="medium">
+        Venter på at dere gir tilgang
       </Heading>
       {agents.length === 0 ? (
         <BodyShort>Ingen agentprofiler venter på teamene dine.</BodyShort>
@@ -735,6 +741,40 @@ export function ServerDetail({
           <Versjoner server={server} next={server.status.pending.spec} />
         </VStack>
       )}
+      {hasCondition(server, "Published") && !hasCondition(server, "Revoked") && (
+        <VStack gap="space-8">
+          <Heading level="2" size="medium">
+            Bruk siste 7 dager
+          </Heading>
+          <Box background="default" borderWidth="1" borderColor="neutral-subtle" borderRadius="12" padding="space-20">
+            <VStack gap="space-12">
+              {/* shortcut: Fleet has no usage numbers per MCP server yet (#2753); Grafana has them. */}
+              <HGrid columns={{ xs: 3 }} gap="space-16">
+                {["Kall", "Unike brukere", "Konsumenter (team)"].map((l) => (
+                  <VStack key={l} gap="space-4">
+                    <BodyShort size="small">{l}</BodyShort>
+                    <Heading level="3" size="large" as="p">
+                      –
+                    </Heading>
+                  </VStack>
+                ))}
+              </HGrid>
+              {grafanaUrl && (
+                <BodyShort size="small">
+                  Tallene kommer hit. Til da:{" "}
+                  <Link href={grafanaUrl} target="_blank" rel="noopener noreferrer">
+                    se kall og brukere i Grafana <ExternalLinkIcon fontSize="1rem" title="åpnes i ny fane" />
+                  </Link>
+                </BodyShort>
+              )}
+            </VStack>
+          </Box>
+        </VStack>
+      )}
+      {server.status.route && hasCondition(server, "Published") && !hasCondition(server, "Revoked") && (
+        <TestCurl path={server.status.route.path} gateway={gatewayUrl} />
+      )}
+      <AccessPolicy app={(server.status.pending?.spec ?? server.spec)?.upstream?.app} />
       {agentsFailed ? (
         <Alert variant="warning" size="small">
           Vi fikk ikke hentet agentprofilene som venter på tilgang. Last inn siden på nytt.
@@ -742,24 +782,8 @@ export function ServerDetail({
       ) : (
         <WaitingForAccess server={server} agents={agents} />
       )}
-      {grafanaUrl && (
-        <VStack gap="space-8">
-          <Heading level="2" size="medium">
-            Bruk siste 7 dager
-          </Heading>
-          <BodyShort>
-            <Link href={grafanaUrl} target="_blank" rel="noopener noreferrer">
-              Se kall og brukere i Grafana <ExternalLinkIcon fontSize="1rem" title="åpnes i ny fane" />
-            </Link>
-          </BodyShort>
-        </VStack>
-      )}
-      {server.status.route && hasCondition(server, "Published") && !hasCondition(server, "Revoked") && (
-        <TestCurl path={server.status.route.path} gateway={gatewayUrl} />
-      )}
-      <AccessPolicy app={(server.status.pending?.spec ?? server.spec)?.upstream?.app} />
-      <ServerDocs spec={server.status.pending?.spec ?? server.spec} />
       <ServerActions server={server} me={me} owner={owner} part="rest" />
+      <ServerDocs spec={server.status.pending?.spec ?? server.spec} />
       <Detaljer
         rows={[
           ["Team", server.metadata.namespace],
@@ -812,7 +836,11 @@ function TestCurl({ path, gateway }: { path: string; gateway?: string }) {
       <Heading level="2" size="medium">
         Test MCP-endpointet
       </Heading>
-      <Box background="neutral-soft" padding="space-12" borderRadius="8">
+      <Box
+        padding="space-16"
+        borderRadius="8"
+        style={{ background: "var(--ax-bg-neutral-strong)", color: "var(--ax-text-neutral-contrast)" }}
+      >
         <VStack gap="space-8">
           <HStack justify="space-between" align="center">
             <BodyShort size="small">Liste verktøyene (tools/list)</BodyShort>
@@ -884,42 +912,88 @@ function ServerDocs({ spec }: { spec?: MCPServerSpec }) {
   const tools = spec?.tools?.filter((t) => t.description) ?? [];
   if (!spec?.readme && !tools.length) return null;
   return (
-    <VStack gap="space-8">
-      <Heading level="2" size="small">
-        Om MCP-serveren
-      </Heading>
-      {spec?.readme && (
-        <div className="prose">
-          <ServerReadme markdown={spec.readme} />
-        </div>
+    <ExpansionCard aria-label="Om MCP-serveren" size="small">
+      <ExpansionCard.Header>
+        <ExpansionCard.Title as="h2" size="small">
+          Om MCP-serveren
+        </ExpansionCard.Title>
+      </ExpansionCard.Header>
+      <ExpansionCard.Content>
+        <VStack gap="space-8">
+          {spec?.readme && (
+            <div className="prose">
+              <ServerReadme markdown={spec.readme} />
+            </div>
+          )}
+          {tools.length > 0 && (
+            <>
+              <Show below="md">
+                <VStack as="ul" gap="space-12" aria-label="Verktøy">
+                  {tools.map((t) => (
+                    <li key={t.name}>
+                      <code className="[overflow-wrap:anywhere]">{t.name}</code>
+                      {t.description && <BodyShort size="small">{t.description}</BodyShort>}
+                    </li>
+                  ))}
+                </VStack>
+              </Show>
+              <Hide below="md">
+                <FleetTable aria-label="Verktøy">
+                  <Table.Body>
+                    {tools.map((t) => (
+                      <Table.Row key={t.name}>
+                        <Table.HeaderCell scope="row">{t.name}</Table.HeaderCell>
+                        <Table.DataCell>{t.description}</Table.DataCell>
+                      </Table.Row>
+                    ))}
+                  </Table.Body>
+                </FleetTable>
+              </Hide>
+            </>
+          )}
+        </VStack>
+      </ExpansionCard.Content>
+    </ExpansionCard>
+  );
+}
+
+/** Tools in the pending version, with added ones marked «+» and removed ones struck through. */
+function ToolDiff({ now, next }: { now?: string[]; next?: string[] }) {
+  const before = new Set(now ?? []);
+  const after = new Set(next ?? []);
+  return (
+    <HStack as="span" gap="space-4 space-8" wrap>
+      {(next ?? []).map((t) =>
+        before.has(t) ? (
+          <span key={t}>{t}</span>
+        ) : (
+          <Box
+            as="span"
+            key={t}
+            background="success-soft"
+            paddingInline="space-4"
+            borderRadius="4"
+            className="[overflow-wrap:anywhere] md:whitespace-nowrap"
+          >
+            <strong>+ {t}</strong>
+          </Box>
+        )
       )}
-      {tools.length > 0 && (
-        <>
-          <Show below="md">
-            <VStack as="ul" gap="space-12" aria-label="Verktøy">
-              {tools.map((t) => (
-                <li key={t.name}>
-                  <code className="[overflow-wrap:anywhere]">{t.name}</code>
-                  {t.description && <BodyShort size="small">{t.description}</BodyShort>}
-                </li>
-              ))}
-            </VStack>
-          </Show>
-          <Hide below="md">
-            <FleetTable aria-label="Verktøy">
-              <Table.Body>
-                {tools.map((t) => (
-                  <Table.Row key={t.name}>
-                    <Table.HeaderCell scope="row">{t.name}</Table.HeaderCell>
-                    <Table.DataCell>{t.description}</Table.DataCell>
-                  </Table.Row>
-                ))}
-              </Table.Body>
-            </FleetTable>
-          </Hide>
-        </>
-      )}
-    </VStack>
+      {(now ?? [])
+        .filter((t) => !after.has(t))
+        .map((t) => (
+          <Box
+            as="span"
+            key={t}
+            background="danger-soft"
+            paddingInline="space-4"
+            borderRadius="4"
+            className="[overflow-wrap:anywhere] md:whitespace-nowrap"
+          >
+            <s>− {t}</s>
+          </Box>
+        ))}
+    </HStack>
   );
 }
 
@@ -930,10 +1004,23 @@ function Versjoner({ server, next }: { server: MCPServer; next: MCPServerSpec })
     : hasCondition(server, "Published")
       ? null
       : "Ikke publisert ennå";
-  const now = specRows(none ? undefined : server.spec).map(([k, v]): [string, string] => [k, none ?? v]);
-  const changed = specRows(next).filter(([, v], i) => v !== now[i][1]);
+  const current = none ? undefined : server.spec;
+  const now = specRows(current);
+  const rows = specRows(next);
+  const pub = server.status.publishedGeneration;
+  const gen = server.status.pending?.generation;
+  const changed = rows.filter(([, v], i) => v !== now[i][1]);
+  const value = (k: string, v: string, i: number) =>
+    k === "Verktøy" ? (
+      <ToolDiff now={current?.allowedTools} next={next.allowedTools} />
+    ) : v === now[i][1] ? (
+      "Uendret"
+    ) : (
+      v
+    );
   return (
-    <>
+    <VStack gap="space-8">
+      {none && <BodyShort size="small">{none}: alt under er nytt.</BodyShort>}
       <Show below="md">
         <Box background="default" borderWidth="1" borderColor="neutral-subtle" borderRadius="12" padding="space-16">
           <VStack as="dl" gap="space-12">
@@ -942,15 +1029,19 @@ function Versjoner({ server, next }: { server: MCPServer; next: MCPServerSpec })
                 <BodyShort as="dt" size="small">
                   {k}
                 </BodyShort>
-                <BodyShort as="dd" weight="semibold" className="[overflow-wrap:anywhere]">
-                  {v}
+                <BodyShort as="dd" className="[overflow-wrap:anywhere]">
+                  {k === "Verktøy" ? (
+                    <ToolDiff now={current?.allowedTools} next={next.allowedTools} />
+                  ) : (
+                    <strong>{v}</strong>
+                  )}
                 </BodyShort>
               </div>
             ))}
-            {changed.length < specRows(next).length && (
+            {changed.length < rows.length && (
               <BodyShort size="small">
                 Uendret:{" "}
-                {specRows(next)
+                {rows
                   .filter(([, v], i) => v === now[i][1])
                   .map(([k]) => k.toLowerCase())
                   .join(", ")}
@@ -964,23 +1055,27 @@ function Versjoner({ server, next }: { server: MCPServer; next: MCPServerSpec })
         <FleetTable aria-label="Versjonen som gjelder, og versjonen som venter">
           <Table.Header>
             <Table.Row>
-              <Table.HeaderCell scope="col">Felt</Table.HeaderCell>
-              <Table.HeaderCell scope="col">Gjelder nå</Table.HeaderCell>
-              <Table.HeaderCell scope="col">Venter på godkjenning</Table.HeaderCell>
+              <Table.HeaderCell scope="col" className="w-44">
+                Felt
+              </Table.HeaderCell>
+              {!none && <Table.HeaderCell scope="col">Publisert{pub ? ` (v${pub})` : ""}</Table.HeaderCell>}
+              <Table.HeaderCell scope="col">Venter{gen ? ` (v${gen})` : ""}</Table.HeaderCell>
             </Table.Row>
           </Table.Header>
           <Table.Body>
-            {specRows(next).map(([k, v], i) => (
+            {rows.map(([k, v], i) => (
               <Table.Row key={k}>
                 <Table.HeaderCell scope="row">{k}</Table.HeaderCell>
-                <Table.DataCell>{now[i][1]}</Table.DataCell>
-                <Table.DataCell>{v === now[i][1] ? v : <strong>{v}</strong>}</Table.DataCell>
+                {!none && <Table.DataCell className="[overflow-wrap:anywhere]">{now[i][1]}</Table.DataCell>}
+                <Table.DataCell className="[overflow-wrap:anywhere]">
+                  {none ? k === "Verktøy" ? <ToolDiff next={next.allowedTools} /> : v : value(k, v, i)}
+                </Table.DataCell>
               </Table.Row>
             ))}
           </Table.Body>
         </FleetTable>
       </Hide>
-    </>
+    </VStack>
   );
 }
 
@@ -1129,10 +1224,22 @@ function ServerActions({
           <Heading level="2" size="medium">
             Versjon {pending.generation} venter
           </Heading>
-          <BodyShort>
-            To personer i eierteamet: én sender inn, en annen godkjenner.
-            {pending.submittedBy && !ownVersion && ` Sendt inn av ${pending.submittedBy.name}.`}
-          </BodyShort>
+          <BodyShort size="small">To personer i eierteamet: én sender inn, en annen godkjenner.</BodyShort>
+          <Stack direction={{ xs: "column", md: "row" }} gap="space-16 space-40">
+            <HStack gap="space-8" align="center">
+              <Initials name={ownVersion ? (me ?? "") : (pending.submittedBy?.name ?? "?")} />
+              <VStack>
+                <Detail>Sendt inn av</Detail>
+                <BodyShort weight="semibold">
+                  {ownVersion ? "deg" : (pending.submittedBy?.name ?? "ingen person")}
+                </BodyShort>
+              </VStack>
+            </HStack>
+            <VStack>
+              <Detail>Krever godkjenning fra</Detail>
+              <BodyShort weight="semibold">en annen i {namespace}</BodyShort>
+            </VStack>
+          </Stack>
           {ownVersion ? (
             <BodyShort>
               Du sendte inn versjon {pending.generation} selv. En annen på {namespace} må godkjenne den.
@@ -1164,36 +1271,39 @@ function ServerActions({
         </VStack>
       )}
       {live && (
-        <ConfirmForm
-          onSubmit={revoke.onSubmit}
-          heading={`Trekk tilbake ${name}?`}
-          question="Ingen kan bruke MCP-serveren etterpå, og agentene mister tilgangen. For å publisere den igjen må dere sende inn en ny versjon som en annen på teamet godkjenner."
-          confirm="Trekk tilbake"
-          busy={revoke.busy}
-        >
-          <Heading level="3" size="small">
-            Trekk tilbake
-          </Heading>
-          <BodyShort>Adressen slutter å svare. Agentene som bruker MCP-serveren, får feil.</BodyShort>
-          {ids}
-          <Textarea label="Begrunnelse" name="reason" maxLength={500} required />
-          <Checkbox name="block">
-            Sperr denne versjonen for alltid. Den kan aldri sendes inn eller publiseres igjen.
-          </Checkbox>
-          <ActionError error={revoke.error} />
-        </ConfirmForm>
-      )}
-      {owner && live && (
-        <VStack gap="space-8">
-          <Heading level="2" size="small">
-            Har MCP-serveren et problem?
-          </Heading>
-          <BodyLong>
-            Trekk den tilbake ovenfor hvis ingen skal bruke den. Er feil i oppsettet, endre MCP-serveren og send inn en
-            ny versjon. Er feilen i koden til appen, ruller dere tilbake appen i Nais. Haster det for alle, kan
-            plattformteamet bruke nødstopp i fleet-gateway.
-          </BodyLong>
-        </VStack>
+        <Box background="default" borderWidth="1" borderColor="neutral-subtle" borderRadius="12" padding="space-20">
+          <HGrid columns={{ xs: 1, md: 2 }} gap="space-24">
+            <VStack gap="space-8">
+              <Heading level="3" size="small">
+                Rull tilbake
+              </Heading>
+              {/* shortcut: fleet-control has no rollback yet; the column keeps the sketch's layout. */}
+              <BodyShort>
+                Kommer i Fleet.
+                {owner &&
+                  " Til da: Er feil i oppsettet, endre MCP-serveren og send inn en ny versjon. Er feilen i koden til appen, ruller dere tilbake appen i Nais. Haster det for alle, kan plattformteamet bruke nødstopp i fleet-gateway."}
+              </BodyShort>
+            </VStack>
+            <ConfirmForm
+              onSubmit={revoke.onSubmit}
+              heading={`Trekk tilbake ${name}?`}
+              question="Ingen kan bruke MCP-serveren etterpå, og agentene mister tilgangen. For å publisere den igjen må dere sende inn en ny versjon som en annen på teamet godkjenner."
+              confirm="Trekk tilbake"
+              busy={revoke.busy}
+            >
+              <Heading level="3" size="small">
+                Trekk tilbake
+              </Heading>
+              <BodyShort>Adressen slutter å svare. Agentene som bruker MCP-serveren, får feil.</BodyShort>
+              {ids}
+              <Textarea label="Begrunnelse" name="reason" maxLength={500} required />
+              <Checkbox name="block">
+                Sperr denne versjonen for alltid. Den kan aldri sendes inn eller publiseres igjen.
+              </Checkbox>
+              <ActionError error={revoke.error} />
+            </ConfirmForm>
+          </HGrid>
+        </Box>
       )}
       {owner && (
         <ExpansionCard aria-label="Endre MCP-serveren">
@@ -1388,8 +1498,7 @@ export function AgentDetailView({ profile: p, events }: { profile: AgentProfile;
           <FleetTable aria-label="Tilganger per MCP-server">
             <Table.Header>
               <Table.Row>
-                <Table.HeaderCell scope="col">MCP-server</Table.HeaderCell>
-                <Table.HeaderCell scope="col">Verktøy</Table.HeaderCell>
+                <Table.HeaderCell scope="col">MCP-server og verktøy</Table.HeaderCell>
                 <Table.HeaderCell scope="col">Eierteam</Table.HeaderCell>
                 <Table.HeaderCell scope="col">Status</Table.HeaderCell>
               </Table.Row>
@@ -1407,14 +1516,40 @@ export function AgentDetailView({ profile: p, events }: { profile: AgentProfile;
                     : "ikke gitt tilgang";
                 return (
                   <Table.Row key={refKey(g.serverRef)}>
-                    <Table.DataCell>
-                      <NextLink className={linkClass} href={`/fleet/mcp-servere/${refKey(g.serverRef)}`}>
-                        <strong>{g.serverRef.name}</strong>
-                      </NextLink>
+                    <Table.DataCell className="min-w-64">
+                      <VStack gap="space-4">
+                        <NextLink className={linkClass} href={`/fleet/mcp-servere/${refKey(g.serverRef)}`}>
+                          <strong>{g.serverRef.name}</strong>
+                        </NextLink>
+                        <Detail as="code" className="[overflow-wrap:anywhere]">
+                          /mcp/{g.serverRef.namespace}/{g.serverRef.name}
+                        </Detail>
+                        <Detail className="[overflow-wrap:anywhere]">{g.allowedTools.join(", ")}</Detail>
+                      </VStack>
                     </Table.DataCell>
-                    <Table.DataCell>{g.allowedTools.join(", ")}</Table.DataCell>
                     <Table.DataCell>{g.serverRef.namespace}</Table.DataCell>
-                    <Table.DataCell>{given}</Table.DataCell>
+                    <Table.DataCell>
+                      <VStack gap="space-4" align="start">
+                        <Tag
+                          size="small"
+                          className="whitespace-nowrap"
+                          variant={
+                            given.startsWith("tilgang gitt")
+                              ? "success"
+                              : given === "ikke gitt tilgang"
+                                ? "warning"
+                                : "neutral"
+                          }
+                        >
+                          {given.startsWith("tilgang gitt")
+                            ? "I bruk"
+                            : given === "ikke gitt tilgang"
+                              ? "Venter på eierteamet"
+                              : "Trukket tilbake"}
+                        </Tag>
+                        <Detail>{given}</Detail>
+                      </VStack>
+                    </Table.DataCell>
                   </Table.Row>
                 );
               })}
