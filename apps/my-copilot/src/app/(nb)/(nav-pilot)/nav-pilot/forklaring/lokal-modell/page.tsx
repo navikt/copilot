@@ -203,7 +203,10 @@ export default function LokalModellForklaring() {
               </a>
               ).
             </li>
-            <li>En modell på egen LLM-server er ikke målt. Den får den generelle instruksen, og ingenting stoppes.</li>
+            <li>
+              En modell på egen LLM-server er ikke målt. Hovedagenten får beskjed om ikke å sende den noe, og ingenting
+              stoppes.
+            </li>
           </Bullets>
           <BodyLong>
             nav-pilot stopper heller ingenting når den lokale serveren ikke svarer, i subagentenes egne sesjoner, eller

@@ -270,9 +270,8 @@ nav-pilot`}</CodeBlock>
           <BodyLong>
             Be om en mekanisk endring over flere filer, som «legg til parameteren <code className={code}>ctx</code> i
             alle kall til <code className={code}>hentBruker</code>». Modellen på serveren din er ikke målt, så
-            hovedagenten får bare den generelle instruksen om delegering, og nav-pilot stopper ingen redigeringer,
+            hovedagenten får beskjed om ikke å sende den noe før den er målt. nav-pilot stopper ingen redigeringer,
             heller ikke med <code className={code}>balanced</code> eller <code className={code}>aggressive</code>.
-            Hovedagenten vurderer selv hva den delegerer.
           </BodyLong>
           <BodyLong>
             <code className={code}>nav-pilot alpha local status</code> viser serveren, modellen og om delegering er på.

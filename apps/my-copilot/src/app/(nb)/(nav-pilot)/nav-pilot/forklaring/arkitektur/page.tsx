@@ -30,7 +30,7 @@ const COMPARISON = [
 ];
 
 const KNOWS = [
-  "Innbyggere logger inn med ID-porten, saksbehandlere med Azure AD.",
+  "Innbyggere logger inn med ID-porten, saksbehandlere med Entra ID.",
   "Uten accessPolicy.inbound i Nais-manifestet kan ingen kalle tjenesten din.",
   "Standardpoolen i HikariCP (10) er for stor for containere. Start med 3.",
   "Nais skal ha CPU-requests, aldri CPU-limits.",
@@ -59,7 +59,7 @@ const PRINCIPLES = [
   { title: "Tynn agent, tykke skills", desc: "Agenten sender videre. Skillene har beslutningstrær og sjekklister." },
   { title: "Stopp mellom fasene", desc: "nav-pilot foreslår, du godkjenner, nav-pilot fortsetter." },
   { title: "Arketypen først", desc: "«Hva bygger du?» bestemmer stack, autentisering og Nais-konfig." },
-  { title: "Et lite CLI", desc: "Én Go-binær uten avhengigheter. Copilot kjører all KI." },
+  { title: "Et lite CLI", desc: "Én enkelt Go-binær. Copilot kjører all KI." },
 ];
 
 export default function Arkitektur() {

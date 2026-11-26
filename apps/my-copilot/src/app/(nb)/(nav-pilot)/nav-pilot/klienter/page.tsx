@@ -77,7 +77,7 @@ const PARITY: { what: ReactNode; copilot: string; opencode: string; pi: string; 
     copilot: "Ja",
     opencode: "Ja",
     pi: "Nei",
-    note: "Gates fra repoet kjører i opencode uten at du har godtatt mappa først, slik Copilot CLI krever.",
+    note: "I opencode 2 spør nav-pilot før gates fra repoet kjører, i samme spørsmål som repoets plugins (nav-pilot plugins). I opencode 1 kjører de uten spørsmål.",
   },
   {
     what: <>{c("tools:")} i agentene</>,
@@ -252,8 +252,9 @@ export default function Klienter() {
         </ScrollRegion>
         <Bullets>
           <li>
-            Nye installasjoner får opencode: første gang spør nav-pilot hvilken klient du vil ha, med opencode
-            forhåndsvalgt. Har du brukt nav-pilot før, beholder du klienten din.
+            På en ny maskin spør nav-pilot ikke om klient. Den velger opencode hvis opencode er installert, innlogget og
+            i en versjon nav-pilot er testet med, og ellers GitHub Copilot CLI. Har du ingen av dem, spør nav-pilot om
+            den skal installere opencode. Har du brukt nav-pilot før, beholder du klienten din.
           </li>
           <li>
             Bytt for én sesjon med {c("--client copilot")}, permanent med {c("nav-pilot config set client copilot")}.
@@ -462,7 +463,7 @@ export default function Klienter() {
           </li>
           <li>
             Velger du ikke modell selv, bruker nav-pilot standarden agentpakka oppgir. For agentpakka nav-pilot er det
-            GPT-6 Sol.
+            GPT-6.1 Sol.
           </li>
           <li>
             {c("nav-pilot export opencode")} skriver agentpakka til {c(".opencode/")} i repoet. Du trenger det ikke for

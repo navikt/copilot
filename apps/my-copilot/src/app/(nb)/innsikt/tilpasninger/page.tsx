@@ -279,17 +279,17 @@ export default async function TilpasningerPage() {
   return (
     <InsightPage
       title="Tilpasninger"
-      description="KI-tilpasninger i navikt-repoene, fra en ukentlig skanning."
+      description="KI-tilpasninger i navikt-repoene, fra en daglig skanning."
       intro="Her ser du hvor mange av navikt-repoene som har KI-tilpasninger som instruksjoner, agenter, skills og prompts, hvilke som brukes mest, og om kopiene er i synk med kilden."
       updated={async () => (await adoptionFor(token)).data?.summary?.scan_date}
       source={
         <>
-          Tallene kommer fra copilot-api, som leser en ukentlig skanning av navikt-repoene:{" "}
-          <code>/adoption/summary</code>, <code>/adoption/teams</code>, <code>/adoption/languages</code>,{" "}
-          <code>/customizations/details</code> og <code>/adoption/staleness</code>. «Sist oppdatert» er datoen for
-          skanningen. Arkiverte repoer er ikke med. «Alle repoer» er resten, og et repo er aktivt når det har fått en
-          commit de siste 90 dagene. En KI-tilpasning er en fil for Copilot eller et annet KI-verktøy, for eksempel
-          CLAUDE.md eller .cursorrules. Tallene for repoene gjelder siste skanning, ikke en periode.
+          Tallene kommer fra copilot-api, som leser en daglig skanning av navikt-repoene: <code>/adoption/summary</code>
+          , <code>/adoption/teams</code>, <code>/adoption/languages</code>, <code>/customizations/details</code> og{" "}
+          <code>/adoption/staleness</code>. «Sist oppdatert» er datoen for skanningen. Arkiverte repoer er ikke med.
+          «Alle repoer» er resten, og et repo er aktivt når det har fått en commit de siste 90 dagene. En KI-tilpasning
+          er en fil for Copilot eller et annet KI-verktøy, for eksempel CLAUDE.md eller .cursorrules. Tallene for
+          repoene gjelder siste skanning, ikke en periode.
         </>
       }
     >
