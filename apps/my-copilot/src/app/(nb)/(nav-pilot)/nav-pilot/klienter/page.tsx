@@ -652,7 +652,7 @@ export default function Klienter() {
           Agentpakka er vanlige filer, så den virker også uten nav-pilot. Tabellen viser hvilke artefakttyper GitHubs
           klienter leser. «Agent» betyr Copilot coding agent, «chat» betyr Copilot Chat.
         </BodyLong>
-        <div className="overflow-x-auto" role="region" tabIndex={0} aria-labelledby="github-klienter-tabell">
+        <div className="relative overflow-x-auto" role="region" tabIndex={0} aria-labelledby="github-klienter-tabell">
           <Table size="small">
             <caption id="github-klienter-tabell" className="sr-only">
               Artefakttyper og hvilke av GitHubs klienter som leser dem

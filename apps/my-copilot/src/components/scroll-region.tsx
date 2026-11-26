@@ -21,7 +21,7 @@ export function ScrollRegion({
       role="region"
       tabIndex={0}
       aria-label={label}
-      className={`overflow-x-auto focus-visible:outline-3 focus-visible:outline-(--ax-border-focus) ${className}`.trim()}
+      className={`relative overflow-x-auto focus-visible:outline-3 focus-visible:outline-(--ax-border-focus) ${className}`.trim()}
       style={style}
     >
       {children}

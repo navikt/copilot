@@ -231,13 +231,13 @@ export function Stat({
   return (
     <Box background="default" borderWidth="1" borderColor="neutral-subtle" borderRadius="12" padding="space-16">
       <VStack gap="space-4">
-        <BodyShort size="small" className="md:whitespace-nowrap">
+        <BodyShort size="small" className="xl:whitespace-nowrap">
           {short ? (
             <>
-              <Hide below="md" asChild>
+              <Hide below="xl" asChild>
                 <span>{label}</span>
               </Hide>
-              <Show below="md" asChild>
+              <Show below="xl" asChild>
                 <span>{short}</span>
               </Show>
             </>

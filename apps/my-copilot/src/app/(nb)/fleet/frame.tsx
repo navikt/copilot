@@ -88,13 +88,13 @@ export function FleetFrame({
           paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
         >
           <Stack
-            direction={{ xs: "column", md: "row" }}
-            gap={{ xs: "space-24", md: "space-40" }}
-            align={{ xs: "stretch", md: "start" }}
+            direction={{ xs: "column", lg: "row" }}
+            gap={{ xs: "space-24", lg: "space-40" }}
+            align={{ xs: "stretch", lg: "start" }}
             wrap={false}
           >
             {!bare && (
-              <Box as="aside" className="w-full md:w-64 shrink-0">
+              <Box as="aside" className="w-full lg:w-64 shrink-0">
                 <FleetNav {...nav} />
               </Box>
             )}
