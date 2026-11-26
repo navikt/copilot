@@ -72,6 +72,12 @@ func (e *apisEnv) do(method, path, tok, body string) (int, string) {
 	raw, _ := io.ReadAll(resp.Body)
 	e.mu.Lock()
 	e.bodies = append(e.bodies, string(raw))
+	if resp.StatusCode >= 400 && resp.Header.Get("Content-Type") == "application/json" {
+		var st struct{ Kind, Reason string }
+		if json.Unmarshal(raw, &st) == nil && st.Kind == "Status" && !slices.Contains(pinnedReasons(e.t), st.Reason) {
+			e.t.Errorf("%s %s: reason %q is not in reasons.json: %s", method, path, st.Reason, raw)
+		}
+	}
 	e.mu.Unlock()
 	return resp.StatusCode, string(raw)
 }
@@ -83,6 +89,14 @@ func (e *apisEnv) want(code int, method, path, tok, body string) string {
 		e.t.Fatalf("%s %s: want %d, got %d %s", method, path, code, got, out)
 	}
 	return out
+}
+
+// wantReason is want for a refusal that must carry reason.
+func (e *apisEnv) wantReason(code int, reason, method, path, tok, body string) {
+	e.t.Helper()
+	if out := e.want(code, method, path, tok, body); !strings.Contains(out, `"reason":"`+reason+`"`) {
+		e.t.Fatalf("%s %s: want reason %s, got %s", method, path, reason, out)
+	}
 }
 
 // noOidLeak fails when any answer except whoami holds an oid.
@@ -214,14 +228,14 @@ func TestRealPostgresMCPServerLifecycle(t *testing.T) {
 	if !slices.Equal(m.Spec.AllowedTools, []string{"fetch", "search"}) || !strings.HasPrefix(m.Status.Pending.ContentHash, "v1:sha256:") {
 		t.Fatalf("spec must be normalised and hashed: %+v", m.Spec)
 	}
-	e.want(409, "POST", base, person("A222222"), serverJSON("team-a", "svc", "", "search"))
+	e.wantReason(409, ReasonAlreadyExists, "POST", base, person("A222222"), serverJSON("team-a", "svc", "", "search"))
 	hash := m.Status.Pending.ContentHash
 	// Owner-team members do not approve, submitter or not (#2634); outsiders get 404.
-	e.want(403, "POST", base+"/svc/approval", person("A111111"), approval(1, hash))
-	e.want(403, "POST", base+"/svc/approval", person("A222222"), approval(1, hash))
+	e.wantReason(403, ReasonNotPlatformTeam, "POST", base+"/svc/approval", person("A111111"), approval(1, hash))
+	e.wantReason(403, ReasonNotPlatformTeam, "POST", base+"/svc/approval", person("A222222"), approval(1, hash))
 	e.want(404, "POST", base+"/svc/approval", person("B444444"), approval(1, hash))
-	e.want(409, "POST", base+"/svc/approval", person("P999999"), approval(1, "v1:sha256:00"))
-	e.want(409, "POST", base+"/svc/approval", person("P999999"), approval(2, hash))
+	e.wantReason(409, ReasonContentHashMismatch, "POST", base+"/svc/approval", person("P999999"), approval(1, "v1:sha256:00"))
+	e.wantReason(409, ReasonGenerationNotPending, "POST", base+"/svc/approval", person("P999999"), approval(2, hash))
 	m = decodeServer(t, e.want(200, "POST", base+"/svc/approval", person("P999999"), approval(1, hash)))
 	if m.Status.PublishedGeneration != 1 || m.Status.Pending != nil || condOf(m.Status.Conditions, "Ready").Status != "True" || m.Status.Route.Path != "/mcp/team-a/svc" {
 		t.Fatalf("approved: %+v", m.Status)
@@ -236,8 +250,8 @@ func TestRealPostgresMCPServerLifecycle(t *testing.T) {
 
 	// PUT: resourceVersion is required and must be fresh.
 	rv := m.Metadata.ResourceVersion
-	e.want(409, "PUT", base+"/svc", person("A111111"), serverJSON("team-a", "svc", "", "search"))
-	e.want(409, "PUT", base+"/svc", person("A111111"), serverJSON("team-a", "svc", "1", "search"))
+	e.wantReason(409, ReasonStaleResourceVersion, "PUT", base+"/svc", person("A111111"), serverJSON("team-a", "svc", "", "search"))
+	e.wantReason(409, ReasonStaleResourceVersion, "PUT", base+"/svc", person("A111111"), serverJSON("team-a", "svc", "1", "search"))
 	e.want(400, "PUT", base+"/svc", person("A111111"), serverJSON("team-a", "other", rv, "search"))
 	// A new tool adds access, so it waits for the platform team.
 	m = decodeServer(t, e.want(200, "PUT", base+"/svc", person("A111111"), serverJSON("team-a", "svc", rv, "search", "more")))
@@ -311,7 +325,7 @@ func TestRealPostgresMCPServerRevokeRollbackBlock(t *testing.T) {
 	if code, out := rollback(`{"fromGeneration":3,"reason":"bad deploy"}`); code != 200 || decodeServer(t, out).Status.PublishedGeneration != 2 {
 		t.Fatalf("rollback to 2: %d %s", code, out)
 	}
-	if code, out := rollback(`{"fromGeneration":2,"toGeneration":3,"reason":"x"}`); code != 409 || !strings.Contains(out, "GenerationNotEligible") {
+	if code, out := rollback(`{"fromGeneration":2,"toGeneration":3,"reason":"x"}`); code != 409 || !strings.Contains(out, `"reason":"RollbackTargetNotEligible"`) {
 		t.Fatalf("rollback never goes forward to a newer generation: %d %s", code, out)
 	}
 	submit("three") // gen 4: same content as gen 3
@@ -336,7 +350,7 @@ func TestRealPostgresMCPServerRevokeRollbackBlock(t *testing.T) {
 		!condOf(m.Status.Conditions, "Revoked").LastTransitionTime.Equal(revokedAt) {
 		t.Fatalf("after prune: %+v", m.Status.Conditions)
 	}
-	if code, out := rollback(`{"fromGeneration":4,"reason":"x"}`); code != 409 || !strings.Contains(out, "InvalidState") {
+	if code, out := rollback(`{"fromGeneration":4,"reason":"x"}`); code != 409 || !strings.Contains(out, `"reason":"RollbackRevoked"`) {
 		t.Fatalf("rollback must never lift a revocation: %d %s", code, out)
 	}
 	cur := decodeServer(t, e.want(200, "GET", base, person("A111111"), ""))
@@ -504,19 +518,19 @@ func TestRealPostgresAgentProfileV1(t *testing.T) {
 		t.Fatalf("inbox: %s", inbox)
 	}
 	// Only the server's owner team may grant; the profile team gets 403, others 404.
-	e.want(403, "POST", base+"/assistant/approval", person("A555555"), grantBody(1, "team-b/kodeverk", hashFor["team-b/kodeverk"]))
+	e.wantReason(403, ReasonNotServerOwnerTeam, "POST", base+"/assistant/approval", person("A555555"), grantBody(1, "team-b/kodeverk", hashFor["team-b/kodeverk"]))
 	e.want(404, "POST", base+"/assistant/approval", person("P999999"), grantBody(1, "team-b/kodeverk", hashFor["team-b/kodeverk"]))
 	// A hash over another team's grant, or the whole spec, does not grant.
-	e.want(409, "POST", base+"/assistant/approval", person("B444444"), grantBody(1, "team-b/kodeverk", hashFor["copilot/dolly"]))
-	e.want(409, "POST", base+"/assistant/approval", person("B444444"), grantBody(1, "team-b/kodeverk", p.Status.Pending.ContentHash))
+	e.wantReason(409, ReasonContentHashMismatch, "POST", base+"/assistant/approval", person("B444444"), grantBody(1, "team-b/kodeverk", hashFor["copilot/dolly"]))
+	e.wantReason(409, ReasonContentHashMismatch, "POST", base+"/assistant/approval", person("B444444"), grantBody(1, "team-b/kodeverk", p.Status.Pending.ContentHash))
 	// The submitter is also in copilot and cannot grant their own profile.
-	e.want(403, "POST", base+"/assistant/approval", person("A111111"), grantBody(1, "copilot/dolly", hashFor["copilot/dolly"]))
+	e.wantReason(403, ReasonSelfApproval, "POST", base+"/assistant/approval", person("A111111"), grantBody(1, "copilot/dolly", hashFor["copilot/dolly"]))
 	// Two-person rule on stable identity (#2634): the submitter's oid under another
 	// NAVident, and the submitter's NAVident with another oid, are both refused.
-	e.want(403, "POST", base+"/assistant/approval", person("C222222")+":C222222:"+testOid("A111111"), grantBody(1, "copilot/dolly", hashFor["copilot/dolly"]))
-	e.want(403, "POST", base+"/assistant/approval", person("A111111")+":A111111:"+testOid("C222222"), grantBody(1, "copilot/dolly", hashFor["copilot/dolly"]))
+	e.wantReason(403, ReasonSelfApproval, "POST", base+"/assistant/approval", person("C222222")+":C222222:"+testOid("A111111"), grantBody(1, "copilot/dolly", hashFor["copilot/dolly"]))
+	e.wantReason(403, ReasonSelfApproval, "POST", base+"/assistant/approval", person("A111111")+":A111111:"+testOid("C222222"), grantBody(1, "copilot/dolly", hashFor["copilot/dolly"]))
 	e.want(200, "POST", base+"/assistant/approval", person("B444444"), grantBody(1, "team-b/kodeverk", hashFor["team-b/kodeverk"]))
-	e.want(409, "POST", base+"/assistant/approval", person("B555555"), grantBody(1, "team-b/kodeverk", hashFor["team-b/kodeverk"]))
+	e.wantReason(409, ReasonAlreadyGranted, "POST", base+"/assistant/approval", person("B555555"), grantBody(1, "team-b/kodeverk", hashFor["team-b/kodeverk"]))
 	if ex2 := e.want(200, "GET", base+"/assistant", person("B555555"), ""); strings.Contains(ex2, "grantedBy") || strings.Contains(ex2, "B444444") {
 		t.Fatalf("excerpt shows who granted: %s", ex2)
 	}
@@ -543,14 +557,14 @@ func TestRealPostgresAgentProfileV1(t *testing.T) {
 		e.want(404, "GET", base+"/missing", person("P999999"), "")
 	})
 	// One live profile per client id.
-	e.want(409, "POST", base, person("A111111"), profileJSON("aksel-studio", "copy", "", "copilot/dolly=hent"))
+	e.wantReason(409, ReasonClientIDInUse, "POST", base, person("A111111"), profileJSON("aksel-studio", "copy", "", "copilot/dolly=hent"))
 	// A label change keeps the generation.
 	full := decodeProfile(t, e.want(200, "GET", base+"/assistant", person("A555555"), ""))
 	same := strings.Replace(profileJSON("aksel-studio", "assistant", full.Metadata.ResourceVersion, "team-b/kodeverk=lookup", "copilot/dolly=hent"), `"name":"assistant"`, `"name":"assistant","labels":{"x":"y"}`, 1)
 	if q := decodeProfile(t, e.want(200, "PUT", base+"/assistant", person("A555555"), same)); q.Metadata.Generation != 1 || q.Status.Pending != nil {
 		t.Fatalf("same spec must not make a generation: %+v", q.Metadata)
 	}
-	e.want(409, "PUT", base+"/assistant", person("A555555"), same)
+	e.wantReason(409, ReasonStaleResourceVersion, "PUT", base+"/assistant", person("A555555"), same)
 	// A server owner revokes only its own grant.
 	e.want(200, "POST", base+"/assistant/revocation", person("B444444"), `{"reason":"x","serverRef":{"group":"fleet.nav.no","kind":"MCPServer","namespace":"team-b","name":"kodeverk"}}`)
 	e.want(404, "POST", base+"/assistant/revocation", person("B444444"), `{"reason":"x"}`)
@@ -595,12 +609,12 @@ func TestRealPostgresSeededProfileNeedsPerson(t *testing.T) {
 	if inbox := e.want(200, "GET", apisPrefix+"/agentprofiles?awaitingApprovalBy=me", person("C222222"), ""); !strings.Contains(inbox, `"needsResubmit":true`) {
 		t.Fatalf("inbox drops needsResubmit: %s", inbox)
 	}
-	e.want(403, "POST", nsBase+"aksel-studio/agentprofiles/studio-assistant/approval", person("C222222"), grantBody(1, "copilot/dolly", got.Status.Grants[0].ContentHash))
+	e.wantReason(403, ReasonSubmitterNotPerson, "POST", nsBase+"aksel-studio/agentprofiles/studio-assistant/approval", person("C222222"), grantBody(1, "copilot/dolly", got.Status.Grants[0].ContentHash))
 	// Even with an oid, kind System never counts as a person.
 	if _, err := e.db.pool.Exec(context.Background(), `UPDATE agent_profile_generations SET submitted_by_oid = $1::uuid`, testOid("A555555")); err != nil {
 		t.Fatal(err)
 	}
-	e.want(403, "POST", nsBase+"aksel-studio/agentprofiles/studio-assistant/approval", person("C222222"), grantBody(1, "copilot/dolly", got.Status.Grants[0].ContentHash))
+	e.wantReason(403, ReasonSubmitterNotPerson, "POST", nsBase+"aksel-studio/agentprofiles/studio-assistant/approval", person("C222222"), grantBody(1, "copilot/dolly", got.Status.Grants[0].ContentHash))
 }
 
 // readme and tool descriptions come back byte for byte, and a person's

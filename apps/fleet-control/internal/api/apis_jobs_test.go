@@ -65,7 +65,7 @@ func TestRealPostgresAgentJobPerson(t *testing.T) {
 	}
 	// Defaults written out give the same job; another spec is 409.
 	e.want(200, "POST", base, person("A222222"), jobJSON("team-a", "first", studioRef+`,"maxAttempts":3,"onExpiry":"Requeue"`))
-	e.want(409, "POST", base, person("A111111"), jobJSON("team-a", "first", studioRef+`,"maxAttempts":2`))
+	e.wantReason(409, ReasonAlreadyExists, "POST", base, person("A111111"), jobJSON("team-a", "first", studioRef+`,"maxAttempts":2`))
 
 	// The name check comes before the kill switch.
 	if _, err := e.db.pool.Exec(context.Background(), `INSERT INTO runtime_kill_switches (scope, reason, set_by) VALUES ('team:team-a', 'x', 'A111111')`); err != nil {
@@ -90,7 +90,7 @@ func TestRealPostgresAgentJobPerson(t *testing.T) {
 	if condOf(done.Status.Conditions, "Failed").Status != "True" || done.Status.CompletionTime == nil || done.Metadata.ResourceVersion == j.Metadata.ResourceVersion {
 		t.Fatalf("cancelled: %+v", done)
 	}
-	e.want(409, "POST", base+"/first/termination", person("A111111"), `{"mode":"Kill"}`)
+	e.wantReason(409, ReasonJobNotActive, "POST", base+"/first/termination", person("A111111"), `{"mode":"Kill"}`)
 	// Both job actions keep the oid next to the NAVident (#2763).
 	var missing int
 	if err := e.db.pool.QueryRow(context.Background(), `SELECT count(*) FROM audit_events WHERE action IN ('job_created', 'job_cancel') AND (actor_oid IS NULL OR actor_kind IS NULL)`).Scan(&missing); err != nil || missing != 0 {

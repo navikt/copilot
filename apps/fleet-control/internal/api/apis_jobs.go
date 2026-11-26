@@ -111,7 +111,7 @@ func jobScope(ctx context.Context, db *DB, c caller, ns string) (*boundProfile, 
 	}
 	p, err := scanLiveProfile(db.pool.QueryRow(ctx, liveProfileSQL+`r.published_client_id = $1::uuid AND g.entra_client_id = $1::uuid`, c.ClientID))
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, stErr(http.StatusUnauthorized, "Unauthorized", "the token's client is not a published agent profile")
+		return nil, stErr(http.StatusUnauthorized, ReasonUnknownClient, "the token's client is not a published agent profile")
 	}
 	if err != nil {
 		return nil, err
@@ -325,7 +325,7 @@ func createJobV1(w http.ResponseWriter, r *http.Request, c caller, db *DB) error
 	// A delegated orderer is stored as {issuer, client, subject}; refuse
 	// rather than write a job whose orderer cannot be named (#2896).
 	if client != "" && (entraIssuer == "" || subject == "") {
-		return stErr(http.StatusServiceUnavailable, "ServiceUnavailable", "the orderer's issuer or subject is unknown")
+		return stErr(http.StatusServiceUnavailable, ReasonOrdererUnknown, "the orderer's issuer or subject is unknown")
 	}
 	// The name check comes before the kill switch: a retry of a job that
 	// exists gets it back even while the switch is on.
@@ -339,7 +339,7 @@ func createJobV1(w http.ResponseWriter, r *http.Request, c caller, db *DB) error
 			return cmpErr
 		}
 		if !same {
-			return &statusError{code: http.StatusConflict, reason: "AlreadyExists", msg: "a job named " + name + " exists with another spec"}
+			return &statusError{code: http.StatusConflict, reason: ReasonAlreadyExists, msg: "a job named " + name + " exists with another spec"}
 		}
 		writeObject(w, http.StatusOK, j)
 		return nil
@@ -360,7 +360,7 @@ func createJobV1(w http.ResponseWriter, r *http.Request, c caller, db *DB) error
 			return swErr
 		}
 		if switched {
-			return stErr(http.StatusServiceUnavailable, "ServiceUnavailable", "the kill switch is on for %s", ns)
+			return stErr(http.StatusServiceUnavailable, ReasonKillSwitchOn, "the kill switch is on for %s", ns)
 		}
 		insErr := tx.QueryRow(ctx, `INSERT INTO runtime_jobs (team, kind, params, on_expiry, max_attempts, created_by, created_by_kind, created_by_client_id, created_by_oid,
 				name, submitted_spec, orderer_client_id, orderer_subject, agent_profile_generation, orderer_issuer, orderer_client, orderer_sub)
@@ -395,11 +395,11 @@ func terminateJobV1(w http.ResponseWriter, r *http.Request, c caller, db *DB) er
 	}
 	var req TerminationRequest
 	if err := decodeBody(w, r, &req); err != nil {
-		return stErr(http.StatusBadRequest, "BadRequest", "%v", err)
+		return stErr(http.StatusBadRequest, ReasonBadRequest, "%v", err)
 	}
 	cmd := map[string]string{"Cancel": cmdCancel, "Kill": cmdKill}[req.Mode]
 	if cmd == "" || len(req.Reason) > 500 {
-		return stErr(http.StatusBadRequest, "BadRequest", "mode must be Cancel or Kill, and reason at most 500 characters")
+		return stErr(http.StatusBadRequest, ReasonBadRequest, "mode must be Cancel or Kill, and reason at most 500 characters")
 	}
 	client, subject := ordererKey(c)
 	var id int64

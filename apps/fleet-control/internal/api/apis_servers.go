@@ -166,7 +166,7 @@ func validateServerSpec(cluster, platform, ns, name string, spec MCPServerSpec) 
 	}
 	// Outside dev-* (an unset cluster included) write tools need a ROS.
 	if !auth.DevCluster(cluster) && spec.RosRef == "" && slices.ContainsFunc(spec.AllowedTools, func(t string) bool { return toolRiskOf(resolved, t) == "write" }) {
-		return spec, model.Server{}, invalid("spec.rosRef", "MCP-serveren har skriveverktøy, og i prod krever det en ROS. Legg til spec.rosRef med lenke til ROS-en, eller sett spec.defaultRisk eller spec.toolRisk til read eller propose for verktøy som ikke skriver.")
+		return spec, model.Server{}, invalid("spec.rosRef", "the MCP server has write tools, and prod requires a risk assessment (ROS): set spec.rosRef to its link, or set spec.defaultRisk or spec.toolRisk to read or propose for tools that do not write").because(ReasonRosRequired)
 	}
 	var draft draftSpec
 	draft.Registry = spec.Registry
@@ -192,7 +192,7 @@ func validateServerSpec(cluster, platform, ns, name string, spec MCPServerSpec) 
 		return spec, model.Server{}, invalid("spec", "%v", err)
 	}
 	if sv.RegistryName != "" && !registryNameAllowed(platform, ns, sv.RegistryName) {
-		return spec, model.Server{}, invalid("spec.registry.name", "%q is not yours: team %s may use no.nav.%s/<name> or io.github.navikt/%s; other names are registered by the platform team", sv.RegistryName, ns, ns, ns)
+		return spec, model.Server{}, invalid("spec.registry.name", "%q is not yours: team %s may use no.nav.%s/<name> or io.github.navikt/%s; other names are registered by the platform team", sv.RegistryName, ns, ns, ns).because(ReasonRegistryNameNotYours)
 	}
 	if sv.Route != nil {
 		sv.Route.ToolRisk = resolved
@@ -387,7 +387,7 @@ func (s *server) approveServer(w http.ResponseWriter, r *http.Request, c caller,
 		ContentHash string `json:"contentHash"`
 	}
 	if err := decodeBody(w, r, &body); err != nil {
-		return stErr(http.StatusBadRequest, "BadRequest", "%v", err)
+		return stErr(http.StatusBadRequest, ReasonBadRequest, "%v", err)
 	}
 	if err := db.approveServer(r.Context(), c, s.operatorTeam, ns, name, body.Generation, body.ContentHash); err != nil {
 		return err
@@ -404,7 +404,7 @@ func approverGuard(c caller, platform, ns string) error {
 	case platform != "" && c.in(platform):
 		return nil
 	case c.in(ns):
-		return stErr(http.StatusForbidden, "Forbidden", "only the platform team approves MCP server versions")
+		return stErr(http.StatusForbidden, ReasonNotPlatformTeam, "only the platform team approves MCP server versions")
 	}
 	return errV1NotFound
 }
@@ -425,7 +425,7 @@ func reasonText(raw string) (string, error) {
 	if t := strings.TrimSpace(raw); t != "" && len(t) <= 500 {
 		return t, nil
 	}
-	return "", stErr(http.StatusBadRequest, "BadRequest", "reason must be 1 to 500 characters")
+	return "", stErr(http.StatusBadRequest, ReasonReasonRequired, "reason must be 1 to 500 characters")
 }
 
 func (s *server) revokeServer(w http.ResponseWriter, r *http.Request, c caller, db *DB) error {
@@ -439,7 +439,7 @@ func (s *server) revokeServer(w http.ResponseWriter, r *http.Request, c caller, 
 		Block  bool   `json:"block"`
 	}
 	if err = decodeBody(w, r, &body); err != nil {
-		return stErr(http.StatusBadRequest, "BadRequest", "%v", err)
+		return stErr(http.StatusBadRequest, ReasonBadRequest, "%v", err)
 	}
 	reason, err := reasonText(body.Reason)
 	if err != nil {
@@ -467,7 +467,7 @@ func (s *server) rollbackServer(w http.ResponseWriter, r *http.Request, c caller
 		Reason         string `json:"reason"`
 	}
 	if err = decodeBody(w, r, &body); err != nil {
-		return stErr(http.StatusBadRequest, "BadRequest", "%v", err)
+		return stErr(http.StatusBadRequest, ReasonBadRequest, "%v", err)
 	}
 	reason, err := reasonText(body.Reason)
 	if err != nil {
@@ -746,7 +746,7 @@ func blockedContent(ctx context.Context, tx pgx.Tx, table, ns, name string, hash
 		return err
 	}
 	if blocked {
-		return invalid("spec", "this content is blocked and can never be published again")
+		return invalid("spec", "this content is blocked and can never be published again").because(ReasonContentBlocked)
 	}
 	return nil
 }
@@ -770,7 +770,7 @@ func (d *DB) submitServer(ctx context.Context, c caller, m ObjectMeta, spec MCPS
 				return err
 			}
 			if tag.RowsAffected() == 0 {
-				return stErr(http.StatusConflict, "AlreadyExists", "mcpservers %q already exists", sv.Name)
+				return stErr(http.StatusConflict, ReasonAlreadyExists, "mcpservers %q already exists", sv.Name)
 			}
 		}
 		row, err := lockServerRow(ctx, tx, sv.Namespace, sv.Name)
@@ -887,7 +887,7 @@ func autoPublish(ctx context.Context, tx pgx.Tx, c caller, sv model.Server, vers
 	if _, err := tx.Exec(ctx, `UPDATE servers SET published_version = $3, pending_version = NULL, status = 'published', registry_name = $4, updated_at = now()
 		WHERE namespace = $1 AND name = $2`, sv.Namespace, sv.Name, version, reg); err != nil {
 		if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok && pgErr.Code == "23505" {
-			return conflict("spec.registry.name", "FieldValueDuplicate", "registry name is used by another server")
+			return conflict("spec.registry.name", ReasonRegistryNameTaken, "registry name is used by another server")
 		}
 		return err
 	}
@@ -909,7 +909,7 @@ func (d *DB) approveServer(ctx context.Context, c caller, platform, ns, name str
 			return err
 		}
 		if row.Pending == nil || *row.Pending != gen {
-			return conflict("generation", "FieldValueInvalid", "generation %d is not the one awaiting approval", gen)
+			return conflict("generation", ReasonGenerationNotPending, "generation %d is not the one awaiting approval", gen)
 		}
 		v, err := loadVersion(ctx, tx, ns, name, gen)
 		if err != nil {
@@ -926,16 +926,16 @@ func (d *DB) approveServer(ctx context.Context, c caller, platform, ns, name str
 		}
 		switch {
 		case v.Hash == nil || *v.Hash != hash || !strings.HasPrefix(hash, canon.Prefix):
-			return conflict("contentHash", "FieldValueInvalid", "contentHash does not match the pending generation")
+			return conflict("contentHash", ReasonContentHashMismatch, "contentHash does not match the pending generation")
 		case deref(v.SubKind) != "User" || v.SubOid == nil:
-			return stErr(http.StatusForbidden, "Forbidden", "the pending generation has no person as submitter; a person must submit it again")
+			return stErr(http.StatusForbidden, ReasonSubmitterNotPerson, "the pending generation has no person as submitter; a person must submit it again")
 		case c.Oid == "":
 			// self_approved compares oids; an empty one would also fail the uuid cast below.
-			return stErr(http.StatusForbidden, "Forbidden", "the approver has no object id")
+			return stErr(http.StatusForbidden, ReasonApproverNoOid, "the approver has no object id")
 		case platform == "" || !c.in(platform):
-			return stErr(http.StatusForbidden, "Forbidden", "only the platform team approves MCP server versions")
+			return stErr(http.StatusForbidden, ReasonNotPlatformTeam, "only the platform team approves MCP server versions")
 		case v.RegName != nil && !registryNameAllowed(platform, ns, *v.RegName):
-			return invalid("spec.registry.name", "generation %d has registry name %q, which team %s may not use", gen, *v.RegName, ns)
+			return invalid("spec.registry.name", "generation %d has registry name %q, which team %s may not use", gen, *v.RegName, ns).because(ReasonRegistryNameNotYours)
 		}
 		hashes := []string{hash}
 		if err = blockedContent(ctx, tx, "server_versions", ns, name, hashes); err != nil {
@@ -954,7 +954,7 @@ func (d *DB) approveServer(ctx context.Context, c caller, platform, ns, name str
 		if _, err := tx.Exec(ctx, `UPDATE servers SET published_version = $3, pending_version = NULL, status = 'published', registry_name = $4, updated_at = now()
 			WHERE namespace = $1 AND name = $2`, ns, name, gen, v.RegName); err != nil {
 			if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok && pgErr.Code == "23505" {
-				return conflict("spec.registry.name", "FieldValueDuplicate", "registry name is used by another server")
+				return conflict("spec.registry.name", ReasonRegistryNameTaken, "registry name is used by another server")
 			}
 			return err
 		}
@@ -982,7 +982,7 @@ func (d *DB) revokeServer(ctx context.Context, c caller, by, ns, name, reason st
 			return err
 		}
 		if row.Status != "published" {
-			return conflict("", "InvalidState", "server is %s, not published", row.Status)
+			return conflict("", ReasonNotPublished, "server is %s, not published", row.Status)
 		}
 		if _, err := tx.Exec(ctx, `UPDATE servers SET status = 'revoked', updated_at = now() WHERE namespace = $1 AND name = $2`, ns, name); err != nil {
 			return err
@@ -1008,10 +1008,10 @@ func (d *DB) rollbackServer(ctx context.Context, c caller, platform, by, ns, nam
 			return err
 		}
 		if row.Status != "published" {
-			return conflict("", "InvalidState", "server is %s; rollback never lifts a revocation", row.Status)
+			return conflict("", ReasonRollbackRevoked, "server is %s; rollback never lifts a revocation", row.Status)
 		}
 		if *row.Published != from {
-			return conflict("fromGeneration", "FieldValueInvalid", "the published generation is %d", *row.Published)
+			return conflict("fromGeneration", ReasonFromGenerationMismatch, "the published generation is %d", *row.Published)
 		}
 		target := 0
 		if to != nil {
@@ -1020,11 +1020,11 @@ func (d *DB) rollbackServer(ctx context.Context, c caller, platform, by, ns, nam
 			return err
 		}
 		if target < 1 || target >= from {
-			return conflict("toGeneration", "GenerationNotEligible", "rollback goes only to an earlier generation that was published before")
+			return conflict("toGeneration", ReasonRollbackTargetNotEligible, "rollback goes only to an earlier generation that was published before")
 		}
 		v, err := loadVersion(ctx, tx, ns, name, target)
 		if errors.Is(err, errV1NotFound) || (err == nil && v.PublishedAt == nil) {
-			return conflict("toGeneration", "GenerationNotEligible", "generation %d was never published", target)
+			return conflict("toGeneration", ReasonRollbackTargetNotEligible, "generation %d was never published", target)
 		}
 		if err != nil {
 			return err
@@ -1036,7 +1036,7 @@ func (d *DB) rollbackServer(ctx context.Context, c caller, platform, by, ns, nam
 			return err
 		}
 		if via == nil {
-			return conflict("toGeneration", "GenerationNotEligible", "generation %d was not approved by the platform team", target)
+			return conflict("toGeneration", ReasonRollbackTargetNotApproved, "generation %d was not approved by the platform team", target)
 		}
 		var refused bool
 		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM server_versions WHERE namespace = $1 AND name = $2 AND (revoked_at IS NOT NULL OR blocked) AND spec_hash = $3)`, ns, name, v.Hash).Scan(&refused); err != nil {
@@ -1044,18 +1044,18 @@ func (d *DB) rollbackServer(ctx context.Context, c caller, platform, by, ns, nam
 		}
 		switch {
 		case v.Blocked:
-			return conflict("toGeneration", "GenerationBlocked", "generation %d is blocked", target)
+			return conflict("toGeneration", ReasonGenerationBlocked, "generation %d is blocked", target)
 		case v.RevokedAt != nil:
-			return conflict("toGeneration", "GenerationRevoked", "generation %d was revoked", target)
+			return conflict("toGeneration", ReasonGenerationRevoked, "generation %d was revoked", target)
 		case refused:
-			return conflict("toGeneration", "ContentRefused", "generation %d has the same content as a revoked or blocked generation", target)
+			return conflict("toGeneration", ReasonContentRefused, "generation %d has the same content as a revoked or blocked generation", target)
 		}
 		if v.RegName != nil && !registryNameAllowed(platform, ns, *v.RegName) {
-			return invalid("spec.registry.name", "generation %d has registry name %q, which team %s may not use", target, *v.RegName, ns)
+			return invalid("spec.registry.name", "generation %d has registry name %q, which team %s may not use", target, *v.RegName, ns).because(ReasonRegistryNameNotYours)
 		}
 		if _, err := tx.Exec(ctx, `UPDATE servers SET published_version = $3, registry_name = $4, updated_at = now() WHERE namespace = $1 AND name = $2`, ns, name, target, v.RegName); err != nil {
 			if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok && pgErr.Code == "23505" {
-				return conflict("spec.registry.name", "FieldValueDuplicate", "registry name is used by another server")
+				return conflict("spec.registry.name", ReasonRegistryNameTaken, "registry name is used by another server")
 			}
 			return err
 		}

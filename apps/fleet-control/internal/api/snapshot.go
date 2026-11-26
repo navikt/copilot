@@ -156,17 +156,17 @@ var maxTeamRoutesBytes = 64 << 10
 func routesFit(before, servers []model.Server, ns string) error {
 	total, team, err := routesSize(servers, ns)
 	if err != nil {
-		return refuse(http.StatusConflict, "routes snapshot would be invalid: %v", err)
+		return refuse(http.StatusConflict, ReasonInvalidSnapshot, "routes snapshot would be invalid: %v", err)
 	}
 	oldTotal, oldTeam, err := routesSize(before, ns)
 	if err != nil {
 		oldTotal, oldTeam = 0, 0 // an invalid current state gives no allowance
 	}
 	if total > maxRoutesSnapshotBytes && total > oldTotal {
-		return refuse(http.StatusConflict, "routes snapshot would be %d bytes, over the limit of %d", total, maxRoutesSnapshotBytes)
+		return refuse(http.StatusConflict, ReasonOverSnapshotBudget, "routes snapshot would be %d bytes, over the limit of %d", total, maxRoutesSnapshotBytes)
 	}
 	if team > maxTeamRoutesBytes && team > oldTeam {
-		return refuse(http.StatusConflict, "routes of team %s would be %d bytes, over the team limit of %d", ns, team, maxTeamRoutesBytes)
+		return refuse(http.StatusConflict, ReasonOverTeamBudget, "routes of team %s would be %d bytes, over the team limit of %d", ns, team, maxTeamRoutesBytes)
 	}
 	return nil
 }
