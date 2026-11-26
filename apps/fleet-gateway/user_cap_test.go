@@ -22,6 +22,9 @@ func TestPerUserInFlightConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if cfg.MCPMaxInFlightPerUser != 8 {
+		t.Fatalf("default MCPMaxInFlightPerUser = %d, want 8 (owner decision 2026-11-26)", cfg.MCPMaxInFlightPerUser)
+	}
 	if cfg.MCPMaxInFlightPerUser != defaultMCPMaxInFlightPerUser {
 		t.Fatalf("default MCPMaxInFlightPerUser = %d, want %d", cfg.MCPMaxInFlightPerUser, defaultMCPMaxInFlightPerUser)
 	}
@@ -99,14 +102,14 @@ func TestPerUserInFlightCap(t *testing.T) {
 		<-entered
 	}
 
-	shed := httpSeries("503", "user_cap")
+	shed := httpSeries("429", "user_cap")
 	beforeShed := testutil.ToFloat64(shed)
 	mcpDeny := mcpSeries(route, "user_cap", "deny", "user_cap", "")
 	beforeDeny := testutil.ToFloat64(mcpDeny)
 	mcpAllow := mcpSeries(route, "user_cap", "allow", "", "")
 	beforeAllow := testutil.ToFloat64(mcpAllow)
 
-	// (a) Next call for user A gets 503 with Retry-After and user_cap shed/audit.
+	// (a) Next call for user A gets 429 with Retry-After and user_cap shed/audit.
 	req, err := http.NewRequest(http.MethodPost, ts.URL+route, strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
 	if err != nil {
 		t.Fatal(err)
@@ -120,21 +123,21 @@ func TestPerUserInFlightCap(t *testing.T) {
 	respBody, _ := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 
-	if resp.StatusCode != http.StatusServiceUnavailable {
-		t.Fatalf("over per-user cap: status %d, want 503 (%s)", resp.StatusCode, respBody)
+	if resp.StatusCode != http.StatusTooManyRequests {
+		t.Fatalf("over per-user cap: status %d, want 429 (%s)", resp.StatusCode, respBody)
 	}
 	if got := resp.Header.Get("Retry-After"); got != "1" {
 		t.Fatalf("Retry-After = %q, want %q", got, "1")
 	}
 	var errJSON map[string]string
 	if err := json.Unmarshal(respBody, &errJSON); err != nil {
-		t.Fatalf("decode 503 body: %v (%s)", err, respBody)
+		t.Fatalf("decode 429 body: %v (%s)", err, respBody)
 	}
 	if errJSON["error"] != "too_many_requests" || errJSON["message"] != "too many concurrent MCP requests for this user; retry shortly" {
-		t.Fatalf("unexpected 503 body: %+v", errJSON)
+		t.Fatalf("unexpected 429 body: %+v", errJSON)
 	}
 	if got := testutil.ToFloat64(shed); got != beforeShed+1 {
-		t.Errorf("HTTPRequests(503, user_cap) = %v, want %v", got, beforeShed+1)
+		t.Errorf("HTTPRequests(429, user_cap) = %v, want %v", got, beforeShed+1)
 	}
 	if got := testutil.ToFloat64(mcpDeny); got != beforeDeny+1 {
 		t.Errorf("MCPRequests(user_cap, deny) = %v, want %v", got, beforeDeny+1)
@@ -287,33 +290,33 @@ func TestPerUserSSECap(t *testing.T) {
 		}
 	}
 
-	shed := httpSeries("503", "user_sse_cap")
+	shed := httpSeries("429", "user_sse_cap")
 	beforeShed := testutil.ToFloat64(shed)
 	mcpDeny := mcpSeries(route, "user_sse_cap", "deny", "user_sse_cap", "")
 	beforeDeny := testutil.ToFloat64(mcpDeny)
 	mcpAllow := mcpSeries(route, "user_sse_cap", "allow", "", "")
 	beforeAllow := testutil.ToFloat64(mcpAllow)
 
-	// (a) 5th concurrent SSE stream for user A gets 503 with reason=user_sse_cap.
+	// (a) 5th concurrent SSE stream for user A gets 429 with reason=user_sse_cap.
 	fifth := openSSE(tokenA, "")
 	respBody, _ := io.ReadAll(fifth.Body)
 	_ = fifth.Body.Close()
 
-	if fifth.StatusCode != http.StatusServiceUnavailable {
-		t.Fatalf("5th SSE stream: status %d, want 503 (%s)", fifth.StatusCode, respBody)
+	if fifth.StatusCode != http.StatusTooManyRequests {
+		t.Fatalf("5th SSE stream: status %d, want 429 (%s)", fifth.StatusCode, respBody)
 	}
 	if got := fifth.Header.Get("Retry-After"); got != "1" {
 		t.Fatalf("Retry-After = %q, want %q", got, "1")
 	}
 	var errJSON map[string]string
 	if err := json.Unmarshal(respBody, &errJSON); err != nil {
-		t.Fatalf("decode 503 body: %v (%s)", err, respBody)
+		t.Fatalf("decode 429 body: %v (%s)", err, respBody)
 	}
 	if errJSON["error"] != "too_many_requests" || errJSON["message"] != "too many concurrent SSE streams for this user; retry shortly" {
-		t.Fatalf("unexpected 503 body: %+v", errJSON)
+		t.Fatalf("unexpected 429 body: %+v", errJSON)
 	}
 	if got := testutil.ToFloat64(shed); got != beforeShed+1 {
-		t.Errorf("HTTPRequests(503, user_sse_cap) = %v, want %v", got, beforeShed+1)
+		t.Errorf("HTTPRequests(429, user_sse_cap) = %v, want %v", got, beforeShed+1)
 	}
 	if got := testutil.ToFloat64(mcpDeny); got != beforeDeny+1 {
 		t.Errorf("MCPRequests(user_sse_cap, deny) = %v, want %v", got, beforeDeny+1)

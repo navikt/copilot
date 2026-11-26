@@ -21,7 +21,7 @@ import (
 var (
 	httpRequests = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "fleet_gateway_http_requests_total",
-		Help: "HTTP requests answered by fleet-gateway, by status code. Excludes /health and /ready. reason is empty except for deliberate 503s (disabled: kill switch, cap: in-flight/SSE cap, user_cap: per-user in-flight cap, user_sse_cap: per-user SSE cap, store_full: store quota, refresh_in_flight: concurrent refresh).",
+		Help: "HTTP requests answered by fleet-gateway, by status code. Excludes /health and /ready. reason is empty except for deliberate 503s and 429s (disabled: kill switch, cap: in-flight/SSE cap, user_cap: per-user in-flight cap (429), user_sse_cap: per-user SSE cap (429), store_full: store quota, refresh_in_flight: concurrent refresh).",
 	}, []string{"code", "reason"})
 
 	// IDPErrors counts login failures caused by Entra or Texas, not by the user (#2893).
@@ -157,8 +157,11 @@ func Init(routes []routing.Route) {
 	for _, code := range []string{"200", "500", "502", "503", "504"} {
 		httpRequests.WithLabelValues(code, "")
 	}
-	for _, reason := range []string{"disabled", "route_disabled", "cap", "user_cap", "user_sse_cap", "store_full", "refresh_in_flight"} {
+	for _, reason := range []string{"disabled", "route_disabled", "cap", "store_full", "refresh_in_flight"} {
 		httpRequests.WithLabelValues("503", reason)
+	}
+	for _, reason := range []string{"user_cap", "user_sse_cap"} {
+		httpRequests.WithLabelValues("429", reason)
 	}
 	for _, step := range []string{"metadata", "code_redeem", "introspection"} {
 		IDPErrors.WithLabelValues(step)

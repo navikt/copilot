@@ -300,7 +300,8 @@ Proposed defaults (#2893), pending owner approval of the targets. Window: one ca
 
 **Availability** reads `fleet_gateway_mcp_requests_total{route,outcome}`; it is the only request counter with a route label. Only the gateway's own faults count as bad.
 
-- Bad: `store_error` (Postgres), `upstream_token_error` (token exchange), and the capacity outcomes `over_capacity`, `sse_over_capacity`, `user_cap`, `user_sse_cap`. Capacity counts because we set it (decided 2026-11-25). Mimir has only seen `upstream_token_error`, `user_cap` and `user_sse_cap` so far; the others are in the code (`proxy.go`) and have not occurred.
+- Bad: `store_error` (Postgres), `upstream_token_error` (token exchange), and the global capacity outcomes `over_capacity` and `sse_over_capacity`. Global capacity counts because we set it (decided 2026-11-25). Mimir has only seen `upstream_token_error` so far; the others are in the code (`proxy.go`) and have not occurred.
+- In the total but not bad: the per-user caps `user_cap` and `user_sse_cap`. They answer `429` with `Retry-After: 1`, so one busy user cannot burn the route's budget (decided 2026-11-26, after 8 `user_cap` answers fired FleetGatewayAvailabilityBurnFast). FleetGatewayUserCapsHit watches them instead.
 - Left out of the total: `unauthorized` (the OAuth handshake 401, by far the largest outcome), `disabled` (kill switch) and `tool_denied` (policy).
 - In the total but not bad: `ok`, `upstream_<code>` (the MCP server's own HTTP status, 4xx and 5xx), `upstream_error`, `upstream_unexpected_sse`, `stream_error` (200 already sent), and client errors (`bad_request`, `payload_too_large`, `response_too_large`, `upstream_access_missing` and the rest).
 
@@ -311,7 +312,7 @@ Recording rules in `.nais/app.yaml` hold the one definition that the alerts and 
 
 ```promql
 # fleet_gateway:slo_availability_errors:ratio_rate1h
-(sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity|user_cap|user_sse_cap"}[1h]))
+(sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity"}[1h]))
   or sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{outcome!~"unauthorized|disabled|tool_denied"}[1h])) * 0)
   / sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{outcome!~"unauthorized|disabled|tool_denied"}[1h]))
 ```
@@ -377,6 +378,14 @@ Break `fleet_gateway_mcp_requests_total` down by route and outcome, then read th
 ### FleetGatewaySustainedShedding
 
 `store_full`: count rows per kind in the session store and look for a client registering in a loop (see "Block one client"). `cap`: look for a slow upstream holding requests.
+
+### FleetGatewayUserCapsHit
+
+More than 20 `user_cap` or `user_sse_cap` answers in 15 minutes on one route. Users get `429` with `Retry-After: 1` when they hold more than `MCP_MAX_IN_FLIGHT_PER_USER` (default 8) requests or `MCP_MAX_SSE_PER_USER` (default 4) streams at once on one pod. Warning only: the client retries and the SLO does not count it.
+
+1. Find who: search the `audit mcp` lines for the route with outcome `user_cap` or `user_sse_cap`. One user or many?
+2. One user: usually a client or agent firing calls in parallel. Ask them to lower the parallelism; if it is abuse, see "Lock out one user".
+3. Many users, or a slow upstream: requests hold slots longer. Check the route's latency. If normal use needs more, raise `MCP_MAX_IN_FLIGHT_PER_USER` (or `MCP_MAX_SSE_PER_USER`) in the manifest; it stays capped by `MCP_MAX_IN_FLIGHT`.
 
 ### FleetGatewaySustainedRateLimiting
 

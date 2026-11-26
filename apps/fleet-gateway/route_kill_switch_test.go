@@ -97,3 +97,30 @@ func TestAlertsExcludeRouteDisabled(t *testing.T) {
 		}
 	}
 }
+
+// Per-user caps answer 429 and must stay out of the availability SLO; a
+// separate warning alert watches them (owner decision 2026-11-26).
+func TestAlertsExcludeUserCaps(t *testing.T) {
+	raw, err := os.ReadFile(".nais/app.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bad := regexp.MustCompile(`outcome=~"([^"]*over_capacity[^"]*)"`).FindAllStringSubmatch(string(raw), -1)
+	if len(bad) == 0 {
+		t.Fatal("no SLO error filters found in .nais/app.yaml")
+	}
+	for _, f := range bad {
+		re := regexp.MustCompile("^(?:" + f[1] + ")$")
+		for _, o := range []string{"user_cap", "user_sse_cap"} {
+			if re.MatchString(o) {
+				t.Errorf("SLO error filter outcome=~%q counts %s", f[1], o)
+			}
+		}
+		if !re.MatchString("over_capacity") || !re.MatchString("sse_over_capacity") {
+			t.Errorf("SLO error filter outcome=~%q dropped a global cap", f[1])
+		}
+	}
+	if !regexp.MustCompile(`(?s)- alert: FleetGatewayUserCapsHit\n\s+expr: [^\n]*outcome=~"user_cap\|user_sse_cap"[^\n]*\n(?:\s+[^\n]*\n)*?\s+severity: warning`).Match(raw) {
+		t.Error("FleetGatewayUserCapsHit warning alert on user_cap|user_sse_cap missing")
+	}
+}
