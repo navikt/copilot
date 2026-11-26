@@ -1719,3 +1719,12 @@ button.search-hit {
 .mcp-tabs [role="tab"] {
   white-space: nowrap;
 }
+
+/* Button, tag and tab labels stay on one line once the screen has room; on a phone a long label may still wrap rather than overflow. */
+@media (min-width: 480px) {
+  .aksel-button,
+  .aksel-tag,
+  .aksel-tabs__tab {
+    white-space: nowrap;
+  }
+}

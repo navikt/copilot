@@ -28,7 +28,7 @@ export function DocPage({
   toc?: TocItem[];
   /** Let the content use the full width, for pages with wide tables. */
   wide?: boolean;
-  /** Show the "Oppgrader først" snippet above the content. */
+  /** Show the "Oppgrader verktøyene først" snippet above the content. */
   upgrade?: boolean;
   children: ReactNode;
 }) {

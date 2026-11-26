@@ -58,11 +58,11 @@ export function SiteHeader({
       <a href="#hovedinnhold" className="skip-link">
         {labels.skip}
       </a>
-      <div className="flex items-center gap-2 lg:gap-8">
+      <div className="flex items-center gap-2 xl:gap-8">
         <NextLink href="/" className="wordmark">
           <span className="wordmark-name">{labels.siteName}</span>
         </NextLink>
-        <nav aria-label={labels.mainMenu} className="hidden lg:block mx-auto">
+        <nav aria-label={labels.mainMenu} className="hidden xl:block mx-auto">
           <ul className="flex gap-6 list-none">
             {TOP_LINKS.map((l) => (
               <li key={l.href}>
@@ -79,10 +79,10 @@ export function SiteHeader({
           </ul>
         </nav>
         {/* One search on every width: on phones it sits next to «Meny», one tap away, not inside the menu dialog. */}
-        <div className="ml-auto lg:ml-0">
+        <div className="ml-auto xl:ml-0">
           <SiteSearch label={labels.search} />
         </div>
-        <div className="hidden lg:flex items-center gap-4 text-sm">
+        <div className="hidden xl:flex items-center gap-4 text-sm">
           {userName ? (
             <UserMenu labels={labels} userName={userName} admin={admin} />
           ) : (
@@ -91,7 +91,7 @@ export function SiteHeader({
             </a>
           )}
         </div>
-        <div className="lg:hidden">
+        <div className="xl:hidden">
           <MobileMenu labels={labels} userName={userName} admin={admin} />
         </div>
       </div>
@@ -371,7 +371,7 @@ export function SectionLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   return (
     <div className="max-w-7xl mx-auto lg:flex">
-      <nav aria-label={sectionFor(pathname).title} className="hidden lg:block w-60 shrink-0 section-nav">
+      <nav aria-label={sectionFor(pathname).title} className="hidden lg:block w-72 shrink-0 section-nav">
         <div className="sticky top-4">
           <SectionTitle of={pathname} />
           <SectionMenu />

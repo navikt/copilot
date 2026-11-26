@@ -446,10 +446,10 @@ function SuitePanel({ suite, runs, view, colors }: { suite: Suite; runs: GoldenR
               <Table.HeaderCell scope="col" align="right">
                 Bestått
               </Table.HeaderCell>
-              <Table.HeaderCell scope="col" align="right">
+              <Table.HeaderCell scope="col" align="right" className="whitespace-nowrap">
                 95 %-intervall
               </Table.HeaderCell>
-              <Table.HeaderCell scope="col" align="right">
+              <Table.HeaderCell scope="col" align="right" className="whitespace-nowrap">
                 Credits per løst oppgave
               </Table.HeaderCell>
               <Table.HeaderCell scope="col">Dato</Table.HeaderCell>
@@ -722,7 +722,9 @@ function EffortSection() {
         <Table size="small">
           <Table.Header>
             <Table.Row>
-              <Table.HeaderCell scope="col">Innsatsnivå (effort)</Table.HeaderCell>
+              <Table.HeaderCell scope="col" className="whitespace-nowrap">
+                Innsatsnivå (effort)
+              </Table.HeaderCell>
               <Table.HeaderCell scope="col">Når du bør bruke det</Table.HeaderCell>
             </Table.Row>
           </Table.Header>

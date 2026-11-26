@@ -103,7 +103,7 @@ function SortableHeader({
     <th
       scope="col"
       aria-sort={active ? direction : undefined}
-      className={`${align === "right" ? "text-right" : "text-left"} font-semibold`}
+      className={`${align === "right" ? "text-right" : "text-left"} font-semibold whitespace-nowrap`}
       style={{ color: "#475569", paddingBlock: "var(--ax-space-12)", paddingInline: "var(--ax-space-16)" }}
     >
       <button

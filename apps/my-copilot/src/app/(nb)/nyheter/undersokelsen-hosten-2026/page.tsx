@@ -1,6 +1,7 @@
 import { Box, VStack, Heading, BodyLong, Tag, HStack } from "@navikt/ds-react";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@/components/aksel-table";
 import NextLink from "next/link";
+import { ScrollRegion } from "@/components/scroll-region";
 import { ArrowLeftIcon } from "@navikt/aksel-icons";
 import type { Metadata } from "next";
 
@@ -138,27 +139,29 @@ export default function SurveyAutumnArticlePage() {
                 viser gjennomsnittet. To påstander er nye i høst.
               </BodyLong>
 
-              <Table size="small">
-                <caption>Gjennomsnitt per påstand, vår og høst 2026 (1 = helt uenig, 5 = helt enig)</caption>
-                <TableHeader>
-                  <TableRow>
-                    <TableHeaderCell scope="col">Påstand</TableHeaderCell>
-                    <TableHeaderCell scope="col">Hvem svarte</TableHeaderCell>
-                    <TableHeaderCell scope="col">Vår</TableHeaderCell>
-                    <TableHeaderCell scope="col">Høst</TableHeaderCell>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {statements.map((s) => (
-                    <TableRow key={s.text}>
-                      <TableHeaderCell scope="row">{s.text}</TableHeaderCell>
-                      <TableDataCell>{s.n}</TableDataCell>
-                      <TableDataCell>{s.spring}</TableDataCell>
-                      <TableDataCell>{s.autumn}</TableDataCell>
+              <ScrollRegion label="Tabell: gjennomsnitt per påstand">
+                <Table size="small">
+                  <caption>Gjennomsnitt per påstand, vår og høst 2026 (1 = helt uenig, 5 = helt enig)</caption>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHeaderCell scope="col">Påstand</TableHeaderCell>
+                      <TableHeaderCell scope="col">Hvem svarte</TableHeaderCell>
+                      <TableHeaderCell scope="col">Vår</TableHeaderCell>
+                      <TableHeaderCell scope="col">Høst</TableHeaderCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {statements.map((s) => (
+                      <TableRow key={s.text}>
+                        <TableHeaderCell scope="row">{s.text}</TableHeaderCell>
+                        <TableDataCell>{s.n}</TableDataCell>
+                        <TableDataCell>{s.spring}</TableDataCell>
+                        <TableDataCell>{s.autumn}</TableDataCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollRegion>
 
               <BodyLong spacing>
                 <strong>Tilfredsheten er høy.</strong> 83 % av KI-brukerne er fornøyde. Økningen fra i vår er usikker.
@@ -207,25 +210,27 @@ export default function SurveyAutumnArticlePage() {
                 Mange bruker begge deler: 80 av dem som svarte i høst, bruker både en editor og et terminalverktøy.
               </BodyLong>
 
-              <Table size="small">
-                <caption>Andel av alle som svarte som bruker verktøyet</caption>
-                <TableHeader>
-                  <TableRow>
-                    <TableHeaderCell scope="col">Verktøy</TableHeaderCell>
-                    <TableHeaderCell scope="col">Vår</TableHeaderCell>
-                    <TableHeaderCell scope="col">Høst</TableHeaderCell>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {tools.map((t) => (
-                    <TableRow key={t.name}>
-                      <TableHeaderCell scope="row">{t.name}</TableHeaderCell>
-                      <TableDataCell>{t.spring}</TableDataCell>
-                      <TableDataCell>{t.autumn}</TableDataCell>
+              <ScrollRegion label="Tabell: verktøy">
+                <Table size="small">
+                  <caption>Andel av alle som svarte som bruker verktøyet</caption>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHeaderCell scope="col">Verktøy</TableHeaderCell>
+                      <TableHeaderCell scope="col">Vår</TableHeaderCell>
+                      <TableHeaderCell scope="col">Høst</TableHeaderCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {tools.map((t) => (
+                      <TableRow key={t.name}>
+                        <TableHeaderCell scope="row">{t.name}</TableHeaderCell>
+                        <TableDataCell>{t.spring}</TableDataCell>
+                        <TableDataCell>{t.autumn}</TableDataCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollRegion>
 
               <Heading size="medium" level="2" spacing>
                 Hvor KI-brukerne opplever mest verdi
@@ -260,23 +265,25 @@ export default function SurveyAutumnArticlePage() {
                 svaret.
               </BodyLong>
 
-              <Table size="small">
-                <caption>Én ting å endre, høsten 2026 (andel av alle 211 som svarte)</caption>
-                <TableHeader>
-                  <TableRow>
-                    <TableHeaderCell scope="col">Ønske</TableHeaderCell>
-                    <TableHeaderCell scope="col">Andel</TableHeaderCell>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {changes.map((c) => (
-                    <TableRow key={c.what}>
-                      <TableHeaderCell scope="row">{c.what}</TableHeaderCell>
-                      <TableDataCell>{c.share}</TableDataCell>
+              <ScrollRegion label="Tabell: én ting å endre">
+                <Table size="small">
+                  <caption>Én ting å endre, høsten 2026 (andel av alle 211 som svarte)</caption>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHeaderCell scope="col">Ønske</TableHeaderCell>
+                      <TableHeaderCell scope="col">Andel</TableHeaderCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {changes.map((c) => (
+                      <TableRow key={c.what}>
+                        <TableHeaderCell scope="row">{c.what}</TableHeaderCell>
+                        <TableDataCell>{c.share}</TableDataCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollRegion>
 
               <Heading size="medium" level="2" spacing>
                 Hva vi har gjort siden i vår

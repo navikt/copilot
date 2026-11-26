@@ -61,12 +61,11 @@ function PointBoxes({ points, numbered, level }: { points: Point[]; numbered?: b
       {points.map(({ title, text, icon: Icon }, i) => (
         <Box as="li" key={title} background="neutral-soft" borderRadius="8" padding="space-20">
           <VStack gap="space-8">
-            <HStack gap="space-8" align="center" wrap={false}>
-              <Icon aria-hidden fontSize="1.75rem" />
-              <Heading size="small" level={h}>
-                {numbered ? `${i + 1}. ${title}` : title}
-              </Heading>
-            </HStack>
+            {/* Icon above the title, so a short title in a narrow box keeps to one line. */}
+            <Icon aria-hidden fontSize="1.75rem" />
+            <Heading size="small" level={h}>
+              {numbered ? `${i + 1}. ${title}` : title}
+            </Heading>
             <BodyShort>{text}</BodyShort>
           </VStack>
         </Box>

@@ -142,8 +142,8 @@ export function FleetNav({ team, teams = [], pending = 0, inCatalog = false }: F
           </form>
         )}
         {team && teams.length === 1 && <BodyShort weight="semibold">{team}</BodyShort>}
-        {/* On a phone: a short link list under the team picker instead of the side menu. */}
-        <Show below="md">
+        {/* Below lg (phone, tablet): a short link list under the team picker instead of the side menu. */}
+        <Show below="lg">
           <HStack as="ul" role="list" gap="space-8 space-16" wrap aria-label="Fleet-sider">
             {links.map((l) => (
               <li key={l.label}>
@@ -155,7 +155,7 @@ export function FleetNav({ team, teams = [], pending = 0, inCatalog = false }: F
             ))}
           </HStack>
         </Show>
-        <Hide below="md">
+        <Hide below="lg">
           <VStack gap="space-16">
             {team && (
               <VStack as="ul" gap="space-4">
