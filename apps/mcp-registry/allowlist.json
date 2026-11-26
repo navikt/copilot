@@ -154,7 +154,7 @@
       "version": "1.0.0",
       "status": "active",
       "publishedAt": "2026-11-19T00:00:00Z",
-      "websiteUrl": "https://navikt.github.io/testnorge/",
+      "websiteUrl": "https://dolly-dokumentasjon.ansatt.nav.no",
       "repository": {
         "url": "https://github.com/navikt/copilot",
         "source": "github",

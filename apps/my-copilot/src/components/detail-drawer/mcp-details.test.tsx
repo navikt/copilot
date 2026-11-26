@@ -74,7 +74,7 @@ describe("McpDetails", () => {
       insidersInstallUrl: null,
       version: "1.0.0",
       remotes: [],
-      websiteUrl: "https://navikt.github.io/testnorge/",
+      websiteUrl: "https://dolly-dokumentasjon.ansatt.nav.no",
       repository: { url: "https://github.com/navikt/copilot", source: "github", subfolder: "apps/mcp-dolly" },
     } as unknown as EnrichedCustomization;
     render(<McpDetails item={item} />);
