@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/navikt/copilot/apps/copilot-api/internal/api/service"
 	"log/slog"
 	"net/http"
 	"sync"
@@ -80,7 +81,7 @@ copilot_seats_pending_cancellation %d
 		w.Header().Set("Content-Type", "text/plain; version=0.0.4")
 		w.Header().Set("Cache-Control", "no-store")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(metrics + samlNameIDMetrics() + budget.BudgetReconcileMetrics() + httpMetricsText()))
+		w.Write([]byte(metrics + service.SAMLNameIDMetrics() + budget.BudgetReconcileMetrics() + httpMetricsText()))
 	})
 }
 

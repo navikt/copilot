@@ -15,6 +15,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
+	"github.com/navikt/copilot/apps/copilot-api/internal/api/router"
 	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
 	"github.com/navikt/copilot/apps/copilot-api/internal/config"
 	"github.com/navikt/copilot/apps/copilot-api/internal/problem"
@@ -115,7 +116,7 @@ func TestRespondError(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rec := httptest.NewRecorder()
-			respondError(rec, tt.errorType, tt.detail, tt.status)
+			problem.Respond(rec, tt.errorType, tt.detail, tt.status)
 
 			if rec.Code != tt.wantStatus {
 				t.Errorf("Expected status %d, got %d", tt.wantStatus, rec.Code)
@@ -191,7 +192,7 @@ func TestAPIRoutesRequireAuth(t *testing.T) {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			_, err := auth.ExtractBearerToken(r)
 			if err != nil {
-				respondError(w, "unauthorized", err.Error(), http.StatusUnauthorized)
+				problem.Respond(w, "unauthorized", err.Error(), http.StatusUnauthorized)
 				return
 			}
 			next.ServeHTTP(w, r)
@@ -199,7 +200,7 @@ func TestAPIRoutesRequireAuth(t *testing.T) {
 	}
 
 	config := &config.Config{Environment: "prod"}
-	apiRouter := authMiddleware(makeAPIRouter(config, nil, nil, nil, nil, auth.NewIdentityResolverChain(), nil))
+	apiRouter := authMiddleware(router.API(config, nil, nil, nil, nil, auth.NewIdentityResolverChain(), nil))
 
 	// All /api/v1/ paths should require auth
 	paths := []string{
@@ -326,7 +327,7 @@ func TestUsernamePathsRedacted(t *testing.T) {
 // Every allowlisted pattern must be one the API router registers, or the
 // allowlist silently stops matching after a route is renamed.
 func TestOnBehalfOfRoutesAreRegistered(t *testing.T) {
-	mux := makeAPIRouter(&config.Config{}, nil, nil, nil, nil, auth.NewIdentityResolverChain(), nil).(*http.ServeMux)
+	mux := router.API(&config.Config{}, nil, nil, nil, nil, auth.NewIdentityResolverChain(), nil).(*http.ServeMux)
 	for _, pattern := range auth.OnBehalfOfRoutePatterns() {
 		method, path, _ := strings.Cut(pattern, " ")
 		req := httptest.NewRequest(method, strings.ReplaceAll(path, "{username}", "ola"), nil)
@@ -405,7 +406,7 @@ func TestRequireOwnershipIntegration(t *testing.T) {
 	t.Run("user token with X-On-Behalf-Of is refused", func(t *testing.T) {
 		chain := auth.NewIdentityResolverChain(
 			auth.NewOnBehalfOfIdentityResolver(map[string]bool{"copilot-cli-client-id": true}),
-			auth.NewSAMLIdentityResolver(&mockGitHubClient{samlUsername: "hans"}),
+			auth.NewSAMLIdentityResolver(samlLookup("hans")),
 		)
 		mw := auth.IdentityMiddleware(chain, true)
 
@@ -421,7 +422,7 @@ func TestRequireOwnershipIntegration(t *testing.T) {
 	t.Run("non-copilot-cli azp falls back to SAML lookup", func(t *testing.T) {
 		chain := auth.NewIdentityResolverChain(
 			auth.NewOnBehalfOfIdentityResolver(map[string]bool{"copilot-cli-client-id": true}),
-			auth.NewSAMLIdentityResolver(&mockGitHubClient{samlUsername: "hans"}),
+			auth.NewSAMLIdentityResolver(samlLookup("hans")),
 		)
 		mw := auth.IdentityMiddleware(chain, true)
 
@@ -433,4 +434,11 @@ func TestRequireOwnershipIntegration(t *testing.T) {
 			t.Fatalf("status: got %d, want %d, body: %s", rec.Code, http.StatusOK, rec.Body.String())
 		}
 	})
+}
+
+// samlLookup answers every SAML lookup with the same GitHub login.
+type samlLookup string
+
+func (s samlLookup) GetUsernameBySamlIdentity(context.Context, string) (string, error) {
+	return string(s), nil
 }

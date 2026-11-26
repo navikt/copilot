@@ -15,6 +15,8 @@ import (
 	"github.com/navikt/copilot/apps/copilot-api/internal/api/admin"
 	"github.com/navikt/copilot/apps/copilot-api/internal/api/copilot"
 	"github.com/navikt/copilot/apps/copilot-api/internal/api/public"
+	"github.com/navikt/copilot/apps/copilot-api/internal/api/router"
+	"github.com/navikt/copilot/apps/copilot-api/internal/api/service"
 	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -56,14 +58,14 @@ func main() {
 
 	// Initialize GitHub client (optional - metrics will show zeros if not configured)
 	var githubClient *github.Client
-	var ghHandlers *GitHubHandlers
+	var ghHandlers *copilot.GitHubHandlers
 	if config.GitHubAppID != "" && config.GitHubAppPrivateKey != "" && config.GitHubInstallationID != "" {
 		var err error
 		githubClient, err = github.New(config.GitHubOrg, config.GitHubAppID, config.GitHubAppPrivateKey, config.GitHubInstallationID)
 		if err != nil {
 			slog.Warn("GitHub client initialization failed - metrics will be unavailable", "error", err)
 		} else {
-			ghHandlers = newGitHubHandlers(githubClient)
+			ghHandlers = copilot.NewGitHubHandlers(githubClient)
 			slog.Info("GitHub client initialized successfully")
 		}
 	} else {
@@ -203,7 +205,7 @@ func main() {
 		AzureJWKSURI:      config.AzureJWKSURI,
 		PreAuthorizedApps: config.PreAuthorizedApps,
 	})
-	videoHandlers := newVideoHandlers(config)
+	videoHandlers := public.NewVideoHandlers(config)
 
 	// Set up routing on a local mux (not global DefaultServeMux)
 	mux := http.NewServeMux()
@@ -215,7 +217,7 @@ func main() {
 
 	registerDevRoutes(mux, config, rawBQClient)
 	mux.Handle("/public/v1/", otelhttp.NewHandler(
-		loggingMiddleware(config, makePublicRouter(config, videoHandlers, publicHandlers)),
+		loggingMiddleware(config, public.Router(config, videoHandlers, publicHandlers)),
 		"public-api",
 		otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
 			return r.Method + " " + r.URL.Path
@@ -224,7 +226,7 @@ func main() {
 
 	// Protected API endpoints — wrapped with OTel tracing
 	mux.Handle("/api/v1/", traceAPI(
-		loggingMiddleware(config, authMiddleware(identityMiddleware(makeAPIRouter(config, bqHandlers, adminHandlers, ghHandlers, budgetHandlers, identityChain, raiseHandlers)))),
+		loggingMiddleware(config, authMiddleware(identityMiddleware(router.API(config, bqHandlers, adminHandlers, ghHandlers, budgetHandlers, identityChain, raiseHandlers)))),
 	))
 
 	// copilot-survey looks up a nav-pilot user's Nav e-mail here. Not under
@@ -246,7 +248,7 @@ func main() {
 	if githubClient != nil {
 		memberCheck = githubClient.IsActiveOrgMember
 	}
-	registerInternalRoutes(mux, authMiddleware, copilotSurveyClientID, nameIDLookup, copilotCLIClientID, memberCheck)
+	service.RegisterRoutes(mux, authMiddleware, copilotSurveyClientID, nameIDLookup, copilotCLIClientID, memberCheck)
 
 	slog.Info("Server listening", "port", config.Port)
 

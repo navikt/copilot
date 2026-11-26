@@ -1,4 +1,4 @@
-package main
+package public
 
 import (
 	"context"
@@ -81,7 +81,7 @@ func newTestVideoRouter(t *testing.T) http.Handler {
 		VideoFeedCacheSeconds: 60,
 	}
 
-	return makePublicRouter(cfg, newVideoHandlers(cfg), nil)
+	return Router(cfg, NewVideoHandlers(cfg), nil)
 }
 
 func newTestVideoRouterWithPlayLimit(t *testing.T, limit int) http.Handler {
@@ -93,9 +93,9 @@ func newTestVideoRouterWithPlayLimit(t *testing.T, limit int) http.Handler {
 		VideoBucketPublic:     "copilot-videos-public",
 		VideoFeedCacheSeconds: 60,
 	}
-	videoHandlers := newVideoHandlers(cfg)
+	videoHandlers := NewVideoHandlers(cfg)
 	videoHandlers.playRateLimiter = newVideoPlayRateLimiter(limit, time.Minute)
-	return makePublicRouter(cfg, videoHandlers, nil)
+	return Router(cfg, videoHandlers, nil)
 }
 
 func TestLoadVideoManifestFromHTTP(t *testing.T) {
@@ -278,7 +278,7 @@ func TestVideoFeedEndpointServesStaleManifestOnRefreshError(t *testing.T) {
 		VideoBucketPublic:     "copilot-videos-public",
 		VideoFeedCacheSeconds: 60,
 	}
-	videoHandlers := newVideoHandlers(cfg)
+	videoHandlers := NewVideoHandlers(cfg)
 
 	current := time.Unix(0, 0)
 	var loads int
@@ -309,7 +309,7 @@ func TestVideoFeedEndpointServesStaleManifestOnRefreshError(t *testing.T) {
 		}}, fmt.Errorf("temporary manifest refresh failure")
 	}
 
-	router := makePublicRouter(cfg, videoHandlers, nil)
+	router := Router(cfg, videoHandlers, nil)
 	reqWarm := httptest.NewRequest(http.MethodGet, "/public/v1/videos?limit=10", nil)
 	recWarm := httptest.NewRecorder()
 	router.ServeHTTP(recWarm, reqWarm)

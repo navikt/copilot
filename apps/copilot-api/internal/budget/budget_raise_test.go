@@ -211,7 +211,7 @@ func (emailResolver) Resolve(_ context.Context, u *auth.User, _ *http.Request) (
 	return &auth.ResolvedIdentity{GitHubUsername: strings.TrimSuffix(u.Email, "@nav.no"), Source: "test"}, nil
 }
 
-// newRaiseRouter registers the raise routes as makeAPIRouter does: perUser
+// newRaiseRouter registers the raise routes as router.API does: perUser
 // identity resolution, admin override behind auth.RequireAdmin.
 func newRaiseRouter(chain *auth.IdentityResolverChain, raise *BudgetRaiseHandlers) http.Handler {
 	mux := http.NewServeMux()

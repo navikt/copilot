@@ -3,6 +3,7 @@ package public
 import (
 	"context"
 	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
+	"github.com/navikt/copilot/apps/copilot-api/internal/config"
 
 	"encoding/json"
 	"net/http"
@@ -119,9 +120,9 @@ func TestEveryTemplateRendersCleanly(t *testing.T) {
 }
 
 func TestPublicFactEndpoint(t *testing.T) {
-	h := New(Deps{BQ: &factQuerier{aggregates: fullAggregates()}})
+	router := Router(&config.Config{}, nil, New(Deps{BQ: &factQuerier{aggregates: fullAggregates()}}))
 	rec := httptest.NewRecorder()
-	h.HandlePublicFact(rec, httptest.NewRequest(http.MethodGet, "/public/v1/fact", nil))
+	router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/public/v1/fact", nil))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d", rec.Code)
 	}
@@ -156,5 +157,14 @@ func TestNewTemplates(t *testing.T) {
 	a.ActiveReposWithCustoms = 19
 	if _, ok := render("repoer-tilpasninger"); ok {
 		t.Error("19 repos passed the floor of 20")
+	}
+}
+
+// Without BigQuery the router serves the 503 stub on /public/v1/fact.
+func TestPublicFactEndpointWithoutBigQuery(t *testing.T) {
+	rec := httptest.NewRecorder()
+	Router(&config.Config{}, nil, nil).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/public/v1/fact", nil))
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status %d, want 503", rec.Code)
 	}
 }

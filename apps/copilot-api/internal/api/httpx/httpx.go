@@ -65,3 +65,11 @@ func OptionalIntParam(r *http.Request, name string, defaultValue, minValue, maxV
 	}
 	return parsed, true
 }
+
+// ServiceUnavailableHandler answers 503 with msg, for routes whose backing
+// client is not configured.
+func ServiceUnavailableHandler(msg string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		problem.Respond(w, "service_unavailable", msg, http.StatusServiceUnavailable)
+	}
+}
