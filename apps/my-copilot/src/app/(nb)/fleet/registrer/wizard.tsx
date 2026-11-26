@@ -42,11 +42,13 @@ import {
   type WizardTool,
 } from "@/lib/fleet-wizard";
 import { FleetTable } from "../fleet-ui";
+import { DATA_HREF, EFFECT, LEVELS_HREF } from "@/lib/mcp-labels";
+import { linkClass } from "@/components/nav-pilot/doc-page";
 
 const RISK_HELP: Record<Risk, string> = {
-  read: "Henter eller søker i data. Endrer ingenting.",
-  propose: "Lager et forslag eller utkast som et menneske må godkjenne før noe endres.",
-  write: "Endrer, lager eller sletter data direkte.",
+  read: EFFECT.read.text,
+  propose: EFFECT.propose.text,
+  write: EFFECT.acts.text,
 };
 
 const FLEET_GATEWAY_POLICY = `spec:
@@ -395,7 +397,14 @@ export function RegisterWizard({ teams, team, apps, requireRos, discoveryEnabled
 
               <RadioGroup
                 legend="Hva gjør verktøyene?"
-                description="Gjelder alle verktøyene, med mindre du velger noe annet for ett verktøy under «Avansert»."
+                description={
+                  <>
+                    Gjelder alle verktøyene, med mindre du velger noe annet for ett verktøy under «Avansert».{" "}
+                    <NextLink href={LEVELS_HREF} className={linkClass}>
+                      Om verktøynivåene
+                    </NextLink>
+                  </>
+                }
                 value={s.defaultRisk}
                 onChange={(v: Risk) => set({ defaultRisk: v })}
                 error={errors.defaultRisk}
@@ -463,6 +472,11 @@ export function RegisterWizard({ teams, team, apps, requireRos, discoveryEnabled
               </Heading>
               <RadioGroup
                 legend="Hva slags data gir verktøyene ut?"
+                description={
+                  <NextLink href={DATA_HREF} className={linkClass}>
+                    Om datakategoriene
+                  </NextLink>
+                }
                 value={s.dataCategory}
                 onChange={(v: string) => set({ dataCategory: v })}
                 error={errors.dataCategory}
@@ -514,7 +528,7 @@ export function RegisterWizard({ teams, team, apps, requireRos, discoveryEnabled
                 </Table.Body>
               </FleetTable>
               <Alert variant="info" size="small">
-                Når du sender inn, må en annen i {s.team} godkjenne før MCP-serveren blir publisert.
+                Når du sender inn, må team copilot godkjenne før MCP-serveren blir publisert.
               </Alert>
               {submit.error && (
                 <Alert variant="error" size="small">

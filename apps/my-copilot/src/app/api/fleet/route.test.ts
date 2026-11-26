@@ -200,10 +200,10 @@ describe("POST /api/fleet", () => {
     await expect((await post(approve)).json()).resolves.toMatchObject({ error: expect.stringMatching(/Noen andre/) });
   });
 
-  it("tells the submitter that someone else must approve, and others how to get access", async () => {
-    fetch.mockResolvedValueOnce(status(403, "Forbidden", "the submitter cannot approve their own generation"));
+  it("tells an owner that team copilot approves, and others how to get access", async () => {
+    fetch.mockResolvedValueOnce(status(403, "Forbidden", "only the platform team approves MCP server versions"));
     await expect((await post(approve)).json()).resolves.toMatchObject({
-      error: "Du sendte inn versjon 3 selv. En annen på team-a må godkjenne den.",
+      error: "Bare team copilot kan godkjenne MCP-servere. Versjon 3 venter på dem.",
     });
     fetch.mockResolvedValueOnce(status(403, "Forbidden", "not a member"));
     await expect((await post(approve)).json()).resolves.toMatchObject({ error: expect.stringMatching(/Nais Console/) });

@@ -8,6 +8,7 @@ import { FleetFrame, fleetRobots } from "./frame";
 import { LinkText } from "./nav";
 import { FleetProblemAlert, KortFortalt, RegisterButton, ServerInbox, TeamSections, TeamStats } from "./fleet-ui";
 import { TeamChooser, UnknownTeam } from "./catalog";
+import { APPROVAL_RULE } from "@/lib/fleet-approval";
 
 const DNS_LABEL = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
 
@@ -86,9 +87,7 @@ export default async function FleetPage({ searchParams }: Props) {
                 <Heading id="til-godkjenning" level="2" size="medium">
                   Til godkjenning
                 </Heading>
-                <BodyLong size="small">
-                  Endringer må godkjennes av to personer i eierteamet: én sender inn, en annen godkjenner.
-                </BodyLong>
+                <BodyLong size="small">{APPROVAL_RULE}</BodyLong>
               </HStack>
               <ServerInbox servers={picked.servers} me={me} />
               {pending.length > 0 && (
@@ -103,7 +102,7 @@ export default async function FleetPage({ searchParams }: Props) {
           <TeamSections teams={[picked]} me={me} />
           <KortFortalt collapsed>
             <BodyLong>
-              Teamet registrerer en <strong>MCP-server</strong>. En annen i teamet godkjenner. Da får MCP-serveren en{" "}
+              Teamet registrerer en <strong>MCP-server</strong>. Team copilot godkjenner. Da får MCP-serveren en{" "}
               <strong>rute</strong> i fleet-gateway, adressen <code>/mcp/team/navn</code>, og team dere gir tilgang, kan
               bruke den.
             </BodyLong>

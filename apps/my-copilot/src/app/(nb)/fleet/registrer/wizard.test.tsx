@@ -124,7 +124,7 @@ describe("RegisterWizard", () => {
     next();
     fireEvent.change(screen.getByLabelText("Legg til verktøy"), { target: { value: "lagre" } });
     fireEvent.click(screen.getByRole("button", { name: "Legg til" }));
-    fireEvent.click(screen.getByRole("radio", { name: "Skriver" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Utfører" }));
     next();
     expect(screen.getByText(/krever en ROS i prod. Lim inn/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("radio", { name: "Foreslår" }));

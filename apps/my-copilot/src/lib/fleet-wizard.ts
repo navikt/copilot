@@ -2,6 +2,7 @@
 // submits. No server imports: the wizard (a client component) and /api/fleet use it.
 import type { MCPServerSpec } from "@/lib/fleet-control";
 import { isName } from "@/lib/fleet-names";
+import { EFFECT } from "@/lib/mcp-labels";
 
 export type Risk = "read" | "propose" | "write";
 export const RISKS: Risk[] = ["read", "propose", "write"];
@@ -136,7 +137,12 @@ export function toSpec(s: WizardState): MCPServerSpec {
   };
 }
 
-export const RISK_LABEL: Record<Risk, string> = { read: "Leser", propose: "Foreslår", write: "Skriver" };
+// Servers behind fleet-gateway run remotely, so write is «Utfører», never «Endrer filer».
+export const RISK_LABEL: Record<Risk, string> = {
+  read: EFFECT.read.label,
+  propose: EFFECT.propose.label,
+  write: EFFECT.acts.label,
+};
 export const DATA_LABEL: Record<string, [string, string]> = {
   Aapen: ["Åpne data", "Kan deles med alle, også utenfor Nav. For eksempel offentlige kodeverk og regelverk."],
   Intern: [

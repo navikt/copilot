@@ -665,11 +665,13 @@
     ],
     "anchors": {
       "adresser": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/referanse/page.tsx"],
+      "datakategorier": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/referanse/page.tsx"],
       "mcp-compliance": [
         "apps/my-copilot/src/app/(nb)/(mcp)/mcp/referanse/page.tsx",
         "apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/page.tsx"
       ],
-      "oppslag": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/referanse/page.tsx"]
+      "oppslag": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/referanse/page.tsx"],
+      "verktoynivaer": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/referanse/page.tsx"]
     }
   },
   "/mcp/tilby-server": {

@@ -346,7 +346,11 @@ describe("/fleet", () => {
     stub({ [`${API}/namespaces/team-a/mcpservers/docs`]: own });
     render(await ServerPage(params("team-a", "docs")));
     expect(screen.queryByRole("button", { name: "Godkjenn versjon 3" })).toBeNull();
-    expect(screen.getByText("Du sendte inn versjon 3 selv. En annen på team-a må godkjenne den.")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Versjon 3 venter på team copilot. Vil du endre noe før det, bruk «Endre MCP-serveren» nederst på siden. Det blir en ny versjon som erstatter denne."
+      )
+    ).toBeInTheDocument();
   });
 
   it("gives a next step when the team has no access", async () => {

@@ -1,4 +1,4 @@
-import { BodyLong, Heading, VStack } from "@navikt/ds-react";
+import { BodyLong, Heading, Tag, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
 import NextLink from "next/link";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@/components/aksel-table";
@@ -7,16 +7,37 @@ import { LinkableHeading } from "@/components/linkable-heading";
 import { Bullets, DocPage, code, linkClass } from "@/components/nav-pilot/doc-page";
 import type { TocItem } from "@/components/table-of-contents";
 import { PILOT_SERVERS } from "@/components/mcp/servers";
+import { APPROVAL_RULE } from "@/lib/fleet-approval";
+import { DATA_CATEGORIES, DATA_LABEL } from "@/lib/fleet-wizard";
+import { EFFECT, type Effect } from "@/lib/mcp-labels";
 
 export const metadata: Metadata = {
   title: "MCP-referanse",
-  description: "Adresser til serverne bak fleet-gateway, og hvor du finner protokollversjoner, feilkoder og verktøy.",
+  description:
+    "Adresser til serverne bak fleet-gateway, hva verktøynivåene og datakategoriene betyr, og hvor du finner protokollversjoner, feilkoder og verktøy.",
 };
 
 const GATEWAY = "https://fleet-gateway.intern.nav.no";
 
+// Effect, where it applies, nav-pilot default, /fleet, agents (#3081).
+const LEVELS: [Effect, string, string, string, string][] = [
+  [
+    "read",
+    "Lokale og eksterne",
+    "På",
+    "Kan velges. Ny MCP-server godkjennes av team copilot.",
+    "Ja. Agentprofiler får i dag bare dette nivået (maxRisk Read).",
+  ],
+  ["propose", "Eksterne i fleet", "Brukes ikke av registeret", "Kan velges.", "Nei, ikke ennå."],
+  ["files", "Bare lokale", "På", "Finnes ikke. Servere bak fleet-gateway kjører eksternt.", "Nei."],
+  ["acts", "Lokale og eksterne", "Av. Du velger verktøyene selv.", "Kan velges. Krever ROS i prod.", "Nei, ikke ennå."],
+  ["unsandboxed", "Bare lokale", "Av. Krever i tillegg --allow-host-exec.", "Finnes ikke.", "Nei."],
+];
+
 const TOC: TocItem[] = [
   { id: "adresser", label: "Adresser" },
+  { id: "verktoynivaer", label: "Verktøynivåer" },
+  { id: "datakategorier", label: "Datakategorier" },
   { id: "oppslag", label: "Hvor står hva" },
   { id: "mcp-compliance", label: "mcp-compliance" },
 ];
@@ -53,12 +74,79 @@ export default function McpReferansePage() {
                   <TableDataCell>
                     <code className={code}>{GATEWAY + s.route}</code>
                   </TableDataCell>
-                  <TableDataCell>{s.readOnly ? "Bare lesing" : "Lesing og skriving"}</TableDataCell>
+                  <TableDataCell>{s.readOnly ? "Leser" : "Leser og utfører"}</TableDataCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
+      </VStack>
+
+      <VStack gap="space-12">
+        <LinkableHeading id="verktoynivaer" size="medium" level="2">
+          Verktøynivåer
+        </LinkableHeading>
+        <BodyLong>
+          Hvert verktøy på en MCP-server har ett nivå som sier hva det gjør. Om serveren kjører lokalt eller eksternt,
+          står som vanlig tekst ved serveren. En server som kjører eksternt, kan aldri endre filene dine, så den viser
+          bare Leser, Foreslår og Utfører. {APPROVAL_RULE}
+        </BodyLong>
+        <div className="overflow-x-auto">
+          <Table size="small">
+            <TableHeader>
+              <TableRow>
+                <TableHeaderCell scope="col">Nivå</TableHeaderCell>
+                <TableHeaderCell scope="col">Betyr</TableHeaderCell>
+                <TableHeaderCell scope="col">Gjelder</TableHeaderCell>
+                <TableHeaderCell scope="col">I nav-pilot</TableHeaderCell>
+                <TableHeaderCell scope="col">I /fleet</TableHeaderCell>
+                <TableHeaderCell scope="col">Agenter</TableHeaderCell>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {LEVELS.map(([e, where, navPilot, fleet, agents]) => (
+                <TableRow key={e}>
+                  <TableDataCell>
+                    <Tag size="small" variant={EFFECT[e].tag}>
+                      {EFFECT[e].label}
+                    </Tag>
+                  </TableDataCell>
+                  <TableDataCell>{EFFECT[e].text}</TableDataCell>
+                  <TableDataCell>{where}</TableDataCell>
+                  <TableDataCell>{navPilot}</TableDataCell>
+                  <TableDataCell>{fleet}</TableDataCell>
+                  <TableDataCell>{agents}</TableDataCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+        <BodyLong>
+          Fri tilgang er et merke, ikke et trinn på skalaen: Agenten kan da gjøre alt du kan på maskinen din.
+        </BodyLong>
+      </VStack>
+
+      <VStack gap="space-12">
+        <LinkableHeading id="datakategorier" size="medium" level="2">
+          Datakategorier
+        </LinkableHeading>
+        <BodyLong>Eierteamet velger hva slags data verktøyene gir ut når MCP-serveren registreres i /fleet.</BodyLong>
+        <Bullets>
+          {DATA_CATEGORIES.map((c) => (
+            <li key={c}>
+              <strong>{DATA_LABEL[c][0]}</strong> (<code className={code}>{c}</code>): {DATA_LABEL[c][1]}
+            </li>
+          ))}
+        </Bullets>
+        <Bullets>
+          <li>
+            Strengt fortrolige data (<code className={code}>StrengtFortrolig</code>) blir avvist. De krever egen
+            risikovurdering og godkjenning først.
+          </li>
+          <li>Data om brukere eller saker hos Nav er aldri tillatt, uansett kategori.</li>
+          <li>Verktøy som utfører, krever en ROS før MCP-serveren kan brukes i prod.</li>
+          <li>Alle endringer av datakategori må godkjennes av team copilot.</li>
+        </Bullets>
       </VStack>
 
       <VStack gap="space-12">

@@ -158,13 +158,13 @@ export function PilotServerCards({ compact, tools = {} }: { compact?: boolean; t
               <BodyShort>{compact && "short" in server ? server.short : server.summary}</BodyShort>
               <HStack gap="space-4" wrap>
                 {compact ? (
-                  <Tag variant={server.readOnly ? "info" : "warning"} size="small">
-                    {server.readOnly ? "Leser" : "Skriver"}
+                  <Tag variant={server.readOnly ? "neutral" : "warning"} size="small">
+                    {server.readOnly ? "Leser" : "Utfører"}
                   </Tag>
                 ) : (
                   server.readOnly && (
                     <Tag variant="neutral" size="small">
-                      Bare lesing
+                      Leser
                     </Tag>
                   )
                 )}

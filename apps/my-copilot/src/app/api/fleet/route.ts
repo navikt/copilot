@@ -19,7 +19,7 @@ const NO_ACCESS = (team: string) =>
   `Du har ikke tilgang. Bare medlemmer av ${team} kan gjøre dette. Er du på teamet, be en eier legge deg til i Nais Console.`;
 
 // fleet-control's 403 on approval has no distinct reason, so the exact message decides; anything else is NO_ACCESS.
-const SELF_APPROVAL = "the submitter cannot approve their own generation";
+const NOT_APPROVER = "only the platform team approves MCP server versions";
 const NO_PERSON = "the pending generation has no person as submitter; a person must submit it again";
 const NO_OID = "the approver has no object id";
 const NOT_IN_PILOT = "writes are not enabled for this team in this cluster";
@@ -40,11 +40,11 @@ function fieldMessage(field: string, detail: string, team: string): [string, str
       return ["tools", "Sjekk verktøyene. Skriv minst ett verktøynavn, og hvert navn bare én gang."];
     case "spec.defaultRisk":
     case "spec.toolRisk":
-      return ["defaultRisk", "Velg Leser, Foreslår eller Skriver for verktøyene."];
+      return ["defaultRisk", "Velg Leser, Foreslår eller Utfører for verktøyene."];
     case "spec.rosRef":
       return [
         "rosRef",
-        "Verktøy som skriver krever en ROS i prod. Lim inn lenken, eller sett verktøy som ikke skriver til «Leser» eller «Foreslår».",
+        "Verktøy som utfører krever en ROS i prod. Lim inn lenken, eller sett verktøyene til «Leser» eller «Foreslår».",
       ];
     case "spec.readme":
       return ["readme", "Beskrivelsen kan være høyst 64 KiB."];
@@ -125,8 +125,8 @@ function failure(err: unknown, team: string, name: string, generation: number, w
   const detail = fce?.detail ?? "";
   if (status === 401) return fail("Du er logget ut. Last inn siden på nytt og logg inn.", 401);
   if (status === 403) {
-    if (detail === SELF_APPROVAL)
-      return fail(`Du sendte inn versjon ${generation} selv. En annen på ${team} må godkjenne den.`, 403);
+    if (detail === NOT_APPROVER)
+      return fail(`Bare team copilot kan godkjenne MCP-servere. Versjon ${generation} venter på dem.`, 403);
     if (detail === NO_PERSON)
       return fail(`Ingen person sendte inn versjon ${generation}. Noen på ${team} må sende den inn på nytt.`, 403);
     if (detail === SELF_GRANT) return fail(`Du sendte inn agentprofilen selv. En annen på ${team} må gi tilgang.`, 403);

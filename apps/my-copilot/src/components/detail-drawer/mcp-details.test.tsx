@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import type { EnrichedCustomization } from "@/lib/enrich-customizations";
 import { McpDetails, repoLink } from "./mcp-details";
 import { riskCounts, serverPagePath } from "./mcp-meta";
+import { effectOf } from "@/lib/mcp-labels";
 
 describe("McpDetails", () => {
   it("renders setup instructions with duplicate titles and commands using safe keys", () => {
@@ -120,6 +121,14 @@ describe("McpDetails", () => {
     expect(screen.getAllByRole("heading")[0]).toHaveTextContent("Koble til");
   });
 
+  it("never shows «Endrer filer» or «Fri tilgang» for a remote server", () => {
+    expect(effectOf("write", false)).toBe("acts");
+    expect(effectOf("host-exec", false)).toBe("acts");
+    expect(effectOf("write", true)).toBe("files");
+    expect(effectOf("host-exec", true)).toBe("unsandboxed");
+    expect(effectOf("unknown", true)).toBe("acts");
+  });
+
   it("groups tools by risk and says which are off and how to turn them on", () => {
     const item: EnrichedCustomization = {
       id: "mcp-com.jetbrains/intellij",
@@ -144,9 +153,9 @@ describe("McpDetails", () => {
     render(<McpDetails item={item} />);
 
     expect(screen.getByText("Leser (1)")).toBeInTheDocument();
-    expect(screen.getByText("Endrer prosjektet (1)")).toBeInTheDocument();
-    expect(screen.getByText("Kjører utenfor sandkassen (1)")).toBeInTheDocument();
-    expect(screen.queryByText(/Gjør noe i et annet system/)).not.toBeInTheDocument();
+    expect(screen.getByText("Endrer filer (1)")).toBeInTheDocument();
+    expect(screen.getByText("Fri tilgang (1)")).toBeInTheDocument();
+    expect(screen.queryByText(/Utfører/)).not.toBeInTheDocument();
     expect(screen.getByText("--allow-host-exec")).toBeInTheDocument();
     fireEvent.mouseDown(screen.getByRole("tab", { name: "VS Code" }));
     fireEvent.click(screen.getByRole("tab", { name: "VS Code" }));

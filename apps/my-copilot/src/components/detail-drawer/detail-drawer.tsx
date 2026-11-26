@@ -11,7 +11,8 @@ import { linkClass } from "@/components/nav-pilot/doc-page";
 import { Contributors } from "../contributors";
 import { TypeBadge, TypeIconBadge } from "../verktoy-type-meta";
 import { McpDetails } from "./mcp-details";
-import { isFleetGatewayMcp, riskCounts, serverPagePath } from "./mcp-meta";
+import { isFleetGatewayMcp, isLocalMcp, riskCounts, serverPagePath } from "./mcp-meta";
+import { runsWhere } from "@/lib/mcp-labels";
 import { StaticCustomizationDetails } from "./static-details";
 
 export interface DetailDrawerProps {
@@ -87,6 +88,7 @@ export function DetailDrawer({ item, allItems, open, onClose, onNavigate }: Deta
                           {riskCounts(item.tools, item.toolRisk)}
                         </Tag>
                       )}
+                      {item.type === "mcp" && <BodyShort size="small">{runsWhere(isLocalMcp(item))}</BodyShort>}
                     </HStack>
 
                     <BodyShort>{item.description}</BodyShort>

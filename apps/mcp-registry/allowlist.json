@@ -161,7 +161,7 @@
         "subfolder": "apps/mcp-dolly"
       },
       "tools": ["dolly_current_user", "dolly_list_groups", "dolly_get_group", "dolly_search", "dolly_get_order", "dolly_list_group_orders", "create_order"],
-      "toolRisk": {"create_order": "write"},
+      "toolRisk": {"create_order": "external"},
       "tags": ["dolly", "test-data", "nav-internal", "gateway"],
       "protocolVersions": ["2026-07-28", "2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"],
       "remotes": [
@@ -401,7 +401,7 @@
         "browser_wait_for",
         "browser_tabs"
       ],
-      "toolRisk": {"browser_click": "write", "browser_type": "write", "browser_fill_form": "write", "browser_select_option": "write", "browser_press_key": "write", "browser_drag": "write", "browser_drop": "write", "browser_handle_dialog": "write", "browser_evaluate": "external", "browser_run_code_unsafe": "external", "browser_file_upload": "external"},
+      "toolRisk": {"browser_click": "external", "browser_type": "external", "browser_fill_form": "external", "browser_select_option": "external", "browser_press_key": "external", "browser_drag": "external", "browser_drop": "external", "browser_handle_dialog": "external", "browser_evaluate": "external", "browser_run_code_unsafe": "external", "browser_file_upload": "external"},
       "tags": ["testing", "browser-automation", "frontend"],
       "examples": [
         {
