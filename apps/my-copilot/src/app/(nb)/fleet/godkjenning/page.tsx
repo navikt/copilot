@@ -5,7 +5,7 @@ import { fullName, getUser } from "@/lib/auth";
 import { fleetApi, fleetLoad, requireFleet } from "@/lib/fleet-control";
 import { TEAM_COOKIE, isName } from "@/lib/fleet-names";
 import { FleetFrame, fleetRobots, teamNavLoader } from "../frame";
-import { PLATFORM_TEAM } from "@/lib/fleet-approval";
+import { APPROVAL_RULE, PLATFORM_TEAM } from "@/lib/fleet-approval";
 import { LinkText } from "../nav";
 import { FleetProblemAlert, ServerInbox } from "../fleet-ui";
 
@@ -27,7 +27,7 @@ export default async function ApprovalPage({ searchParams }: Props) {
     ]);
     return { team, teams: me.teams, me: me.name, approver: me.teams.includes(PLATFORM_TEAM), servers, pending };
   });
-  const description = "Endringer må godkjennes av to personer i eierteamet: én sender inn, en annen godkjenner.";
+  const description = APPROVAL_RULE;
   if ("problem" in result)
     return (
       <FleetFrame title="Til godkjenning" description={description}>
