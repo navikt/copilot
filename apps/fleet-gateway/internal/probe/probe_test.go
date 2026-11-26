@@ -5,16 +5,17 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
-	"net/url"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/navikt/copilot/fleet-gateway/internal/ratelimit"
+	"github.com/navikt/copilot/fleet-gateway/internal/teamtoken"
 )
 
 const (
@@ -40,6 +41,8 @@ type fakeUpstream struct {
 	methods []string
 	session []string
 	auth    []string
+	// requireAuth answers 401 to a request without Authorization, as an Entra-protected server does.
+	requireAuth bool
 }
 
 // newUpstream answers initialize and tools/list; tools is the tools/list result.
@@ -56,6 +59,10 @@ func newUpstream(t *testing.T, tools string) *fakeUpstream {
 		f.session = append(f.session, r.Header.Get("Mcp-Session-Id"))
 		f.auth = append(f.auth, r.Header.Get("Authorization"))
 		f.mu.Unlock()
+		if f.requireAuth && r.Header.Get("Authorization") == "" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		if msg.Method == "notifications/initialized" {
 			w.WriteHeader(http.StatusAccepted)
 			return
@@ -103,11 +110,15 @@ type opts struct {
 	members Members
 	limit   int
 	targets *[]string // records each exchange target
+	xerr    error     // exchange error
 }
 
 // fakeExchange returns "obo:<target>" so tests can see which token went upstream.
-func fakeExchange(seen *[]string) Exchange {
+func fakeExchange(seen *[]string, xerr error) Exchange {
 	return func(_ context.Context, userToken, target, _ string) (string, error) {
+		if xerr != nil {
+			return "", xerr
+		}
 		if userToken != "tok" {
 			return "", errors.New("wrong user token")
 		}
@@ -118,8 +129,18 @@ func fakeExchange(seen *[]string) Exchange {
 	}
 }
 
-// newHandler builds a handler whose upstream client may dial loopback (the
-// httptest server) and whose validator maps the fake app URL to it.
+// clientTo is the probe's upstream client with every dial sent to addr (the
+// httptest server), so the real validator and host rules run on the URL.
+func clientTo(addr string) *http.Client {
+	c := newUpstreamClient(func(netip.Addr) bool { return true })
+	d := &net.Dialer{}
+	c.Transport.(*http.Transport).DialContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
+		return d.DialContext(ctx, network, addr)
+	}
+	return c
+}
+
+// newHandler builds a handler whose upstream client dials the httptest server.
 func newHandler(t *testing.T, up *fakeUpstream, o opts) *Handler {
 	t.Helper()
 	if o.claims == nil {
@@ -137,21 +158,14 @@ func newHandler(t *testing.T, up *fakeUpstream, o opts) *Handler {
 	h, err := New(Config{
 		IntrospectURL: newTexas(t, o.claims, o.texas), Issuer: testIssuer, Audience: testAud, AllowedAzp: testAzp,
 		Members: o.members, Limiter: ratelimit.New(o.limit, 1000, time.Minute, 100, func() time.Time { return testNow }),
-		Cluster: "dev-gcp", Exchange: fakeExchange(o.targets),
+		Cluster: "dev-gcp", Exchange: fakeExchange(o.targets, o.xerr),
 		Now: func() time.Time { return testNow },
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	h.upstream = newUpstreamClient(func(netip.Addr) bool { return true })
 	if up != nil {
-		orig := h.validate
-		h.validate = func(raw, ns string) (*url.URL, error) {
-			if raw == "http://app.team-a" {
-				return url.Parse(up.URL)
-			}
-			return orig(raw, ns)
-		}
+		h.upstream = clientTo(up.Listener.Addr().String())
 	}
 	return h
 }
@@ -166,9 +180,17 @@ func do(h http.Handler, token, body string) *httptest.ResponseRecorder {
 	return rec
 }
 
-// The fake validator maps the URL to the loopback test server, so the app
-// cannot come from the host and is given explicitly.
-const okBody = `{"team":"team-a","upstream_url":"http://app.team-a","app":"app"}`
+const okBody = `{"team":"team-a","upstream_url":"http://app.team-a"}`
+
+// kind returns the error kind of a failure answer.
+func kind(t *testing.T, rec *httptest.ResponseRecorder) string {
+	t.Helper()
+	var out struct{ Error string }
+	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
+		t.Fatalf("failure body %q is not {error}: %v", rec.Body, err)
+	}
+	return out.Error
+}
 
 const twoTools = `{"tools":[{"name":"search","description":"d","annotations":{"readOnlyHint":true}},{"name":"get.item"}]}`
 
@@ -189,13 +211,102 @@ func TestProbeListsTools(t *testing.T) {
 	if up.session[1] != "sess-1" || up.session[2] != "sess-1" {
 		t.Fatalf("sessions %q, want sess-1 after initialize", up.session)
 	}
+	if len(targets) != 0 {
+		t.Fatalf("exchange targets %q, want none: the target did not ask for login", targets)
+	}
+	for _, a := range up.auth {
+		if a != "" {
+			t.Fatalf("upstream Authorization %q, want none", a)
+		}
+	}
+}
+
+// Q2: a 401 from the target makes the probe retry as the user with an OBO token for that app.
+func TestProbeExchangesOBOOn401(t *testing.T) {
+	up := newUpstream(t, twoTools)
+	up.requireAuth = true
+	var targets []string
+	rec := do(newHandler(t, up, opts{targets: &targets}), "tok", okBody)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body)
+	}
 	if strings.Join(targets, ",") != "dev-gcp:team-a:app" {
 		t.Fatalf("exchange targets %q, want dev-gcp:team-a:app", targets)
 	}
-	for _, a := range up.auth {
-		if a != "Bearer obo:dev-gcp:team-a:app" {
-			t.Fatalf("upstream Authorization %q, want the OBO token, never the caller's", a)
+	want := []string{"", "Bearer obo:dev-gcp:team-a:app", "Bearer obo:dev-gcp:team-a:app", "Bearer obo:dev-gcp:team-a:app"}
+	if strings.Join(up.auth, "|") != strings.Join(want, "|") {
+		t.Fatalf("upstream Authorization %q, want %q: never the caller's own token", up.auth, want)
+	}
+}
+
+func TestProbeOBOFailures(t *testing.T) {
+	t.Run("still 401", func(t *testing.T) {
+		up := &fakeUpstream{Server: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusUnauthorized)
+		}))}
+		t.Cleanup(up.Close)
+		rec := do(newHandler(t, up, opts{}), "tok", okBody)
+		if rec.Code != http.StatusBadGateway || kind(t, rec) != "auth" {
+			t.Fatalf("status %d body %s, want 502 auth", rec.Code, rec.Body)
 		}
+	})
+	for name, tc := range map[string]struct {
+		err  error
+		kind string
+	}{
+		"access missing": {&teamtoken.AccessMissingError{App: "app"}, "access"},
+		"texas down":     {errors.New("texas exchange request failed"), "unavailable"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			up := newUpstream(t, twoTools)
+			up.requireAuth = true
+			rec := do(newHandler(t, up, opts{xerr: tc.err}), "tok", okBody)
+			if rec.Code != http.StatusBadGateway || kind(t, rec) != tc.kind {
+				t.Fatalf("status %d body %s, want 502 %s", rec.Code, rec.Body, tc.kind)
+			}
+			if got := up.seen(); len(got) != 1 {
+				t.Fatalf("upstream saw %v, want only the first initialize", got)
+			}
+		})
+	}
+}
+
+// Each upstream answer maps to the kind my-copilot's fleet-tools.ts handles.
+func TestProbeUpstreamKinds(t *testing.T) {
+	for code, want := range map[int]string{
+		http.StatusForbidden: "access", http.StatusNotFound: "noroute",
+		http.StatusInternalServerError: "unavailable", http.StatusTeapot: "invalid",
+	} {
+		up := &fakeUpstream{Server: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(code)
+		}))}
+		t.Cleanup(up.Close)
+		if rec := do(newHandler(t, up, opts{}), "tok", okBody); kind(t, rec) != want {
+			t.Errorf("upstream %d: body %s, want %s", code, rec.Body, want)
+		}
+	}
+	h := newHandler(t, nil, opts{})
+	h.upstream = &http.Client{Transport: errTransport{&net.DNSError{Err: "no such host", Name: "app", IsNotFound: true}}}
+	if rec := do(h, "tok", okBody); kind(t, rec) != "noroute" {
+		t.Errorf("no such app: body %s, want noroute", rec.Body)
+	}
+	h.upstream = &http.Client{Transport: errTransport{errors.New("connection refused")}}
+	if rec := do(h, "tok", okBody); kind(t, rec) != "access" {
+		t.Errorf("refused: body %s, want access", rec.Body)
+	}
+}
+
+func TestProbeSlowUpstream(t *testing.T) {
+	release := make(chan struct{})
+	up := &fakeUpstream{Server: httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		<-release
+	}))}
+	t.Cleanup(func() { close(release); up.Close() })
+	h := newHandler(t, up, opts{})
+	h.timeout = 100 * time.Millisecond
+	rec := do(h, "tok", okBody)
+	if rec.Code != http.StatusGatewayTimeout || kind(t, rec) != "access" {
+		t.Fatalf("status %d body %s, want 504 access", rec.Code, rec.Body)
 	}
 }
 
@@ -216,8 +327,8 @@ func TestProbeTokenGuards(t *testing.T) {
 			up := newUpstream(t, twoTools)
 			c := goodClaims()
 			mutate(c)
-			if rec := do(newHandler(t, up, opts{claims: c}), "tok", okBody); rec.Code != http.StatusUnauthorized {
-				t.Fatalf("status %d, want 401", rec.Code)
+			if rec := do(newHandler(t, up, opts{claims: c}), "tok", okBody); rec.Code != http.StatusUnauthorized || kind(t, rec) != "auth" {
+				t.Fatalf("status %d body %s, want 401 auth", rec.Code, rec.Body)
 			}
 			if len(up.seen()) != 0 {
 				t.Fatal("upstream reached with a bad token")
@@ -246,11 +357,11 @@ func TestProbeTokenGuards(t *testing.T) {
 func TestProbeMembership(t *testing.T) {
 	up := newUpstream(t, twoTools)
 	body := `{"team":"team-b","upstream_url":"http://app.team-b"}`
-	if rec := do(newHandler(t, up, opts{}), "tok", body); rec.Code != http.StatusForbidden {
+	if rec := do(newHandler(t, up, opts{}), "tok", body); rec.Code != http.StatusForbidden || kind(t, rec) != "access" {
 		t.Fatalf("other team: status %d, want 403", rec.Code)
 	}
 	failing := fakeMembers{teams: map[string]bool{"team-a": true}, err: errors.New("console down")}
-	if rec := do(newHandler(t, up, opts{members: failing}), "tok", okBody); rec.Code != http.StatusServiceUnavailable {
+	if rec := do(newHandler(t, up, opts{members: failing}), "tok", okBody); rec.Code != http.StatusServiceUnavailable || kind(t, rec) != "unavailable" {
 		t.Fatalf("console down: status %d, want 503", rec.Code)
 	}
 	if len(up.seen()) != 0 {
@@ -282,6 +393,12 @@ func TestProbeRefusesTargets(t *testing.T) {
 		"localhost":        "http://localhost:8080/",
 		"bad team (path)":  "",
 		"ekstern ingress":  "https://app.ekstern.dev.nav.no/mcp",
+		// Internal ingresses pass registration but are not tied to the team's namespace.
+		"intern ingress": "https://app.intern.dev.nav.no/mcp",
+		"non-ascii host": "http://\u0430pp.team-a",
+		"punycode":       "http://xn--pp-8cd.team-a",
+		"nested label":   "http://a.b.team-a",
+		"suffix trick":   "http://app.team-a.evil.com",
 	} {
 		t.Run(name, func(t *testing.T) {
 			up := newUpstream(t, twoTools)
@@ -290,8 +407,8 @@ func TestProbeRefusesTargets(t *testing.T) {
 			if target == "" {
 				body, want = `{"team":"team-a/x","upstream_url":"http://app.team-a"}`, http.StatusBadRequest
 			}
-			if rec := do(newHandler(t, up, opts{}), "tok", body); rec.Code != want {
-				t.Fatalf("status %d, want %d: %s", rec.Code, want, rec.Body)
+			if rec := do(newHandler(t, up, opts{}), "tok", body); rec.Code != want || kind(t, rec) != "invalid" {
+				t.Fatalf("status %d, want %d invalid: %s", rec.Code, want, rec.Body)
 			}
 			if len(up.seen()) != 0 {
 				t.Fatal("upstream reached")
@@ -304,7 +421,7 @@ func TestProbeDoesNotFollowRedirects(t *testing.T) {
 	inner := newUpstream(t, twoTools)
 	redirector := &fakeUpstream{Server: httptest.NewServer(http.RedirectHandler(inner.URL, http.StatusTemporaryRedirect))}
 	t.Cleanup(redirector.Close)
-	if rec := do(newHandler(t, redirector, opts{}), "tok", okBody); rec.Code != http.StatusBadGateway {
+	if rec := do(newHandler(t, redirector, opts{}), "tok", okBody); rec.Code != http.StatusBadGateway || kind(t, rec) != "invalid" {
 		t.Fatalf("status %d, want 502", rec.Code)
 	}
 	if len(inner.seen()) != 0 {
@@ -336,36 +453,16 @@ func TestProbeDialGuard(t *testing.T) {
 	}
 }
 
-type failTransport struct{}
+type errTransport struct{ err error }
 
-func (failTransport) RoundTrip(*http.Request) (*http.Response, error) {
-	return nil, errors.New("no dial in test")
-}
+func (e errTransport) RoundTrip(*http.Request) (*http.Response, error) { return nil, e.err }
 
-// The app for the token comes from the cluster DNS host; another app is refused.
-func TestProbeAppFromHost(t *testing.T) {
-	for name, tc := range map[string]struct {
-		body, target string
-		status       int
-	}{
-		"derived":        {`{"team":"team-a","upstream_url":"http://mcp.team-a"}`, "dev-gcp:team-a:mcp", 0},
-		"same app given": {`{"team":"team-a","upstream_url":"http://mcp.team-a","app":"mcp"}`, "dev-gcp:team-a:mcp", 0},
-		"other app":      {`{"team":"team-a","upstream_url":"http://mcp.team-a","app":"other"}`, "", http.StatusUnprocessableEntity},
-		"ingress no app": {`{"team":"team-a","upstream_url":"https://mcp.intern.dev.nav.no/mcp"}`, "", http.StatusUnprocessableEntity},
-		"ingress app":    {`{"team":"team-a","upstream_url":"https://mcp.intern.dev.nav.no/mcp","app":"mcp"}`, "dev-gcp:team-a:mcp", 0},
-	} {
-		t.Run(name, func(t *testing.T) {
-			var targets []string
-			h := newHandler(t, nil, opts{targets: &targets})
-			h.upstream = &http.Client{Transport: failTransport{}} // no DNS, no dial
-			rec := do(h, "tok", tc.body)
-			if tc.status != 0 && rec.Code != tc.status {
-				t.Fatalf("status %d, want %d: %s", rec.Code, tc.status, rec.Body)
-			}
-			if strings.Join(targets, ",") != tc.target {
-				t.Fatalf("exchange targets %q, want %q", targets, tc.target)
-			}
-		})
+// The body takes no app: the token's app always comes from the host.
+func TestProbeRefusesAppField(t *testing.T) {
+	var targets []string
+	rec := do(newHandler(t, nil, opts{targets: &targets}), "tok", `{"team":"team-a","upstream_url":"http://mcp.team-a","app":"other"}`)
+	if rec.Code != http.StatusBadRequest || len(targets) != 0 {
+		t.Fatalf("status %d, exchanges %q, want 400 and none", rec.Code, targets)
 	}
 }
 
@@ -386,8 +483,8 @@ func TestProbeRefusesOversizedResponse(t *testing.T) {
 	big := `{"tools":[{"name":"x","description":"` + strings.Repeat("a", MaxResponseBytes) + `"}]}`
 	up := newUpstream(t, big)
 	h := newHandler(t, up, opts{})
-	if rec := do(h, "tok", okBody); rec.Code != http.StatusBadGateway {
-		t.Fatalf("status %d, want 502", rec.Code)
+	if rec := do(h, "tok", okBody); rec.Code != http.StatusBadGateway || kind(t, rec) != "toolarge" {
+		t.Fatalf("status %d body %s, want 502 toolarge", rec.Code, rec.Body)
 	}
 	// The cap itself, not a JSON error from a truncated body.
 	if _, _, err := h.call(context.Background(), up.URL, "t", "", 1, "tools/list", nil); err == nil || !strings.Contains(err.Error(), "bytes") {
@@ -397,7 +494,7 @@ func TestProbeRefusesOversizedResponse(t *testing.T) {
 
 func TestProbeRefusesBadToolName(t *testing.T) {
 	bad := `{"tools":[{"name":"ok"},{"name":"bad name"}]}`
-	if rec := do(newHandler(t, newUpstream(t, bad), opts{}), "tok", okBody); rec.Code != http.StatusBadGateway {
+	if rec := do(newHandler(t, newUpstream(t, bad), opts{}), "tok", okBody); rec.Code != http.StatusBadGateway || kind(t, rec) != "invalid" {
 		t.Fatalf("status %d, want 502", rec.Code)
 	}
 }

@@ -7,8 +7,27 @@
 // owner-team membership, the target URL (same check as registration, private
 // IPs only at dial time, no redirects), the forwarded methods (initialize,
 // notifications/initialized and tools/list only), the response size and the
-// per-user rate. The probe calls the target with an OBO token for the target
-// app, the same exchange a route uses, so the target's own checks apply.
+// per-user rate. The probe first calls the target without a credential. Only
+// if it answers 401 does the probe exchange the caller's token (OBO, the same
+// exchange a route uses) for one to the target app and retry as the user, so
+// the target's own checks apply (owner decision 2026-11-26).
+//
+// A failure answers {"error": kind}, the kinds my-copilot's fleet-tools.ts
+// handles (DiscoveryFailure):
+//
+//	unavailable  Texas, the Nais Console or the target failed (503, 5xx), or
+//	             the caller hit the rate limit (429). Try again later.
+//	auth         The caller's token was refused (401), or the target refused
+//	             the user's OBO token too (502). Log in again.
+//	access       The caller is not in the team (403), the target does not
+//	             accept tokens from fleet-gateway (AADSTS65001), the target
+//	             answered 403, or the connection was refused or timed out:
+//	             usually its inbound accessPolicy lacks fleet-gateway.
+//	noroute      No such app in the team's namespace (DNS), or 404 at the path.
+//	toolarge     An answer was over 512 KiB.
+//	invalid      The request (team, upstream_url) was refused (400, 422), or
+//	             the target did not answer as an MCP server: a redirect, an
+//	             unexpected status, not a JSON-RPC result, a bad tool name.
 package probe
 
 import (
@@ -27,6 +46,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/teamtoken"
 
 	"github.com/navikt/copilot/fleet-gateway/internal/audit"
 	"github.com/navikt/copilot/fleet-gateway/internal/ratelimit"
@@ -57,6 +78,7 @@ type Handler struct {
 	exchange                   Exchange
 	texas, upstream            *http.Client
 	validate                   func(raw, namespace string) (*url.URL, error)
+	timeout                    time.Duration
 	now                        func() time.Time
 }
 
@@ -91,6 +113,7 @@ func New(c Config) (*Handler, error) {
 		texas:    &http.Client{Timeout: 5 * time.Second},
 		upstream: newUpstreamClient(privateOnly),
 		validate: routing.ValidateUpstreamURL,
+		timeout:  Timeout,
 	}, nil
 }
 
@@ -125,12 +148,27 @@ var (
 )
 
 type request struct {
-	Team        string `json:"team"`
+	Team string `json:"team"`
+	// UpstreamURL must be the team's own app service, <app>.<team> cluster DNS.
 	UpstreamURL string `json:"upstream_url"`
-	// App is the target app for the token. Optional when upstream_url is
-	// <app>.<team> cluster DNS, required for an ingress URL.
-	App string `json:"app,omitempty"`
 }
+
+// Failure kinds, see the package comment.
+const (
+	kindUnavailable = "unavailable"
+	kindAuth        = "auth"
+	kindAccess      = "access"
+	kindNoRoute     = "noroute"
+	kindTooLarge    = "toolarge"
+	kindInvalid     = "invalid"
+)
+
+// statusError is a non-success HTTP status from the target.
+type statusError struct{ code int }
+
+func (e *statusError) Error() string { return fmt.Sprintf("status %d", e.code) }
+
+var errTooLarge = fmt.Errorf("response over %d bytes", MaxResponseBytes)
 
 // Tool is one entry in the answer. Annotations are hints for the form only.
 type Tool struct {
@@ -149,27 +187,30 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			"upstream_host", audit.Sanitize(host), "outcome", outcome, "tools", tools,
 			"duration_ms", h.now().Sub(start).Milliseconds())
 	}()
-	fail := func(status int, o, msg string) {
+	fail := func(status int, o, kind string) {
 		outcome = o
-		http.Error(w, msg, status)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "no-store")
+		w.WriteHeader(status)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": kind})
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), Timeout)
+	ctx, cancel := context.WithTimeout(r.Context(), h.timeout)
 	defer cancel()
 
 	ident, email, userToken, err := h.authenticate(ctx, r.Header.Get("Authorization"))
 	if errors.Is(err, errAuth) {
 		w.Header().Set("WWW-Authenticate", `Bearer error="invalid_token"`)
-		fail(http.StatusUnauthorized, "invalid_token", "unauthorized")
+		fail(http.StatusUnauthorized, "invalid_token", kindAuth)
 		return
 	} else if err != nil {
 		slog.Error("probe: token introspection failed", "error", err)
-		fail(http.StatusServiceUnavailable, "texas_unavailable", "token validation unavailable")
+		fail(http.StatusServiceUnavailable, "texas_unavailable", kindUnavailable)
 		return
 	}
 	subject = ident
 	if !h.limiter.Allow(ident) {
-		fail(http.StatusTooManyRequests, "rate_limited", "too many probes")
+		fail(http.StatusTooManyRequests, "rate_limited", kindUnavailable)
 		return
 	}
 
@@ -177,64 +218,97 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	dec := json.NewDecoder(io.LimitReader(r.Body, maxRequestBytes))
 	dec.DisallowUnknownFields()
 	if dec.Decode(&req) != nil {
-		fail(http.StatusBadRequest, "bad_request", "body must be {team, upstream_url, app?}")
+		fail(http.StatusBadRequest, "bad_request", kindInvalid)
 		return
 	}
 	team = req.Team
 	if !dnsLabel.MatchString(req.Team) {
-		fail(http.StatusBadRequest, "bad_team", "invalid team")
+		fail(http.StatusBadRequest, "bad_team", kindInvalid)
 		return
 	}
 	ok, err := h.members.IsMember(ctx, req.Team, email)
 	if err != nil {
 		slog.Error("probe: team lookup failed", "error", err)
-		fail(http.StatusServiceUnavailable, "teams_unavailable", "team lookup unavailable")
+		fail(http.StatusServiceUnavailable, "teams_unavailable", kindUnavailable)
 		return
 	}
 	if !ok {
-		fail(http.StatusForbidden, "not_member", "not a member of the team")
+		fail(http.StatusForbidden, "not_member", kindAccess)
 		return
 	}
 	target, err := h.validate(req.UpstreamURL, req.Team)
 	if err != nil {
-		fail(http.StatusUnprocessableEntity, "bad_target", "upstream_url: "+err.Error())
+		fail(http.StatusUnprocessableEntity, "bad_target", kindInvalid)
 		return
 	}
 	host = target.Hostname()
-	// validate normalizes cluster DNS to <app>.<team>.svc.cluster.local.
-	app := req.App
-	if a, ok := strings.CutSuffix(host, "."+req.Team+".svc.cluster.local"); ok {
-		if app != "" && app != a {
-			app = "" // a token for another app than the host is refused
-		} else {
-			app = a
-		}
-	}
-	if !dnsLabel.MatchString(app) {
-		fail(http.StatusUnprocessableEntity, "bad_app", "app: give the target app name, matching the upstream_url host")
-		return
-	}
-	upstreamToken, err := h.exchange(ctx, userToken, h.cluster+":"+req.Team+":"+app, app)
-	if err != nil {
-		slog.Warn("probe: token exchange failed", "app", audit.Sanitize(app), "error", err)
-		fail(http.StatusBadGateway, "token_exchange_failed", err.Error())
+	// Only the team's own app service: validate also accepts internal ingresses,
+	// which are not tied to a namespace. It normalizes <app>.<team> to the FQDN.
+	app, ok := strings.CutSuffix(host, "."+req.Team+".svc.cluster.local")
+	if !ok || !dnsLabel.MatchString(app) {
+		fail(http.StatusUnprocessableEntity, "bad_target", kindInvalid)
 		return
 	}
 
-	list, err := h.fetchTools(ctx, target.String(), upstreamToken)
+	list, err := h.fetchTools(ctx, target.String(), "")
+	var se *statusError
+	if errors.As(err, &se) && se.code == http.StatusUnauthorized {
+		// Q2: the target wants Entra login; retry as the user with an OBO token for it.
+		tok, xerr := h.exchange(ctx, userToken, h.cluster+":"+req.Team+":"+app, app)
+		if xerr != nil {
+			slog.Warn("probe: token exchange failed", "app", audit.Sanitize(app), "error", xerr)
+			var missing *teamtoken.AccessMissingError
+			if errors.As(xerr, &missing) {
+				fail(http.StatusBadGateway, "token_access_missing", kindAccess)
+			} else {
+				fail(http.StatusBadGateway, "token_exchange_failed", kindUnavailable)
+			}
+			return
+		}
+		list, err = h.fetchTools(ctx, target.String(), tok)
+	}
 	if err != nil {
 		slog.Warn("probe: upstream failed", "host", audit.Sanitize(host), "error", err)
-		if ctx.Err() != nil {
-			fail(http.StatusGatewayTimeout, "upstream_timeout", "upstream timed out")
-		} else {
-			fail(http.StatusBadGateway, "upstream_error", "upstream did not return a valid tool list")
-		}
+		status, o, kind := upstreamFailure(ctx, err)
+		fail(status, o, kind)
 		return
 	}
 	tools, outcome = len(list), "ok"
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	_ = json.NewEncoder(w).Encode(map[string]any{"tools": list})
+}
+
+// upstreamFailure maps a target failure to a status, audit outcome and kind.
+func upstreamFailure(ctx context.Context, err error) (int, string, string) {
+	var se *statusError
+	var dnsErr *net.DNSError
+	switch {
+	case ctx.Err() != nil:
+		return http.StatusGatewayTimeout, "upstream_timeout", kindAccess
+	case errors.Is(err, errTooLarge):
+		return http.StatusBadGateway, "upstream_too_large", kindTooLarge
+	case errors.As(err, &se):
+		switch {
+		case se.code == http.StatusUnauthorized:
+			return http.StatusBadGateway, "upstream_unauthorized", kindAuth
+		case se.code == http.StatusForbidden:
+			return http.StatusBadGateway, "upstream_forbidden", kindAccess
+		case se.code == http.StatusNotFound:
+			return http.StatusBadGateway, "upstream_not_found", kindNoRoute
+		case se.code >= 500:
+			return http.StatusBadGateway, "upstream_unavailable", kindUnavailable
+		}
+		return http.StatusBadGateway, "upstream_error", kindInvalid
+	case errors.As(err, &dnsErr) && dnsErr.IsNotFound:
+		return http.StatusBadGateway, "upstream_no_such_app", kindNoRoute
+	}
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) {
+		// Refused or reset connection, or the dial guard.
+		return http.StatusBadGateway, "upstream_unreachable", kindAccess
+	}
+	return http.StatusBadGateway, "upstream_error", kindInvalid
 }
 
 type tokenClaims struct {
@@ -304,8 +378,8 @@ func hasAudience(raw json.RawMessage, want string) bool {
 }
 
 // fetchTools sends initialize, notifications/initialized and tools/list, and
-// nothing else. Only the OBO token for the target goes upstream, never the
-// caller's own token.
+// nothing else. token is "" (no credential) or the OBO token for the target,
+// never the caller's own token.
 func (h *Handler) fetchTools(ctx context.Context, target, token string) ([]Tool, error) {
 	_, session, err := h.call(ctx, target, token, "", 1, "initialize", map[string]any{
 		"protocolVersion": protocolVersion,
@@ -361,7 +435,9 @@ func (h *Handler) call(ctx context.Context, target, token, session string, id in
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json, text/event-stream")
-	req.Header.Set("Authorization", "Bearer "+token)
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
 	if method != "initialize" {
 		req.Header.Set("MCP-Protocol-Version", protocolVersion)
 	}
@@ -376,19 +452,19 @@ func (h *Handler) call(ctx context.Context, target, token, session string, id in
 	if notify {
 		// Streamable HTTP answers a notification with 202; older servers send 200 or 204.
 		if resp.StatusCode != http.StatusAccepted && resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
-			return nil, "", fmt.Errorf("status %d", resp.StatusCode)
+			return nil, "", &statusError{resp.StatusCode}
 		}
 		return nil, "", nil
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, "", fmt.Errorf("status %d", resp.StatusCode)
+		return nil, "", &statusError{resp.StatusCode}
 	}
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, MaxResponseBytes+1))
 	if err != nil {
 		return nil, "", err
 	}
 	if len(raw) > MaxResponseBytes {
-		return nil, "", fmt.Errorf("response over %d bytes", MaxResponseBytes)
+		return nil, "", errTooLarge
 	}
 	if strings.HasPrefix(resp.Header.Get("Content-Type"), "text/event-stream") {
 		raw = sseMessage(raw, id)
