@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery"
+
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 )
 
 // AdminMonth is one month of the whole Nav bill for the admin cost page.
@@ -89,7 +91,7 @@ func (bq *BigQueryClient) GetAdminMonthlyOverview(ctx context.Context, year int)
 	if err != nil {
 		return nil, fmt.Errorf("read admin monthly usage: %w", err)
 	}
-	rows, err := readAllRows[adminMonthRow](it)
+	rows, err := bqstore.ReadAllRows[adminMonthRow](it)
 	if err != nil {
 		return nil, err
 	}

@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"cloud.google.com/go/bigquery"
+
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 )
 
 func (m *mockBigQueryClient) GetEditorUsage(context.Context) ([]EditorUsage, error) {
@@ -66,7 +68,7 @@ func TestEditorUsageScannerCounts(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var got EditorUsage
-			if err := decodeBQRow(schema, tc.row, &got); err != nil {
+			if err := bqstore.DecodeRow(schema, tc.row, &got); err != nil {
 				t.Fatal(err)
 			}
 			data, err := json.Marshal(got)

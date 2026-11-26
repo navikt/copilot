@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 )
 
 // VolumeMonth is Nav's Copilot volume for one month, for the innsyn answer
@@ -56,7 +58,7 @@ FROM v FULL JOIN t USING (month) ORDER BY month`,
 	if err != nil {
 		return nil, fmt.Errorf("read volume: %w", err)
 	}
-	return readAllRows[VolumeMonth](it)
+	return bqstore.ReadAllRows[VolumeMonth](it)
 }
 
 func (c *CachedBigQueryClient) GetVolumeMonthly(ctx context.Context, year int) ([]VolumeMonth, error) {

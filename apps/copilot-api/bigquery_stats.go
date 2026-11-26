@@ -9,6 +9,8 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"cloud.google.com/go/civil"
+
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 )
 
 type ModelInteractions struct {
@@ -240,7 +242,7 @@ func (bq *BigQueryClient) GetUserMetrics(ctx context.Context, userLogin string, 
 	if err != nil {
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
-	summaryPtr, err := readSingleRow[UserMetricsSummary](it)
+	summaryPtr, err := bqstore.ReadSingleRow[UserMetricsSummary](it)
 	if err != nil {
 		return nil, err
 	}
@@ -300,7 +302,7 @@ func (bq *BigQueryClient) GetUserDailyCredits(ctx context.Context, userLogin str
 	if err != nil {
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
-	return readAllRows[DailyCredits](it)
+	return bqstore.ReadAllRows[DailyCredits](it)
 }
 
 func (bq *BigQueryClient) GetMonthlyTrends(ctx context.Context, months int) ([]MonthlyTrend, error) {
@@ -339,7 +341,7 @@ func (bq *BigQueryClient) GetMonthlyTrends(ctx context.Context, months int) ([]M
 	if err != nil {
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
-	return readAllRows[MonthlyTrend](it)
+	return bqstore.ReadAllRows[MonthlyTrend](it)
 }
 
 func (bq *BigQueryClient) GetMonthlyBillingUsage(ctx context.Context, months int) ([]MonthlyBillingUsage, error) {
@@ -366,7 +368,7 @@ func (bq *BigQueryClient) GetMonthlyBillingUsage(ctx context.Context, months int
 	if err != nil {
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
-	return readAllRows[MonthlyBillingUsage](it)
+	return bqstore.ReadAllRows[MonthlyBillingUsage](it)
 }
 
 func (bq *BigQueryClient) billingModelDailyQuery(month string) *bigquery.Query {
@@ -403,7 +405,7 @@ func (bq *BigQueryClient) GetBillingModelDailyCosts(ctx context.Context, month s
 	if err != nil {
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
-	return readAllRows[BillingModelDailyCost](it)
+	return bqstore.ReadAllRows[BillingModelDailyCost](it)
 }
 
 func (bq *BigQueryClient) billingModelForecastQuery(month string, prevMonthStart time.Time) *bigquery.Query {
@@ -458,7 +460,7 @@ func (bq *BigQueryClient) GetBillingModelForecast(ctx context.Context, month str
 		NetAmount float64 `bigquery:"net_amount"`
 	}
 
-	rows, err := readAllRows[dayAmountRow](it)
+	rows, err := bqstore.ReadAllRows[dayAmountRow](it)
 	if err != nil {
 		return nil, err
 	}
@@ -870,7 +872,7 @@ func (bq *BigQueryClient) getUsageDistributionData(ctx context.Context, metricsR
 		Histogram []UsageHistogramBucket `bigquery:"histogram"`
 	}
 
-	rows, err := readAllRows[combinedRow](it)
+	rows, err := bqstore.ReadAllRows[combinedRow](it)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -983,7 +985,7 @@ func (bq *BigQueryClient) GetUserWeeklyTrends(ctx context.Context, userLogin str
 	if err != nil {
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
-	return readAllRows[WeeklyTrend](it)
+	return bqstore.ReadAllRows[WeeklyTrend](it)
 }
 
 func (bq *BigQueryClient) GetAdoptionCohorts(ctx context.Context, days int) ([]AdoptionCohortDay, error) {
@@ -1013,7 +1015,7 @@ func (bq *BigQueryClient) GetAdoptionCohorts(ctx context.Context, days int) ([]A
 	if err != nil {
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
-	return readAllRows[AdoptionCohortDay](it)
+	return bqstore.ReadAllRows[AdoptionCohortDay](it)
 }
 
 // AdoptionCohortWeek is the weekly average number of users in an adoption phase,
@@ -1074,7 +1076,7 @@ func (bq *BigQueryClient) GetBillingMonthlyTrend(ctx context.Context, months int
 	if err != nil {
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
-	return readAllRows[BillingMonthlyTrend](it)
+	return bqstore.ReadAllRows[BillingMonthlyTrend](it)
 }
 
 type DailySummary struct {
@@ -1117,7 +1119,7 @@ func (bq *BigQueryClient) GetDailySummary(ctx context.Context) (*DailySummary, e
 	if err != nil {
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
-	rows, err := readAllRows[DailySummary](it)
+	rows, err := bqstore.ReadAllRows[DailySummary](it)
 	if err != nil {
 		return nil, err
 	}
@@ -1199,7 +1201,7 @@ func (bq *BigQueryClient) GetRepositoryUsage(ctx context.Context) ([]RepositoryU
 	if err != nil {
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
-	return readAllRows[RepositoryUsage](it)
+	return bqstore.ReadAllRows[RepositoryUsage](it)
 }
 
 // ClientUsage is the 28-day request and session total for one client
@@ -1230,7 +1232,7 @@ func (bq *BigQueryClient) GetClientUsage(ctx context.Context) ([]ClientUsage, er
 	if err != nil {
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
-	return readAllRows[ClientUsage](it)
+	return bqstore.ReadAllRows[ClientUsage](it)
 }
 
 func (bq *BigQueryClient) GetBillingModelBreakdown(ctx context.Context, months int) ([]BillingModelBreakdown, error) {
@@ -1248,5 +1250,5 @@ func (bq *BigQueryClient) GetBillingModelBreakdown(ctx context.Context, months i
 	if err != nil {
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
-	return readAllRows[BillingModelBreakdown](it)
+	return bqstore.ReadAllRows[BillingModelBreakdown](it)
 }

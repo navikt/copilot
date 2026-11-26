@@ -18,6 +18,8 @@ import (
 	"cloud.google.com/go/civil"
 	"golang.org/x/sync/singleflight"
 	"google.golang.org/api/iterator"
+
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 )
 
 // bqQueryTimeout bounds how long a single BigQuery query is allowed to run.
@@ -262,7 +264,7 @@ func (bq *BigQueryClient) GetDailyMetrics(ctx context.Context, days *int) ([]Ent
 		var row struct {
 			RawRecord string `bigquery:"raw_record"`
 		}
-		if err := decodeBQRow(it.Schema, values, &row); err != nil {
+		if err := bqstore.DecodeRow(it.Schema, values, &row); err != nil {
 			slog.Warn("Failed to decode row", "error", err)
 			continue
 		}
@@ -297,7 +299,7 @@ func (bq *BigQueryClient) GetAdoptionSummary(ctx context.Context) (*AdoptionSumm
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
 
-	summary, err := readSingleRow[AdoptionSummary](it)
+	summary, err := bqstore.ReadSingleRow[AdoptionSummary](it)
 	if err != nil || summary == nil {
 		return summary, err
 	}
@@ -338,7 +340,7 @@ func (bq *BigQueryClient) populateVelocityCohorts(ctx context.Context, summary *
 		slog.Warn("Failed to fetch repository velocity cohorts", "error", err)
 		return
 	}
-	cohorts, err := readAllRows[RepoVelocityCohort](it)
+	cohorts, err := bqstore.ReadAllRows[RepoVelocityCohort](it)
 	if err != nil {
 		slog.Warn("Failed to decode repository velocity cohorts", "error", err)
 		return
@@ -368,7 +370,7 @@ func (bq *BigQueryClient) GetTeamAdoption(ctx context.Context) ([]TeamAdoption, 
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
 
-	teams, err := readAllRows[TeamAdoption](it)
+	teams, err := bqstore.ReadAllRows[TeamAdoption](it)
 	if err != nil || len(teams) == 0 {
 		return teams, err
 	}
@@ -418,7 +420,7 @@ func (bq *BigQueryClient) populateTeamPRVelocity(ctx context.Context, teams []Te
 		slog.Warn("Failed to fetch team PR velocity", "error", err)
 		return
 	}
-	rows, err := readAllRows[teamPRVelocityRow](it)
+	rows, err := bqstore.ReadAllRows[teamPRVelocityRow](it)
 	if err != nil {
 		slog.Warn("Failed to decode team PR velocity", "error", err)
 		return
@@ -455,7 +457,7 @@ func (bq *BigQueryClient) GetCustomizationDetails(ctx context.Context) ([]Custom
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
 
-	return readAllRows[CustomizationDetail](it)
+	return bqstore.ReadAllRows[CustomizationDetail](it)
 }
 
 // GetCustomizationUsage fetches customization usage with sample repositories
@@ -479,7 +481,7 @@ func (bq *BigQueryClient) GetCustomizationUsage(ctx context.Context) ([]Customiz
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
 
-	return readAllRows[CustomizationUsage](it)
+	return bqstore.ReadAllRows[CustomizationUsage](it)
 }
 
 // GetLanguageAdoption fetches language adoption metrics for the latest scan
@@ -497,7 +499,7 @@ func (bq *BigQueryClient) GetLanguageAdoption(ctx context.Context) ([]LanguageAd
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
 
-	return readAllRows[LanguageAdoption](it)
+	return bqstore.ReadAllRows[LanguageAdoption](it)
 }
 
 // GetStalenessData fetches file-level sync status from v_staleness_summary view
@@ -525,7 +527,7 @@ func (bq *BigQueryClient) GetStalenessData(ctx context.Context) ([]StalenessFile
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
 
-	return readAllRows[StalenessFile](it)
+	return bqstore.ReadAllRows[StalenessFile](it)
 }
 
 type NavPilotSkillLoad struct {
@@ -938,7 +940,7 @@ func (bq *BigQueryClient) GetNavPilotTelemetry(ctx context.Context) (*NavPilotTe
 		}
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
-	rows, err := readAllRows[mimirTelemetryRow](it)
+	rows, err := bqstore.ReadAllRows[mimirTelemetryRow](it)
 	if err != nil {
 		if strings.Contains(err.Error(), "Not found") || strings.Contains(err.Error(), "404") {
 			slog.Warn("mimir_daily table not found, returning empty telemetry", "table", tableRef)

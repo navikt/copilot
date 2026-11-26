@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 )
 
 // ModelFamilyUsers is the number of distinct users of one model family in one
@@ -45,7 +47,7 @@ GROUP BY 1, 2 ORDER BY 1, 2`, modelFamilySQL, userDaysFrom(bq.tableRef(bq.metric
 	if err != nil {
 		return nil, fmt.Errorf("read model family users: %w", err)
 	}
-	return readAllRows[ModelFamilyUsers](it)
+	return bqstore.ReadAllRows[ModelFamilyUsers](it)
 }
 
 func (c *CachedBigQueryClient) GetModelFamilyUsers(ctx context.Context) ([]ModelFamilyUsers, error) {

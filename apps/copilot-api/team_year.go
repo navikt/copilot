@@ -10,6 +10,8 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"google.golang.org/api/googleapi"
+
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 )
 
 // Usage bases for a team month.
@@ -128,7 +130,7 @@ func (bq *BigQueryClient) GetTeamYearOverview(ctx context.Context, team string, 
 	if err != nil {
 		return nil, fmt.Errorf("read team year usage: %w", err)
 	}
-	rows, err := readAllRows[teamYearRow](it)
+	rows, err := bqstore.ReadAllRows[teamYearRow](it)
 	if err != nil {
 		return nil, err
 	}

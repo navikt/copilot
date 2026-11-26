@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 )
 
 type EditorUsage struct {
@@ -47,7 +49,7 @@ func (bq *BigQueryClient) GetEditorUsage(ctx context.Context) ([]EditorUsage, er
 	if err != nil {
 		return nil, fmt.Errorf("execute editor usage query: %w", err)
 	}
-	return readAllRows[EditorUsage](it)
+	return bqstore.ReadAllRows[EditorUsage](it)
 }
 
 func (c *CachedBigQueryClient) GetEditorUsage(ctx context.Context) ([]EditorUsage, error) {

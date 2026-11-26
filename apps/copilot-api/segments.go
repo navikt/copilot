@@ -8,6 +8,8 @@ import (
 	"sort"
 
 	"cloud.google.com/go/bigquery"
+
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 )
 
 // Anonymous behavioural segments for /innsikt/trender. The queries return
@@ -188,7 +190,7 @@ func readSegment[T any](ctx context.Context, q *bigquery.Query) ([]T, error) {
 	if err != nil {
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
-	return readAllRows[T](it)
+	return bqstore.ReadAllRows[T](it)
 }
 
 // GetUserSegments runs the three segment queries. Months are YYYY-MM.

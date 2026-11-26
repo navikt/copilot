@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 )
 
 // LimitChange is a new default personal spending limit from Date (YYYY-MM-DD).
@@ -23,7 +25,7 @@ GROUP BY snapshot_date ORDER BY snapshot_date`, bq.tableRef(bq.metricsDataset, "
 	if err != nil {
 		return nil, fmt.Errorf("read limit snapshots: %w", err)
 	}
-	return readAllRows[LimitChange](it)
+	return bqstore.ReadAllRows[LimitChange](it)
 }
 
 func (c *CachedBigQueryClient) GetLimitSnapshots(ctx context.Context) ([]LimitChange, error) {

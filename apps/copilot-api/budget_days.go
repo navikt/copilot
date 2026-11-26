@@ -4,6 +4,8 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 )
 
 // F7: users per bucket of the share of their personal limit used, per day
@@ -68,7 +70,7 @@ GROUP BY 1, 2 ORDER BY 1, 2`).Read(ctx)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := readAllRows[budgetBucketRow](it)
+	rows, err := bqstore.ReadAllRows[budgetBucketRow](it)
 	if err != nil {
 		return nil, err
 	}

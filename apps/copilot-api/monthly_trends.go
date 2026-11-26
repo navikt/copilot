@@ -7,6 +7,8 @@ import (
 	"net/http"
 
 	"cloud.google.com/go/bigquery"
+
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 )
 
 // Monthly history for /innsikt/trender. Both queries return aggregates only,
@@ -86,7 +88,7 @@ func (bq *BigQueryClient) GetCreditsPerUserMonthly(ctx context.Context) ([]Credi
 	if err != nil {
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
-	return readAllRows[CreditsPerUserMonth](it)
+	return bqstore.ReadAllRows[CreditsPerUserMonth](it)
 }
 
 // GetCopilotPRsMonthly sums Copilot PR activity and averages daily median
@@ -121,7 +123,7 @@ func (bq *BigQueryClient) GetCopilotPRsMonthly(ctx context.Context) ([]CopilotPR
 	if err != nil {
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
-	return readAllRows[CopilotPRMonth](it)
+	return bqstore.ReadAllRows[CopilotPRMonth](it)
 }
 
 func (c *CachedBigQueryClient) GetCreditsPerUserMonthly(ctx context.Context) ([]CreditsPerUserMonth, error) {
@@ -223,7 +225,7 @@ func (bq *BigQueryClient) GetCohortRetention(ctx context.Context) ([]CohortReten
 	if err != nil {
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
-	return readAllRows[CohortRetention](it)
+	return bqstore.ReadAllRows[CohortRetention](it)
 }
 
 func (c *CachedBigQueryClient) GetCohortRetention(ctx context.Context) ([]CohortRetention, error) {

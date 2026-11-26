@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery"
+
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 )
 
 // Internal: the standard per-person spending limit (copilot-intern README,
@@ -332,7 +334,7 @@ GROUP BY month, user_id ORDER BY month`,
 	if err != nil {
 		return nil, fmt.Errorf("read spend history: %w", err)
 	}
-	return readAllRows[spendUserRow](it)
+	return bqstore.ReadAllRows[spendUserRow](it)
 }
 
 func (bq *BigQueryClient) GetSpendBands(ctx context.Context) (*SpendBands, error) {
@@ -354,7 +356,7 @@ FROM u GROUP BY user_id`, userDaysFrom(bq.tableRef(bq.metricsDataset, "user_metr
 	if err != nil {
 		return nil, fmt.Errorf("read spend band current month: %w", err)
 	}
-	cur, err := readAllRows[spendUserRow](it)
+	cur, err := bqstore.ReadAllRows[spendUserRow](it)
 	if err != nil {
 		return nil, err
 	}

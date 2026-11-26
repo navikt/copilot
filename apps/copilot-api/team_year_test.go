@@ -12,6 +12,8 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"google.golang.org/api/option"
+
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 )
 
 func TestTeamYearOverviewBasis(t *testing.T) {
@@ -296,14 +298,14 @@ func TestTeamYearQueryWithoutResidualColumns(t *testing.T) {
 func TestTeamYearRowDecodesResidual(t *testing.T) {
 	schema := bigquery.Schema{{Name: "month", Type: bigquery.StringFieldType}, {Name: "residual_pct", Type: bigquery.FloatFieldType}}
 	var r teamYearRow
-	if err := decodeBQRow(schema, []bigquery.Value{"2026-03-01", 7.13}, &r); err != nil {
+	if err := bqstore.DecodeRow(schema, []bigquery.Value{"2026-03-01", 7.13}, &r); err != nil {
 		t.Fatal(err)
 	}
 	if r.ResidualPct == nil || *r.ResidualPct != 7.13 {
 		t.Fatalf("residual = %v", r.ResidualPct)
 	}
 	var empty teamYearRow
-	if err := decodeBQRow(schema, []bigquery.Value{"2026-03-01", nil}, &empty); err != nil || empty.ResidualPct != nil {
+	if err := bqstore.DecodeRow(schema, []bigquery.Value{"2026-03-01", nil}, &empty); err != nil || empty.ResidualPct != nil {
 		t.Fatalf("null residual: err=%v value=%v", err, empty.ResidualPct)
 	}
 }

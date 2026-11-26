@@ -10,6 +10,8 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"google.golang.org/api/option"
+
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 )
 
 func TestInteriorDeciles(t *testing.T) {
@@ -100,7 +102,7 @@ func TestBillingModelDailySyntheticMixedProduct(t *testing.T) {
 		t.Fatalf("execute query with synthetic fixture: %v", err)
 	}
 
-	rows, err := readAllRows[BillingModelDailyCost](it)
+	rows, err := bqstore.ReadAllRows[BillingModelDailyCost](it)
 	if err != nil {
 		t.Fatalf("read rows: %v", err)
 	}

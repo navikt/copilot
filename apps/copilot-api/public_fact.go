@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"time"
 	_ "time/tzdata"
+
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 )
 
 // The front page's «Dagens innsikt»: one sentence a day, built from Nav-wide
@@ -270,7 +272,7 @@ SELECT
 	if err != nil {
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
-	return readSingleRow[FactAggregates](it)
+	return bqstore.ReadSingleRow[FactAggregates](it)
 }
 
 // GetFactAggregates is cached per Oslo date, so the day's fact is stable.

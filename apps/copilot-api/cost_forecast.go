@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery"
+
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 )
 
 // CostForecast is the month-end forecast on the admin cost page (F4) and its
@@ -503,7 +505,7 @@ GROUP BY day ORDER BY day`, bq.tableRef(bq.metricsDataset, "billing_usage_daily_
 	if err != nil {
 		return nil, fmt.Errorf("read cost days: %w", err)
 	}
-	return readAllRows[CostDay](it)
+	return bqstore.ReadAllRows[CostDay](it)
 }
 
 // GetCostUserDays returns gross per user and day for the same period as GetCostDays.
@@ -520,7 +522,7 @@ WHERE day >= DATE_SUB(DATE(@month || '-01'), INTERVAL @back MONTH)
 	if err != nil {
 		return nil, fmt.Errorf("read cost user days: %w", err)
 	}
-	return readAllRows[UserDay](it)
+	return bqstore.ReadAllRows[UserDay](it)
 }
 
 func (c *CachedBigQueryClient) GetCostDays(ctx context.Context, month string) ([]CostDay, error) {

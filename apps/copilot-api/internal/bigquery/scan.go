@@ -1,4 +1,4 @@
-package main
+package bigquery
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"google.golang.org/api/iterator"
 )
 
-// decodeBQRow maps a single BigQuery result row onto dst (a pointer to a struct),
+// DecodeRow maps a single BigQuery result row onto dst (a pointer to a struct),
 // matching columns to struct fields by their `bigquery` tag.
 //
 // It is deliberately tolerant so that a single unexpected value never fails the
@@ -21,7 +21,7 @@ import (
 // Columns with no matching struct field are ignored, and struct fields with no
 // matching column are left untouched. This makes scanning resilient to BigQuery
 // view/schema drift instead of crashing with "X is not assignable to Y".
-func decodeBQRow(schema bigquery.Schema, row []bigquery.Value, dst any) error {
+func DecodeRow(schema bigquery.Schema, row []bigquery.Value, dst any) error {
 	rv := reflect.ValueOf(dst)
 	if rv.Kind() != reflect.Pointer || rv.IsNil() {
 		return fmt.Errorf("decode target must be a non-nil pointer")
@@ -120,7 +120,7 @@ func assignBQRecord(field reflect.Value, val bigquery.Value, fs *bigquery.FieldS
 	if field.Kind() != reflect.Struct {
 		return fmt.Errorf("record column into non-struct field %s", field.Type())
 	}
-	return decodeBQRow(fs.Schema, sub, field.Addr().Interface())
+	return DecodeRow(fs.Schema, sub, field.Addr().Interface())
 }
 
 func assignBQScalar(field reflect.Value, val bigquery.Value) error {
@@ -186,11 +186,11 @@ func assignBQScalar(field reflect.Value, val bigquery.Value) error {
 	return fmt.Errorf("cannot assign value of type %T to field of type %s", val, field.Type())
 }
 
-// readAllRows scans every row of the iterator into a slice of T using decodeBQRow.
+// ReadAllRows scans every row of the iterator into a slice of T using DecodeRow.
 // IMPORTANT: Uses make([]T, 0) instead of var results []T because Go's nil slice
 // serializes as JSON `null` while an empty initialized slice serializes as `[]`.
 // The frontend expects arrays (e.g. weeklyTrends.length) and crashes on null.
-func readAllRows[T any](it *bigquery.RowIterator) ([]T, error) {
+func ReadAllRows[T any](it *bigquery.RowIterator) ([]T, error) {
 	results := make([]T, 0) // non-nil: ensures JSON [] not null on empty result sets
 	for {
 		var row []bigquery.Value
@@ -202,7 +202,7 @@ func readAllRows[T any](it *bigquery.RowIterator) ([]T, error) {
 			return nil, fmt.Errorf("iterate results: %w", err)
 		}
 		var item T
-		if err := decodeBQRow(it.Schema, row, &item); err != nil {
+		if err := DecodeRow(it.Schema, row, &item); err != nil {
 			return nil, fmt.Errorf("decode row: %w", err)
 		}
 		results = append(results, item)
@@ -210,9 +210,9 @@ func readAllRows[T any](it *bigquery.RowIterator) ([]T, error) {
 	return results, nil
 }
 
-// readSingleRow scans the first row of the iterator into a T, returning nil when
+// ReadSingleRow scans the first row of the iterator into a T, returning nil when
 // the result set is empty.
-func readSingleRow[T any](it *bigquery.RowIterator) (*T, error) {
+func ReadSingleRow[T any](it *bigquery.RowIterator) (*T, error) {
 	var row []bigquery.Value
 	err := it.Next(&row)
 	if err == iterator.Done {
@@ -222,7 +222,7 @@ func readSingleRow[T any](it *bigquery.RowIterator) (*T, error) {
 		return nil, fmt.Errorf("read result: %w", err)
 	}
 	var item T
-	if err := decodeBQRow(it.Schema, row, &item); err != nil {
+	if err := DecodeRow(it.Schema, row, &item); err != nil {
 		return nil, fmt.Errorf("decode row: %w", err)
 	}
 	return &item, nil
