@@ -202,6 +202,9 @@ func (d *DB) approveServer(ctx context.Context, c caller, platform, ns, name str
 		if err != nil {
 			return err
 		}
+		if err = approvableAfterRevoke(ctx, tx, row.Status, ns, name, v.CreatedAt); err != nil {
+			return err
+		}
 		now, err := txNow(ctx, tx)
 		if err != nil {
 			return err
@@ -260,6 +263,26 @@ func (d *DB) approveServer(ctx context.Context, c caller, platform, ns, name str
 	return err
 }
 
+// approvableAfterRevoke lets a revoked server be approved only for a
+// generation submitted after the revocation (a restart). It does not rely
+// on revoke clearing pending_version: rows revoked by older versions still
+// carry the generation that was pending then.
+func approvableAfterRevoke(ctx context.Context, tx pgx.Tx, status, ns, name string, created time.Time) error {
+	switch status {
+	case "draft", "published":
+		return nil
+	case "revoked":
+		var after bool
+		if err := tx.QueryRow(ctx, `SELECT COALESCE($3 > max(revoked_at), false) FROM server_versions WHERE namespace = $1 AND name = $2`, ns, name, created).Scan(&after); err != nil {
+			return err
+		}
+		if after {
+			return nil
+		}
+	}
+	return conflict("generation", ReasonServerRevoked, "server is %s; submit a new generation to restart it", status)
+}
+
 // revokeServer stops the published generation. It is final for that
 // generation: rollback never undoes it.
 func (d *DB) revokeServer(ctx context.Context, c caller, by, ns, name, reason string, block bool) error {
@@ -271,7 +294,7 @@ func (d *DB) revokeServer(ctx context.Context, c caller, by, ns, name, reason st
 		if row.Status != "published" {
 			return conflict("", ReasonNotPublished, "server is %s, not published", row.Status)
 		}
-		if _, err := tx.Exec(ctx, `UPDATE servers SET status = 'revoked', updated_at = now() WHERE namespace = $1 AND name = $2`, ns, name); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE servers SET status = 'revoked', pending_version = NULL, updated_at = now() WHERE namespace = $1 AND name = $2`, ns, name); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `UPDATE server_versions SET revoked_at = clock_timestamp(), blocked = blocked OR $4 WHERE namespace = $1 AND name = $2 AND version = $3`, ns, name, *row.Published, block); err != nil {

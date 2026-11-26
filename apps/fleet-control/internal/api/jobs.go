@@ -298,6 +298,11 @@ func sweepIntervalFromEnv() (time.Duration, error) {
 	return d, nil
 }
 
+// jobProfileLive is true when the agent profile named in job j's spec is
+// still published, approved, unrevoked and unexpired. A job without a
+// profile (rows from before v1alpha1) is never live.
+const jobProfileLive = liveProfileSQL + `r.namespace = j.submitted_spec->'agentProfile'->>'namespace' AND r.name = j.submitted_spec->'agentProfile'->>'name'`
+
 // errNoJob means nothing was claimable.
 var errNoJob = errors.New("no job")
 
@@ -334,6 +339,7 @@ func (d *DB) Claim(ctx context.Context, runtime string, teams []string, token st
 		err := tx.QueryRow(ctx, `SELECT id, team, attempts + 1 FROM runtime_jobs j
 			WHERE state = 'queued' AND team = ANY($1)
 			  AND NOT EXISTS (SELECT 1 FROM runtime_kill_switches k WHERE k.scope IN ('global', 'team:' || j.team))
+			  AND EXISTS (`+jobProfileLive+`)
 			ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED`, teams).Scan(&id, &team, &attempt)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return errNoJob
@@ -415,6 +421,22 @@ func (d *DB) Heartbeat(ctx context.Context, runtime, leaseID string, ttl time.Du
 		}
 		if switched {
 			cmd = cmdKill
+		}
+		if cmd == cmdContinue {
+			var live bool
+			if err := tx.QueryRow(ctx, `SELECT EXISTS (`+jobProfileLive+`) FROM runtime_jobs j WHERE j.id = $1`, job).Scan(&live); err != nil {
+				return err
+			}
+			if !live {
+				// Same as a cancel through SetJobCommand: delivered below, the sweeper ends the job.
+				cmd = cmdCancel
+				if _, err := tx.Exec(ctx, `UPDATE runtime_jobs SET command = 'cancel', updated_at = now() WHERE id = $1`, job); err != nil {
+					return err
+				}
+				if err := jobAudit(ctx, tx, caller{Kind: "Application", Ident: runtime}, "job_cancel", team, job, map[string]any{"before": "leased", "after": "leased", "reason": "agent profile is no longer live"}); err != nil {
+					return err
+				}
+			}
 		}
 		out.Command = cmd
 		if cmd == cmdKill {
