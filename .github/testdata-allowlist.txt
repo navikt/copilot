@@ -1,0 +1,17 @@
+# Values scripts/testdata-scan.sh accepts in public test data, one per line.
+# Seeded from main on 2026-11-26. Add only values that are public on purpose.
+00000000-0000-4000-8000-000000000001
+aksel-mcp.nav.no
+aksel.nav.no
+f313d1ee-401a-49a3-8434-6ebc7e35b464
+fleet-gateway.intern.dev.nav.no
+fleet.nav.no
+ki-utvikling.nav.no
+loki.nav.cloud.nais.io
+mcp.ekstern.dev.nav.no
+mcp.intern.dev.nav.no
+mcp.intern.nav.no
+mimir.nav.cloud.nais.io
+pdl-docs.ansatt.nav.no
+tempo.dev-gcp.nav.cloud.nais.io
+tempo.prod-gcp.nav.cloud.nais.io
