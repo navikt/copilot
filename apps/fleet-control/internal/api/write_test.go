@@ -208,13 +208,36 @@ func TestRealPostgresRoutesSizeLimit(t *testing.T) {
 	if code := approve(winner, draft(winner, "search", "two")); code != 200 {
 		t.Fatalf("second generation: %d", code)
 	}
+	// Rolling back to a smaller snapshot while over budget is a repair: allowed.
 	maxRoutesSnapshotBytes = len(snap.Items)
 	before = audits()
-	if code, out := e.do("POST", base+winner+"/rollback", a, `{"fromGeneration":2,"reason":"x"}`); code != 409 {
-		t.Errorf("oversized rollback: %d %s, want 409", code, out)
+	if code, out := e.do("POST", base+winner+"/rollback", a, `{"fromGeneration":2,"reason":"x"}`); code != 200 {
+		t.Errorf("shrinking rollback: %d %s, want 200", code, out)
+	}
+	if got := audits(); got != before+1 {
+		t.Errorf("shrinking rollback wrote %d audit events, want 1", got-before)
+	}
+
+	// Rolling back to a larger snapshot over the limit is refused, with no audit row.
+	maxRoutesSnapshotBytes = old
+	if code := approve(winner, draft(winner, "a")); code != 200 {
+		t.Fatalf("third generation: %d", code)
+	}
+	cur, err := srv.resolve(ctx, "routes")
+	if err != nil {
+		t.Fatal(err)
+	}
+	maxRoutesSnapshotBytes = len(cur.Items)
+	before = audits()
+	if code, out := e.do("POST", base+winner+"/rollback", a, `{"fromGeneration":3,"toGeneration":2,"reason":"x"}`); code != 409 {
+		t.Errorf("growing rollback: %d %s, want 409", code, out)
 	}
 	if got := audits(); got != before {
 		t.Errorf("refused rollback wrote %d audit events", got-before)
+	}
+	// Compare ETag and generation, not Items: a repeat resolve reads jsonb back from Postgres, so bytes differ in key order and whitespace.
+	if s, err := srv.resolve(ctx, "routes"); err != nil || s.ETag != cur.ETag || s.Generation != cur.Generation {
+		t.Errorf("refused rollback changed the published snapshot: err=%v", err)
 	}
 }
 

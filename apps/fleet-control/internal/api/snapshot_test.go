@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -286,19 +287,99 @@ func TestRoutesFitTeamBudget(t *testing.T) {
 	other.Route = &r
 	servers = append(servers, other)
 	var ae *apiError
-	if err := routesFit(servers, "other"); !errors.As(err, &ae) || ae.code != http.StatusConflict || !strings.Contains(err.Error(), "team") {
+	if err := routesFit(nil, servers, "other"); !errors.As(err, &ae) || ae.code != http.StatusConflict || !strings.Contains(err.Error(), "team") {
 		t.Fatalf("a team over its budget must be refused: %v", err)
 	}
-	if err := routesFit(servers, "copilot"); err != nil {
+	if err := routesFit(nil, servers, "copilot"); err != nil {
 		t.Fatalf("another team must still publish: %v", err)
 	}
 }
 
+func TestRoutesFitAllowsShrinking(t *testing.T) {
+	withURL := func(n int) []model.Server {
+		s := testServers(2)
+		o := testServers(1)[0]
+		o.Namespace, o.Name = "other", "big"
+		r := *o.Route
+		r.Path, r.Target, r.UpstreamURL = "/mcp/other/big", "dev-gcp:other:big", "http://big.other/"+strings.Repeat("x", n)
+		o.Route = &r
+		return append(s, o)
+	}
+	_, base, err := routesSize(withURL(0), "other")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pad := maxTeamRoutesBytes - base // URL padding that puts team other exactly at the limit
+	var ae *apiError
+	if err := routesFit(withURL(0), withURL(pad), "other"); err != nil {
+		t.Fatalf("exactly at the team limit must pass: %v", err)
+	}
+	if err := routesFit(withURL(0), withURL(pad+1), "other"); !errors.As(err, &ae) || ae.code != http.StatusConflict {
+		t.Fatalf("approve over the team limit must be refused: %v", err)
+	}
+	if err := routesFit(withURL(pad+200), withURL(pad+100), "other"); err != nil {
+		t.Fatalf("a rollback that shrinks an over-budget team must pass: %v", err)
+	}
+	if err := routesFit(withURL(pad+100), withURL(pad+200), "other"); !errors.As(err, &ae) || ae.code != http.StatusConflict {
+		t.Fatalf("a rollback that grows over the limit must be refused: %v", err)
+	}
+	if err := routesFit(withURL(pad+100), withURL(pad+100), "copilot"); err != nil {
+		t.Fatalf("another team must be unaffected: %v", err)
+	}
+
+	big := testServers(2)
+	tools := make([]string, 0, 100000)
+	for i := range cap(tools) {
+		tools = append(tools, fmt.Sprintf("tool_%d", i))
+	}
+	big[1].Route.Tools = tools
+	bigger := testServers(2)
+	bigger[1].Route.Tools = slices.Concat(tools, []string{"tool_extra"})
+	if err := routesFit(bigger, big, "copilot"); err != nil {
+		t.Fatalf("shrinking an over-limit snapshot must pass the global check: %v", err)
+	}
+	if err := routesFit(big, bigger, "copilot"); !errors.As(err, &ae) || ae.code != http.StatusConflict {
+		t.Fatalf("growing an over-limit snapshot must be refused: %v", err)
+	}
+}
+
+// Each team stays under its own cap, so only the global cap can refuse.
+func TestRoutesFitGlobalCapAcrossTeams(t *testing.T) {
+	teams := func(pad int) []model.Server {
+		var out []model.Server
+		for i := range 17 {
+			s := testServers(1)[0]
+			ns := fmt.Sprintf("team%d", i)
+			s.Namespace = ns
+			r := *s.Route
+			r.Path, r.Target, r.UpstreamURL = "/mcp/"+ns+"/s", "dev-gcp:"+ns+":s", "http://s."+ns+"/"+strings.Repeat("x", pad)
+			s.Route = &r
+			out = append(out, s)
+		}
+		return out
+	}
+	const pad = 60000
+	total, team, err := routesSize(teams(pad), "team0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if team > maxTeamRoutesBytes || total <= maxRoutesSnapshotBytes {
+		t.Fatalf("fixture must be under the team cap and over the global cap: team %d, total %d", team, total)
+	}
+	var ae *apiError
+	if err := routesFit(teams(pad+100), teams(pad), "team0"); err != nil {
+		t.Fatalf("shrinking an over-limit snapshot must pass: %v", err)
+	}
+	if err := routesFit(teams(pad), teams(pad+100), "team0"); !errors.As(err, &ae) || ae.code != http.StatusConflict || strings.Contains(err.Error(), "team limit") {
+		t.Fatalf("growing past the global cap must be refused by the global check: %v", err)
+	}
+}
+
 func TestRoutesFitRefusesOversizedSnapshot(t *testing.T) {
-	if err := routesFit(testServers(20), "copilot"); err != nil {
+	if err := routesFit(nil, testServers(20), "copilot"); err != nil {
 		t.Fatalf("small snapshot: %v", err)
 	}
-	if err := routesFit(nil, "copilot"); err != nil {
+	if err := routesFit(nil, nil, "copilot"); err != nil {
 		t.Fatalf("no routes is not a size problem: %v", err)
 	}
 	big := testServers(2)
@@ -312,7 +393,7 @@ func TestRoutesFitRefusesOversizedSnapshot(t *testing.T) {
 		t.Fatalf("fixture too small: %d", len(snap.Items))
 	}
 	var ae *apiError
-	if err := routesFit(big, "copilot"); !errors.As(err, &ae) || ae.code != http.StatusConflict {
+	if err := routesFit(nil, big, "copilot"); !errors.As(err, &ae) || ae.code != http.StatusConflict {
 		t.Fatalf("oversized snapshot must be refused with 409: %v", err)
 	}
 }
