@@ -354,7 +354,11 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
             )}
             {item.repository && (
               <a
-                href={item.repository.url}
+                href={
+                  item.repository.subfolder
+                    ? `${item.repository.url}/tree/main/${item.repository.subfolder}`
+                    : item.repository.url
+                }
                 target="_blank"
                 rel="noopener noreferrer"
                 className={`inline-flex items-center gap-1 text-sm ${linkClass}`}

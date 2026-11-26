@@ -59,6 +59,30 @@ describe("McpDetails", () => {
     }
   });
 
+  it("links Kildekode to the server's own subfolder", () => {
+    const item = {
+      id: "mcp-io.github.navikt/dolly",
+      name: "dolly",
+      description: "d",
+      type: "mcp",
+      serverId: "io.github.navikt/dolly",
+      domain: "testing",
+      filePath: "",
+      repoPath: "",
+      rawGitHubUrl: "",
+      installUrl: null,
+      insidersInstallUrl: null,
+      version: "1.0.0",
+      remotes: [],
+      websiteUrl: "https://navikt.github.io/testnorge/",
+      repository: { url: "https://github.com/navikt/copilot", source: "github", subfolder: "apps/mcp-dolly" },
+    } as unknown as EnrichedCustomization;
+    render(<McpDetails item={item} />);
+    expect(screen.getByRole("link", { name: /Kildekode/ }).getAttribute("href")).toBe(
+      "https://github.com/navikt/copilot/tree/main/apps/mcp-dolly"
+    );
+  });
+
   it("shows nav-pilot mcp enable with the full registry name in the default tab", () => {
     const item: EnrichedCustomization = {
       id: "mcp-io.github.navikt/github-mcp",
