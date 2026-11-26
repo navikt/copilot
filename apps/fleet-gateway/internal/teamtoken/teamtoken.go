@@ -73,20 +73,26 @@ func (s *OBO) TeamToken(ctx context.Context, sessionID string, route routing.Rou
 		return "", &upstreamTokenError{reason: "session has no entra access token"}
 	}
 
+	return ExchangeOBO(ctx, s.Client, s.Endpoint, route.Target, route.App, sess.EntraToken)
+}
+
+// ExchangeOBO exchanges userToken at Texas for a token to target (cluster:namespace:app).
+// The probe uses it too, so a probe authenticates the way a route does (#2985).
+func ExchangeOBO(ctx context.Context, client *http.Client, endpoint, target, app, userToken string) (string, error) {
 	payload, err := json.Marshal(struct {
 		IdentityProvider string `json:"identity_provider"`
 		Target           string `json:"target"`
 		UserToken        string `json:"user_token"`
 	}{
 		IdentityProvider: "entra_id",
-		Target:           route.Target,
-		UserToken:        sess.EntraToken,
+		Target:           target,
+		UserToken:        userToken,
 	})
 	if err != nil {
 		return "", &upstreamTokenError{reason: "encode texas request"}
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.Endpoint, bytes.NewReader(payload))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
 	if err != nil {
 		return "", &upstreamTokenError{reason: "build texas request"}
 	}
@@ -94,7 +100,7 @@ func (s *OBO) TeamToken(ctx context.Context, sessionID string, route routing.Rou
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "fleet-gateway/1.0")
 
-	resp, err := s.Client.Do(req) //nolint:gosec // endpoint validated at startup
+	resp, err := client.Do(req) //nolint:gosec // endpoint validated at startup
 	if err != nil {
 		return "", &upstreamTokenError{reason: "texas exchange request failed"}
 	}
@@ -106,7 +112,7 @@ func (s *OBO) TeamToken(ctx context.Context, sessionID string, route routing.Rou
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return "", mapUpstreamTokenFailure(body, route.App, resp.StatusCode)
+		return "", mapUpstreamTokenFailure(body, app, resp.StatusCode)
 	}
 
 	var out map[string]any

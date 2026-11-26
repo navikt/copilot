@@ -33,3 +33,6 @@ rt_storage: client-encrypted
 team_token_strategy: obo
 # Where login takes NAVident from (#2594). Prod stays on the legacy default until a dev login is verified.
 identity_source: introspection
+# Probe (#2985): my-copilot's dev Entra client id (azp). Needs the Console
+# service account bound to fleet-gateway (done 2026-11-26). Prod stays off.
+probe_allowed_azp: "1c401702-0190-41fa-9c19-faeae7b8fa5c"

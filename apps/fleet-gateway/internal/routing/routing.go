@@ -101,6 +101,9 @@ func parse(raw []byte) ([]Route, error) {
 // Restricting to ASCII keeps names safe to render as agentgateway CEL literals.
 var mcpToolName = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,128}$`)
 
+// ValidToolName reports whether name fits the gateway's tool-name charset.
+func ValidToolName(name string) bool { return mcpToolName.MatchString(name) }
+
 // ApplyToolPolicy validates tools and passAllTools and builds the allowlist.
 // Version 2 denies by default: a route must list tools or be marked
 // passAllTools by the operator, not both.
@@ -176,7 +179,7 @@ func Validate(routes []Route) ([]Route, error) {
 		r.Namespace = ns
 		r.App = app
 
-		parsed, err := validateUpstreamURL(r.UpstreamURL, ns)
+		parsed, err := ValidateUpstreamURL(r.UpstreamURL, ns)
 		if err != nil {
 			return nil, fmt.Errorf("route %q: invalid upstream_url %q: %w", r.Route, r.UpstreamURL, err)
 		}
@@ -233,8 +236,8 @@ func ParseTarget(target string) (cluster, namespace, app string, err error) {
 	return parts[0], parts[1], parts[2], nil
 }
 
-// validateUpstreamURL accepts only an in-cluster URL in the route's namespace.
-func validateUpstreamURL(raw, namespace string) (*url.URL, error) {
+// ValidateUpstreamURL accepts only an in-cluster URL in the route's namespace.
+func ValidateUpstreamURL(raw, namespace string) (*url.URL, error) {
 	if err := config.ValidateHTTPURL(raw, false); err != nil {
 		return nil, err
 	}

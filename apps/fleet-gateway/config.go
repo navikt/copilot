@@ -91,36 +91,41 @@ type Config struct {
 	// RoutesSource is git (default, PILOT_ROUTES_FILE only) or fleet-control (#2641).
 	RoutesSource string
 	// RoutesShadowSource fleet-control compares snapshots with the Git table without serving them (#2760).
-	RoutesShadowSource      string
-	FleetControlURL         string
-	FleetControlAudience    string
-	TexasTokenEndpoint      string // M2M token for fleet-control
-	EntraScope              string
-	AzureClientID           string
-	AzureClientSecret       string
-	AzureWellKnownURL       string
-	AzureTokenEndpoint      string
-	AzureIssuer             string // expected iss of the Entra id_token
-	AzureAuthorizeEndpoint  string
-	CookieSecret            []byte
-	CookieVerifyKeys        [][]byte // extra keys accepted on verify only (older RT_KEYS entries)
-	HTTPClient              *http.Client
-	ProxyHeaderTimeout      time.Duration
-	MCPMaxInFlight          int // concurrent buffered /mcp/* requests per pod
-	MCPMaxInFlightPerRoute  int // concurrent buffered requests per route, under MCPMaxInFlight
-	MCPMaxInFlightPerUser   int // concurrent buffered /mcp/* requests per user per pod
-	MCPMaxSSE               int // concurrent SSE response streams per pod
-	MCPMaxSSEPerUser        int // concurrent SSE response streams per user per pod
-	SSEMaxDuration          time.Duration
-	SSEIdleTimeout          time.Duration
-	SSEMaxBytes             int64
-	MaxResponseBodyBytes    int64
-	PendingCap              int
-	CodeCap                 int
-	SessionCap              int
-	MCPSessionUserCap       int
-	CIMDCap                 int
-	DCREnabled              bool
+	RoutesShadowSource     string
+	FleetControlURL        string
+	FleetControlAudience   string
+	TexasTokenEndpoint     string // M2M token for fleet-control
+	EntraScope             string
+	AzureClientID          string
+	AzureClientSecret      string
+	AzureWellKnownURL      string
+	AzureTokenEndpoint     string
+	AzureIssuer            string // expected iss of the Entra id_token
+	AzureAuthorizeEndpoint string
+	CookieSecret           []byte
+	CookieVerifyKeys       [][]byte // extra keys accepted on verify only (older RT_KEYS entries)
+	HTTPClient             *http.Client
+	ProxyHeaderTimeout     time.Duration
+	MCPMaxInFlight         int // concurrent buffered /mcp/* requests per pod
+	MCPMaxInFlightPerRoute int // concurrent buffered requests per route, under MCPMaxInFlight
+	MCPMaxInFlightPerUser  int // concurrent buffered /mcp/* requests per user per pod
+	MCPMaxSSE              int // concurrent SSE response streams per pod
+	MCPMaxSSEPerUser       int // concurrent SSE response streams per user per pod
+	SSEMaxDuration         time.Duration
+	SSEIdleTimeout         time.Duration
+	SSEMaxBytes            int64
+	MaxResponseBodyBytes   int64
+	PendingCap             int
+	CodeCap                int
+	SessionCap             int
+	MCPSessionUserCap      int
+	CIMDCap                int
+	DCREnabled             bool
+	// Probe (#2985): POST /probe/v1/tools, off unless PROBE_ENABLED=true.
+	ProbeEnabled            bool
+	ProbeAllowedAzp         string // my-copilot's client id
+	ProbeTokenPath          string // Nais service account token for the Console team lookup
+	ProbeCluster            string // NAIS_CLUSTER_NAME, cluster of the probed apps' OBO targets
 	DCRClientTTL            time.Duration
 	DCRClientMaxAge         time.Duration
 	DCRClientCap            int
@@ -186,6 +191,10 @@ func loadConfigFromEnv() (*Config, error) {
 		return nil, fmt.Errorf("invalid RT_STORAGE %q: expected client-encrypted or server", rtStorage)
 	}
 
+	probeEnabled, err := config.Bool("PROBE_ENABLED")
+	if err != nil {
+		return nil, err
+	}
 	dcrEnabled, err := config.Bool("DCR_ENABLED")
 	if err != nil {
 		return nil, err
@@ -253,6 +262,10 @@ func loadConfigFromEnv() (*Config, error) {
 		MCPSessionUserCap:       config.Int("MCP_SESSION_USER_CAP", defaultMCPSessionUserCap),
 		CIMDCap:                 defaultCIMDCap,
 		DCREnabled:              dcrEnabled,
+		ProbeEnabled:            probeEnabled,
+		ProbeAllowedAzp:         strings.TrimSpace(os.Getenv("PROBE_ALLOWED_AZP")),
+		ProbeTokenPath:          strings.TrimSpace(os.Getenv("NAIS_SERVICE_ACCOUNT_TOKEN_PATH")),
+		ProbeCluster:            strings.TrimSpace(os.Getenv("NAIS_CLUSTER_NAME")),
 		DCRClientTTL:            config.Duration("DCR_CLIENT_TTL", defaultDCRClientTTL),
 		DCRClientMaxAge:         config.Duration("DCR_CLIENT_MAX_AGE", defaultDCRClientMaxAge),
 		DCRClientCap:            config.Int("DCR_CLIENT_CAP", defaultDCRClientCap),
@@ -393,6 +406,17 @@ func validateConfig(cfg *Config) error {
 	}
 	if err := config.ValidateHTTPURL(cfg.AzureIssuer, false); err != nil {
 		return fmt.Errorf("invalid AZURE_OPENID_CONFIG_ISSUER: %w", err)
+	}
+	if cfg.ProbeEnabled {
+		if err := config.ValidateHTTPURL(cfg.TexasIntrospectEndpoint, false); err != nil {
+			return fmt.Errorf("PROBE_ENABLED needs a valid NAIS_TOKEN_INTROSPECTION_ENDPOINT: %w", err)
+		}
+		if err := config.ValidateHTTPURL(cfg.TexasExchangeEndpoint, false); err != nil {
+			return fmt.Errorf("PROBE_ENABLED needs a valid NAIS_TOKEN_EXCHANGE_ENDPOINT: %w", err)
+		}
+		if cfg.ProbeAllowedAzp == "" || cfg.ProbeTokenPath == "" || cfg.ProbeCluster == "" {
+			return errors.New("PROBE_ENABLED needs PROBE_ALLOWED_AZP, NAIS_SERVICE_ACCOUNT_TOKEN_PATH and NAIS_CLUSTER_NAME")
+		}
 	}
 	if cfg.AzureAuthorizeEndpoint == "" && cfg.AzureWellKnownURL == "" {
 		return errors.New("AZURE_APP_WELL_KNOWN_URL or AZURE_OPENID_CONFIG_AUTHORIZATION_ENDPOINT is required")

@@ -37,22 +37,22 @@ func TestUpstreamURLShortFormIsClusterLocal(t *testing.T) {
 		{"http://studio-api.aksel-studio/mcp", "aksel-studio", "http://studio-api.aksel-studio.svc.cluster.local/mcp"},
 		{"http://studio-api.aksel-studio.svc.cluster.local/mcp", "aksel-studio", "http://studio-api.aksel-studio.svc.cluster.local/mcp"},
 	} {
-		u, err := validateUpstreamURL(c.raw, c.ns)
+		u, err := ValidateUpstreamURL(c.raw, c.ns)
 		if err != nil {
 			t.Errorf("%s (ns %s): %v", c.raw, c.ns, err)
 		} else if u.String() != c.want {
 			t.Errorf("%s (ns %s) = %s, want %s", c.raw, c.ns, u, c.want)
 		}
 	}
-	if _, err := validateUpstreamURL("http://Mcp-Dolly.copilot/", "copilot"); err != nil {
+	if _, err := ValidateUpstreamURL("http://Mcp-Dolly.copilot/", "copilot"); err != nil {
 		t.Errorf("ASCII uppercase host rejected: %v", err)
 	}
 	for _, h := range []string{"mcp-dol\u212Ay.copilot", "m\u00e9.copilot", "mcp.copilot\u212A"} {
-		if _, err := validateUpstreamURL("http://"+h+"/", "copilot"); err == nil {
+		if _, err := ValidateUpstreamURL("http://"+h+"/", "copilot"); err == nil {
 			t.Errorf("non-ASCII host %q accepted", h)
 		}
 	}
-	if _, err := validateUpstreamURL("http://xn--nv-fia.copilot/mcp", "copilot"); err == nil {
+	if _, err := ValidateUpstreamURL("http://xn--nv-fia.copilot/mcp", "copilot"); err == nil {
 		t.Error("punycode host accepted")
 	}
 }
