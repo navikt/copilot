@@ -430,7 +430,7 @@ type AuditEvent struct {
 	Detail     json.RawMessage `json:"detail,omitempty"`
 }
 
-var agentActionsV1 = []string{"agent_profile_submitted", "agent_profile_access_granted", "agent_profile_published", "agent_profile_revoked", "agent_profile_access_revoked", "metadata_updated"}
+var agentActionsV1 = []string{"agent_profile_submitted", "agent_profile_access_granted", "agent_profile_published", "agent_profile_revoked", "agent_profile_access_revoked", "metadata_updated", "approval_expired"}
 
 // historyOf serves the audit trail to members of the owner team only.
 func historyOf(kind string, legacyActions []string) apisHandler {

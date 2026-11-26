@@ -491,6 +491,7 @@ type profileGen struct {
 	SubOid                *string
 	ApprovedAt, ExpiresAt *time.Time
 	VerifiedAt, RevokedAt *time.Time
+	CreatedAt             time.Time
 	Blocked               bool
 	GrantHashes           map[string]string
 	grants                map[string]grantRow
@@ -505,13 +506,15 @@ type grantRow struct {
 
 func (g profileGen) submitter() *Actor { return &Actor{Kind: g.SubKind, Name: g.SubName} }
 
+func (g profileGen) pendingExpiresAt() time.Time { return g.CreatedAt.Add(pendingValidity) }
+
 func loadProfileGen(ctx context.Context, q store.Querier, ns, name string, gen int) (profileGen, error) {
 	var g profileGen
 	var spec, hashes string
 	err := q.QueryRow(ctx, `SELECT generation, spec::text, spec_hash, entra_client_id::text, submitted_by, submitted_by_kind, submitted_by_oid::text,
-		approved_at, expires_at, identity_verified_at, revoked_at, blocked, grant_hashes::text
+		approved_at, expires_at, identity_verified_at, revoked_at, blocked, grant_hashes::text, created_at
 		FROM agent_profile_generations WHERE namespace = $1 AND name = $2 AND generation = $3`, ns, name, gen).
-		Scan(&g.Gen, &spec, &g.Hash, &g.ClientID, &g.SubName, &g.SubKind, &g.SubOid, &g.ApprovedAt, &g.ExpiresAt, &g.VerifiedAt, &g.RevokedAt, &g.Blocked, &hashes)
+		Scan(&g.Gen, &spec, &g.Hash, &g.ClientID, &g.SubName, &g.SubKind, &g.SubOid, &g.ApprovedAt, &g.ExpiresAt, &g.VerifiedAt, &g.RevokedAt, &g.Blocked, &hashes, &g.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return g, errV1NotFound
 	}
@@ -657,7 +660,8 @@ func (d *DB) buildProfile(ctx context.Context, row profileRow) (AgentProfileV1, 
 		}
 		pend = &g
 		spec := g.Spec
-		st.Pending = &Pending[AgentProfileSpec]{Generation: g.Gen, ContentHash: g.Hash, SubmittedBy: g.submitter(), Spec: &spec}
+		exp := g.pendingExpiresAt()
+		st.Pending = &Pending[AgentProfileSpec]{Generation: g.Gen, ContentHash: g.Hash, SubmittedBy: g.submitter(), ExpiresAt: &exp, Spec: &spec}
 		st.NeedsResubmit = g.SubKind != "User" || g.SubOid == nil
 		if pub == nil {
 			obj.Spec = g.Spec
@@ -791,7 +795,8 @@ func (d *DB) insertProfileGeneration(ctx context.Context, c caller, m ObjectMeta
 			}
 			var same bool
 			if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM agent_profile_generations WHERE namespace = $1 AND name = $2
-				AND generation IN ($3, $4) AND spec_hash = $5)`, ns, name, row.Pending, row.Published, hash).Scan(&same); err != nil {
+				AND spec_hash = $5 AND (generation = $4 OR (generation = $3 AND created_at > now() - $6::interval)))`,
+				ns, name, row.Pending, row.Published, hash, pendingValidity).Scan(&same); err != nil {
 				return err
 			}
 			if same && !row.Revoked {
@@ -858,7 +863,8 @@ func grantVisible(ctx context.Context, tx pgx.Tx, c caller, row profileRow, ref 
 // grantProfile gives one grant on the pending generation. The profile is
 // published once every grant in that generation is given.
 func (d *DB) grantProfile(ctx context.Context, c caller, ns, name string, gen int, ref TypedRef, hash string) error {
-	return pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
+	expired := false
+	err := pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
 		row, err := scanProfileRow(tx.QueryRow(ctx, `SELECT `+profileRowCols+` FROM agent_profile_resources r WHERE r.namespace = $1 AND r.name = $2 FOR UPDATE`, ns, name))
 		if err != nil {
 			return err
@@ -875,9 +881,21 @@ func (d *DB) grantProfile(ctx context.Context, c caller, ns, name string, gen in
 		}
 		want, ok := g.GrantHashes[ref.key()]
 		i := slices.IndexFunc(g.Spec.Grants, func(gr AgentGrantV1) bool { return gr.ServerRef.key() == ref.key() })
-		switch {
-		case !ok || i < 0:
+		if !ok || i < 0 {
+			// Before the expiry check: only a grant in this generation may write an approval_expired row.
 			return conflict("serverRef", "FieldValueNotFound", "generation %d grants nothing on %s", gen, ref.key())
+		}
+		now, err := txNow(ctx, tx)
+		if err != nil {
+			return err
+		}
+		if !now.Before(g.pendingExpiresAt()) {
+			// Commit only the audit row; the caller gets 410. Earlier grants lapse with the generation.
+			// Record the stored hash, never the caller's.
+			expired = true
+			return auditV1(ctx, tx, c, "approval_expired", "AgentProfile", ns, name, &gen, map[string]any{"outcome": "expired", "server": ref.key(), "contentHash": want, "expiresAt": g.pendingExpiresAt()})
+		}
+		switch {
 		case want != hash || !strings.HasPrefix(hash, canon.Prefix):
 			return conflict("contentHash", "FieldValueInvalid", "contentHash does not match the grant on %s", ref.key())
 		case g.SubKind != "User" || g.SubOid == nil:
@@ -941,12 +959,18 @@ func (d *DB) grantProfile(ctx context.Context, c caller, ns, name string, gen in
 			}
 			return err
 		}
-		if _, err := tx.Exec(ctx, `UPDATE agent_profile_generations SET approved_at = now(), expires_at = now() + $4::interval
+		// The six months run from the oldest grant, not the last one (#2731).
+		if _, err := tx.Exec(ctx, `UPDATE agent_profile_generations SET approved_at = now(), expires_at = (SELECT min(granted_at) FROM agent_profile_grants
+			WHERE namespace = $1 AND name = $2 AND generation = $3) + $4::interval
 			WHERE namespace = $1 AND name = $2 AND generation = $3`, ns, name, gen, approvalValidity); err != nil {
 			return err
 		}
 		return auditV1(ctx, tx, c, "agent_profile_published", "AgentProfile", ns, name, &gen, map[string]any{"contentHash": g.Hash})
 	})
+	if err == nil && expired {
+		return errPendingExpired(gen)
+	}
+	return err
 }
 
 // revokeProfileV1 revokes the whole published profile, or with ref only

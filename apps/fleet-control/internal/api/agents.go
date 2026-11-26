@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"regexp"
 	"slices"
@@ -86,6 +87,15 @@ var (
 
 // approvalValidity is fixed by styringsmodell v0.3: approvals expire after six months.
 const approvalValidity = "6 months"
+
+// pendingValidity is how long a submitted generation can wait for approval
+// (#2731). Grants given on it lapse with it; the team submits again.
+const pendingValidity = 30 * 24 * time.Hour
+
+// errPendingExpired is 410 for an approval on a generation past pendingValidity.
+func errPendingExpired(gen int) error {
+	return stErr(http.StatusGone, "Expired", "generation %d waited more than 30 days for approval and has expired; submit it again", gen)
+}
 
 var uuidRe = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
@@ -190,7 +200,7 @@ func seedAgentsFromEnv(ctx context.Context, db *DB) error {
 
 // Audit actions the pre-v1alpha1 code wrote; history still shows them.
 var (
-	serverActions = []string{"draft_submitted", "approved_published", "revoked", "rolled_back"}
+	serverActions = []string{"draft_submitted", "approved_published", "revoked", "rolled_back", "approval_expired"}
 )
 
 func nonNil(v []string) []string {

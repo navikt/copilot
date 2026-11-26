@@ -78,7 +78,9 @@ type Pending[S any] struct {
 	Generation  int    `json:"generation"`
 	ContentHash string `json:"contentHash,omitempty"`
 	SubmittedBy *Actor `json:"submittedBy,omitempty"`
-	Spec        *S     `json:"spec,omitempty"`
+	// ExpiresAt is when the generation can no longer be approved (#2731).
+	ExpiresAt *time.Time `json:"expiresAt,omitempty"`
+	Spec      *S         `json:"spec,omitempty"`
 }
 
 // MCPServerStatus is the status of an MCPServer resource.
@@ -489,11 +491,22 @@ type versionRow struct {
 	ApprovedBy                 *string
 	ApprovedAt, PublishedAt    *time.Time
 	RevokedAt                  *time.Time
+	CreatedAt                  time.Time
 	Blocked                    bool
 	SubOid, RegName, ApprovOid *string
 }
 
 func (v versionRow) submitter() *Actor { return &Actor{Kind: deref(v.SubKind), Name: v.SubName} }
+
+func (v versionRow) expiresAt() time.Time { return v.CreatedAt.Add(pendingValidity) }
+
+// txNow is the database clock for the transaction. Every expiry decision uses it,
+// so a pod clock that drifts from Postgres cannot make the checks disagree.
+func txNow(ctx context.Context, tx pgx.Tx) (time.Time, error) {
+	var now time.Time
+	err := tx.QueryRow(ctx, `SELECT now()`).Scan(&now)
+	return now, err
+}
 
 func (v versionRow) approver() *Actor {
 	if v.ApprovedBy == nil {
@@ -514,9 +527,9 @@ func loadVersion(ctx context.Context, q store.Querier, ns, name string, version 
 	var v versionRow
 	var spec string
 	err := q.QueryRow(ctx, `SELECT v.version, COALESCE(v.spec, `+legacySpecSQL+`)::text, v.spec_hash, v.submitted_by_kind, v.submitted_by,
-		v.approved_by, v.approved_at, v.published_at, v.revoked_at, v.blocked, v.submitted_by_oid::text, v.registry->>'name', v.approved_by_oid::text
+		v.approved_by, v.approved_at, v.published_at, v.revoked_at, v.blocked, v.submitted_by_oid::text, v.registry->>'name', v.approved_by_oid::text, v.created_at
 		FROM server_versions v WHERE v.namespace = $1 AND v.name = $2 AND v.version = $3`, ns, name, version).
-		Scan(&v.Version, &spec, &v.Hash, &v.SubKind, &v.SubName, &v.ApprovedBy, &v.ApprovedAt, &v.PublishedAt, &v.RevokedAt, &v.Blocked, &v.SubOid, &v.RegName, &v.ApprovOid)
+		Scan(&v.Version, &spec, &v.Hash, &v.SubKind, &v.SubName, &v.ApprovedBy, &v.ApprovedAt, &v.PublishedAt, &v.RevokedAt, &v.Blocked, &v.SubOid, &v.RegName, &v.ApprovOid, &v.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return v, errV1NotFound
 	}
@@ -612,7 +625,8 @@ func (d *DB) buildServer(ctx context.Context, row serverRow) (MCPServer, error) 
 			return obj, err
 		}
 		spec := v.Spec
-		st.Pending = &Pending[MCPServerSpec]{Generation: v.Version, ContentHash: deref(v.Hash), SubmittedBy: v.submitter(), Spec: &spec}
+		exp := v.expiresAt()
+		st.Pending = &Pending[MCPServerSpec]{Generation: v.Version, ContentHash: deref(v.Hash), SubmittedBy: v.submitter(), ExpiresAt: &exp, Spec: &spec}
 		if pub == nil {
 			obj.Spec = v.Spec // never published: spec is the latest submitted
 		}
@@ -721,16 +735,23 @@ func (d *DB) submitServer(ctx context.Context, c caller, m ObjectMeta, spec MCPS
 				sv.Namespace, sv.Name, jsonText(m.Labels), jsonText(m.Annotations)); err != nil {
 				return err
 			}
+			var now time.Time
+			if now, err = txNow(ctx, tx); err != nil {
+				return err
+			}
 			same := false
 			for _, v := range []*int{row.Pending, row.Published} {
 				if v == nil {
 					continue
 				}
 				var h *string
-				if err = tx.QueryRow(ctx, `SELECT spec_hash FROM server_versions WHERE namespace = $1 AND name = $2 AND version = $3`, sv.Namespace, sv.Name, *v).Scan(&h); err != nil {
+				var at time.Time
+				if err = tx.QueryRow(ctx, `SELECT spec_hash, created_at FROM server_versions WHERE namespace = $1 AND name = $2 AND version = $3`, sv.Namespace, sv.Name, *v).Scan(&h, &at); err != nil {
 					return err
 				}
-				same = same || deref(h) == hash
+				// An expired pending generation does not count: the same content may be submitted again.
+				live := v == row.Published || now.Before(at.Add(pendingValidity))
+				same = same || (live && deref(h) == hash)
 			}
 			if same && row.Status != "revoked" {
 				return auditV1(ctx, tx, c, "metadata_updated", "MCPServer", sv.Namespace, sv.Name, nil, map[string]any{"labels": m.Labels, "annotations": m.Annotations})
@@ -769,7 +790,8 @@ func (d *DB) submitServer(ctx context.Context, c caller, m ObjectMeta, spec MCPS
 // approveServer publishes the pending generation. The approver is another
 // person: different oid and NAVident, and the submitter a User with an oid.
 func (d *DB) approveServer(ctx context.Context, c caller, platform, ns, name string, gen int, hash string) error {
-	return pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
+	expired := false
+	err := pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
 		row, err := lockServerRow(ctx, tx, ns, name)
 		if err != nil {
 			return err
@@ -784,6 +806,15 @@ func (d *DB) approveServer(ctx context.Context, c caller, platform, ns, name str
 		v, err := loadVersion(ctx, tx, ns, name, gen)
 		if err != nil {
 			return err
+		}
+		now, err := txNow(ctx, tx)
+		if err != nil {
+			return err
+		}
+		if !now.Before(v.expiresAt()) {
+			// Commit only the audit row; the caller gets 410. Record the stored hash, never the caller's.
+			expired = true
+			return auditV1(ctx, tx, c, "approval_expired", "MCPServer", ns, name, &gen, map[string]any{"outcome": "expired", "contentHash": deref(v.Hash), "expiresAt": v.expiresAt()})
 		}
 		switch {
 		case v.Hash == nil || *v.Hash != hash || !strings.HasPrefix(hash, canon.Prefix):
@@ -818,6 +849,10 @@ func (d *DB) approveServer(ctx context.Context, c caller, platform, ns, name str
 		}
 		return auditV1(ctx, tx, c, "approved_published", "MCPServer", ns, name, &gen, map[string]any{"contentHash": hash, "submittedBy": v.SubName})
 	})
+	if err == nil && expired {
+		return errPendingExpired(gen)
+	}
+	return err
 }
 
 // revokeServer stops the published generation. It is final for that
