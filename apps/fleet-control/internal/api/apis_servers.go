@@ -824,7 +824,7 @@ func (d *DB) approveServer(ctx context.Context, c caller, platform, ns, name str
 		case c.Oid == "":
 			// The two-person rule compares oids; an empty one would also fail the uuid cast below.
 			return stErr(http.StatusForbidden, "Forbidden", "the approver has no object id")
-		case *v.SubOid == c.Oid || v.SubName == c.Ident:
+		case (*v.SubOid == c.Oid || v.SubName == c.Ident) && !selfApprove(c, platform, ns):
 			return stErr(http.StatusForbidden, "Forbidden", "the submitter cannot approve their own generation")
 		case v.RegName != nil && !registryNameAllowed(platform, ns, *v.RegName):
 			return invalid("spec.registry.name", "generation %d has registry name %q, which team %s may not use", gen, *v.RegName, ns)
@@ -833,8 +833,9 @@ func (d *DB) approveServer(ctx context.Context, c caller, platform, ns, name str
 		if err := blockedContent(ctx, tx, "server_versions", ns, name, hashes); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `UPDATE server_versions SET approved_by = $4, approved_by_oid = $5::uuid, approved_at = now(), published_at = now()
-			WHERE namespace = $1 AND name = $2 AND version = $3`, ns, name, gen, c.Ident, c.Oid); err != nil {
+		self := *v.SubOid == c.Oid || v.SubName == c.Ident
+		if _, err := tx.Exec(ctx, `UPDATE server_versions SET approved_by = $4, approved_by_oid = $5::uuid, approved_at = now(), published_at = now(), self_approved = $6
+			WHERE namespace = $1 AND name = $2 AND version = $3`, ns, name, gen, c.Ident, c.Oid, self); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `UPDATE servers SET published_version = $3, pending_version = NULL, status = 'published', registry_name = $4, updated_at = now()
@@ -847,12 +848,23 @@ func (d *DB) approveServer(ctx context.Context, c caller, platform, ns, name str
 		if err := checkRoutesFit(ctx, tx, ns, before); err != nil {
 			return err
 		}
-		return auditV1(ctx, tx, c, "approved_published", "MCPServer", ns, name, &gen, map[string]any{"contentHash": hash, "submittedBy": v.SubName})
+		detail := map[string]any{"contentHash": hash, "submittedBy": v.SubName, "outcome": "approved"}
+		if self {
+			detail["outcome"] = "self_approved"
+		}
+		return auditV1(ctx, tx, c, "approved_published", "MCPServer", ns, name, &gen, detail)
 	})
 	if err == nil && expired {
 		return errPendingExpired(gen)
 	}
 	return err
+}
+
+// selfApprove is the platform team's one exception to the two-person rule
+// (owner decision 2026-11-26, #2634): in its own namespace only, one member
+// may approve what they submitted. Unset platform team: never.
+func selfApprove(c caller, platform, ns string) bool {
+	return platform != "" && ns == platform && c.in(platform)
 }
 
 // revokeServer stops the published generation. It is final for that

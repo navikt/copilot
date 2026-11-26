@@ -22,3 +22,4 @@ static_teams_secret: fleet-control-static-teams
 # slack_webhook_secret: fleet-control-slack
 # Dev needs no pilot list: every team may write in dev-*.
 pilot_teams: ""
+operator_team: ""

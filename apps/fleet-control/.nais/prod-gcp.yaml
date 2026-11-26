@@ -12,3 +12,6 @@ gomemlimit: 115MiB
 # from accessPolicy.inbound. No agent seed and no static team list in prod.
 # Owner decision 2026-11-25: writes on for the closed pilot only.
 pilot_teams: copilot,aksel-studio
+# Owner decision 2026-11-26 (#2752, #2634): the platform team may revoke
+# anywhere and approve its own servers in namespace copilot.
+operator_team: copilot

@@ -79,6 +79,11 @@ spec:
     # Teams that may write outside dev-* (comma-separated). Empty: every write there is refused.
     - name: FLEET_CONTROL_PILOT_TEAMS
       value: "{{ pilot_teams }}"
+    # Platform team: global job kill switch, vendor registry names, MCPServer
+    # revocation in every namespace and self-approval in its own (#2752, #2634).
+    # Empty: none of these.
+    - name: FLEET_CONTROL_OPERATOR_TEAM
+      value: "{{ operator_team }}"
     # Owner decision 2026-11-24: Loki keeps the audit archive, the DB deletes
     # audit_events older than 90 days.
     - name: FLEET_AUDIT_RETENTION_DELETE

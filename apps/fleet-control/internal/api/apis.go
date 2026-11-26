@@ -211,7 +211,7 @@ func (s *server) apisFor(a *auth.Authz, adminClientID string, teams auth.TeamDir
 			return
 		}
 		// Every /apis write is a non-GET on a namespace path; outside dev only pilot teams pass.
-		if r.Method != http.MethodGet && !s.writeAllowed(r.PathValue("namespace")) {
+		if r.Method != http.MethodGet && !s.writeAllowed(r.PathValue("namespace")) && !s.platformRevoke(r, c) {
 			writeStatus(w, r, kind, stErr(http.StatusForbidden, "Forbidden", "writes are not enabled for this team in this cluster"))
 			return
 		}
@@ -306,6 +306,14 @@ func whoami(w http.ResponseWriter, _ *http.Request, c caller, _ *DB) error {
 }
 
 // memberOf refuses a non-member with 404, so nobody can probe names.
+// platformRevoke lets the platform team withdraw an MCPServer in any
+// namespace, pilot or not (owner decision 2026-11-26, #2752). Only that
+// route: approve, change and rollback stay behind the pilot allowlist.
+func (s *server) platformRevoke(r *http.Request, c caller) bool {
+	return r.Pattern == "POST "+apisPrefix+"/namespaces/{namespace}/mcpservers/{name}/revocation" &&
+		s.operatorTeam != "" && c.in(s.operatorTeam)
+}
+
 func memberOf(c caller, ns string) error {
 	if !c.in(ns) {
 		return errV1NotFound
