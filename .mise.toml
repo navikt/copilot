@@ -131,6 +131,10 @@ for f in hooks/*.py; do
 done
 """
 
+[tasks."pr:body-check"]
+description = "Check a PR body against the template, as CI does: pr:body-check -- <file|-> or -- --pr <N>"
+run = "python3 scripts/pr-body-check.py"
+
 # ─── Pricing ──────────────────────────────────────────────────────────────────
 
 [tasks."pricing:check"]

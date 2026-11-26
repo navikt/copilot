@@ -46,6 +46,11 @@ After editing an app, run `mise check` in that app's directory. Run `mise all` w
   trace back to exactly that. Verify with the PR's `closingIssuesReferences`
   when it matters.
 
+- Before `gh pr create` or `gh pr edit`, check the body with the same
+  validator CI runs: `mise run pr:body-check -- <file>` (or `-- --pr <N>`).
+  Before enqueueing, confirm each `Closes #N` shows up in
+  `gh pr view N --json closingIssuesReferences`.
+
 - Issue titles use `<scope>: <short description>` (`nav-pilot:`, `my-copilot:`,
   `copilot-api:`, `copilot-survey:`, `copilot-metrics:`, `copilot-adoption:`,
   `mcp-onboarding:`, `mcp-registry:`, `mcp:`, `fleet-gateway:`, `kostnadsinnsikt:`,
