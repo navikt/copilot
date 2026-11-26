@@ -970,7 +970,7 @@ function TestCurl({ path, gateway }: { path: string; gateway?: string }) {
           padding="space-16"
           style={{ background: "var(--ax-bg-neutral-strong)", color: "var(--ax-text-neutral-contrast)" }}
         >
-          <pre className="overflow-x-auto" tabIndex={0} aria-label="curl-kommando">
+          <pre className="overflow-x-auto" role="region" tabIndex={0} aria-label="curl-kommando">
             <code>{curl}</code>
           </pre>
         </Box>
@@ -1501,7 +1501,7 @@ export function AccessPolicy({ app }: { app?: string }) {
             <Detail as="code">nais.yaml</Detail>
             <CopyButton copyText={FLEET_GATEWAY_POLICY} text="Kopier" activeText="Kopiert" />
           </HStack>
-          <pre className="overflow-x-auto" tabIndex={0} aria-label="nais.yaml">
+          <pre className="overflow-x-auto" role="region" tabIndex={0} aria-label="nais.yaml">
             <code>{FLEET_GATEWAY_POLICY}</code>
           </pre>
         </VStack>
