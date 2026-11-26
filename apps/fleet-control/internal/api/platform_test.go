@@ -151,3 +151,57 @@ func TestRealPostgresApprovalModel(t *testing.T) {
 		}
 	}
 }
+
+// Lowering a write tool to read hands it to every read-capped agent and drops
+// prod's ROS requirement, so it must wait for the platform team.
+func TestRealPostgresRiskLoweringWaits(t *testing.T) {
+	e := newApisEnv(t)
+	e.srv.cluster = "prod-gcp"
+	e.srv.operatorTeam = "copilot"
+	f := &fakeSlack{code: 200}
+	n, wg := f.start(t)
+	e.srv.notifier = n
+	base := nsBase + "team-b/mcpservers"
+	body := func(rv string, spec map[string]any) string {
+		meta := map[string]any{"name": "svc", "namespace": "team-b"}
+		if rv != "" {
+			meta["resourceVersion"] = rv
+		}
+		spec["upstream"] = map[string]any{"app": "svc", "url": "http://svc.team-b/mcp"}
+		spec["allowedTools"] = []string{"delete_all"}
+		raw, _ := json.Marshal(map[string]any{"apiVersion": apiGroupVersion, "kind": "MCPServer", "metadata": meta, "spec": spec})
+		return string(raw)
+	}
+	m := decodeServer(t, e.want(201, "POST", base, person("B444444"), body("", map[string]any{"rosRef": "ros-1", "dataCategory": "Fortrolig"})))
+	wg.Add(1)
+	m = decodeServer(t, e.want(200, "POST", base+"/svc/approval", person("C222222"), approval(1, m.Status.Pending.ContentHash)))
+	m = decodeServer(t, e.want(200, "PUT", base+"/svc", person("B444444"),
+		body(m.Metadata.ResourceVersion, map[string]any{"toolRisk": map[string]string{"delete_all": "read"}, "dataCategory": "Aapen"})))
+	if m.Status.PublishedGeneration != 1 || m.Status.Pending == nil {
+		t.Fatalf("risk lowering must wait for the platform team: %+v", m.Status)
+	}
+	// A readme change still auto-publishes, with a Slack notice naming the field.
+	wg.Add(1)
+	m = decodeServer(t, e.want(200, "PUT", base+"/svc", person("B444444"),
+		body(m.Metadata.ResourceVersion, map[string]any{"rosRef": "ros-1", "dataCategory": "Fortrolig", "readme": "x"})))
+	if m.Status.PublishedGeneration != 3 {
+		t.Fatalf("readme change must auto-publish: %+v", m.Status)
+	}
+	wg.Wait()
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if len(f.texts) != 2 || !strings.Contains(f.texts[1], "uten godkjenning") || !strings.Contains(f.texts[1], "endret: readme") {
+		t.Errorf("auto-publish notice: %q", f.texts)
+	}
+}
+
+// The DB layer refuses a non-platform approver even when the handler guard is skipped.
+func TestRealPostgresDBApproveRefusesNonPlatform(t *testing.T) {
+	e := newApisEnv(t)
+	m := decodeServer(t, e.want(201, "POST", nsBase+"team-b/mcpservers", person("B444444"), readServerJSON("team-b", "svc", "", "", "t1")))
+	c := caller{Ident: "B444444", Oid: "00000000-0000-0000-0000-000000000444", Teams: []string{"team-b"}}
+	err := e.db.approveServer(context.Background(), c, "copilot", "team-b", "svc", 1, m.Status.Pending.ContentHash)
+	if err == nil || !strings.Contains(err.Error(), "only the platform team") {
+		t.Fatalf("want refusal, got %v", err)
+	}
+}

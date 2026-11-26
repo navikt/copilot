@@ -12,17 +12,9 @@ import (
 // privileges waits for the platform team. Anything else an owner team
 // submits publishes directly.
 
-// riskRank orders tool risk: read < propose < write. A change to or from an
-// unknown level escalates.
-var riskRank = map[string]int{"read": 1, "propose": 2, "write": 3}
-
-// dataRank orders spec.dataCategory (validateServerSpec's list). A change
-// to or from an unknown or missing category escalates.
-var dataRank = map[string]int{"Aapen": 1, "Intern": 2, "Fortrolig": 3}
-
 // safeSpecFields never change who can call what. Every other field is
 // compared below; a field this file does not know is an escalation.
-var safeSpecFields = map[string]bool{"readme": true, "tools": true, "rosRef": true}
+var safeSpecFields = map[string]bool{"readme": true, "tools": true}
 
 // safeRegistryFields are registry text that does not change who can call
 // what. Any other registry key that changes (name, remotes, packages, ...)
@@ -69,14 +61,18 @@ func Classify(prev, next json.RawMessage) (c Change) {
 	toolsChecked := false
 	for _, k := range c.Changed {
 		switch k {
-		case "readme", "tools", "rosRef":
+		case "readme", "tools":
+		case "rosRef":
+			// Prod requires a ROS for write tools: removing or changing it escalates, adding one does not.
+			if len(p[k]) > 0 {
+				esc("rosRef changed")
+			}
 		case "dataCategory":
+			// Any change escalates: a lower category may later widen who sees the server.
 			var a, b string
 			_ = json.Unmarshal(p[k], &a)
 			_ = json.Unmarshal(n[k], &b)
-			if dataRank[a] == 0 || dataRank[b] == 0 || dataRank[b] > dataRank[a] {
-				esc("data category raised from %q to %q", a, b)
-			}
+			esc("data category changed from %q to %q", a, b)
 		case "upstream":
 			esc("upstream changed")
 		case "allowedTools", "toolRisk", "defaultRisk":
@@ -93,8 +89,9 @@ func Classify(prev, next json.RawMessage) (c Change) {
 					switch {
 					case !ok:
 						esc("tool %s added", t)
-					case riskRank[old] == 0 || riskRank[nt[t]] == 0 || riskRank[nt[t]] > riskRank[old]:
-						esc("tool %s risk raised from %s to %s", t, old, nt[t])
+					case old != nt[t]:
+						// Both directions: agents are capped at max_risk read, so lowering widens access.
+						esc("tool %s risk changed from %s to %s", t, old, nt[t])
 					}
 				}
 			}
@@ -163,7 +160,12 @@ func sameJSON(a, b json.RawMessage) bool {
 		return len(a) == len(b)
 	}
 	var x, y any
-	if json.Unmarshal(a, &x) != nil || json.Unmarshal(b, &y) != nil {
+	dec := func(raw json.RawMessage, v *any) error {
+		d := json.NewDecoder(bytes.NewReader(raw))
+		d.UseNumber() // float64 would make distinct large integers equal
+		return d.Decode(v)
+	}
+	if dec(a, &x) != nil || dec(b, &y) != nil {
 		return bytes.Equal(a, b)
 	}
 	xa, _ := json.Marshal(x)

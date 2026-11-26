@@ -40,14 +40,18 @@ var slackEscaper = strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", "
 
 // serverNotice is the Slack line. by is "owner" or "platform". It holds no
 // NAVident and no upstream URL: both are user data.
-func serverNotice(action, ns, name string, gen int, by string) string {
-	verb := map[string]string{"approve": "publisert", "revoke": "trukket tilbake", "rollback": "rullet tilbake"}[action]
+func serverNotice(action, ns, name string, gen int, by string, changed ...string) string {
+	verb := map[string]string{"approve": "publisert", "auto": "publisert uten godkjenning", "revoke": "trukket tilbake", "rollback": "rullet tilbake"}[action]
 	who := "eierteamet"
 	if by == "platform" {
 		who = "plattformteamet"
 	}
-	return fmt.Sprintf("MCPServer %s: %s/%s, generasjon %d, team %s (utført av %s)",
+	text := fmt.Sprintf("MCPServer %s: %s/%s, generasjon %d, team %s (utført av %s)",
 		verb, slackEscaper.Replace(ns), slackEscaper.Replace(name), gen, slackEscaper.Replace(ns), who)
+	if len(changed) > 0 {
+		text += ", endret: " + slackEscaper.Replace(strings.Join(changed, ", "))
+	}
+	return text
 }
 
 // notify sends text in the background. Call it only after the commit; a
@@ -88,7 +92,7 @@ func (n *slackNotifier) send(text string) error {
 }
 
 // notifyServer reads the committed generation and sends the notice.
-func (s *server) notifyServer(ctx context.Context, db *DB, action, ns, name, by string) {
+func (s *server) notifyServer(ctx context.Context, db *DB, action, ns, name, by string, changed ...string) {
 	if s.notifier == nil {
 		return
 	}
@@ -98,5 +102,5 @@ func (s *server) notifyServer(ctx context.Context, db *DB, action, ns, name, by 
 		slog.Warn("slack notice: read server", "error", err)
 		return
 	}
-	s.notifier.notify(serverNotice(action, ns, name, obj.Status.PublishedGeneration, by))
+	s.notifier.notify(serverNotice(action, ns, name, obj.Status.PublishedGeneration, by, changed...))
 }

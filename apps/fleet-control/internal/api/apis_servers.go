@@ -348,7 +348,7 @@ func (s *server) createServer(w http.ResponseWriter, r *http.Request, c caller, 
 	if err != nil {
 		return err
 	}
-	if err := db.submitServer(r.Context(), c, in.Metadata, spec, sv, true); err != nil {
+	if _, err := db.submitServer(r.Context(), c, in.Metadata, spec, sv, true); err != nil {
 		return err
 	}
 	return writeServer(r.Context(), w, db, ns, in.Metadata.Name, http.StatusCreated)
@@ -367,8 +367,12 @@ func (s *server) putServer(w http.ResponseWriter, r *http.Request, c caller, db 
 	if err != nil {
 		return err
 	}
-	if err := db.submitServer(r.Context(), c, in.Metadata, spec, sv, false); err != nil {
+	auto, err := db.submitServer(r.Context(), c, in.Metadata, spec, sv, false)
+	if err != nil {
 		return err
+	}
+	if auto != nil {
+		s.notifyServer(r.Context(), db, "auto", ns, name, "owner", auto...)
 	}
 	return writeServer(r.Context(), w, db, ns, name, http.StatusOK)
 }
@@ -750,13 +754,15 @@ func blockedContent(ctx context.Context, tx pgx.Tx, table, ns, name string, hash
 // submitServer is POST (create) and PUT. A new generation is made only when
 // the spec differs from both the pending and the published one, or when the
 // server is revoked (restart). Otherwise only labels and annotations change.
-func (d *DB) submitServer(ctx context.Context, c caller, m ObjectMeta, spec MCPServerSpec, sv model.Server, create bool) error {
+// It returns the changed fields (non-nil) when the generation auto-published.
+func (d *DB) submitServer(ctx context.Context, c caller, m ObjectMeta, spec MCPServerSpec, sv model.Server, create bool) ([]string, error) {
 	hashes, herr := canon.Hashes(spec)
 	if herr != nil {
-		return herr
+		return nil, herr
 	}
 	hash := hashes[0]
-	return pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
+	var auto []string
+	err := pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
 		if create {
 			tag, err := tx.Exec(ctx, `INSERT INTO servers (namespace, name, status, labels, annotations) VALUES ($1, $2, 'draft', $3::jsonb, $4::jsonb) ON CONFLICT DO NOTHING`,
 				sv.Namespace, sv.Name, jsonText(m.Labels), jsonText(m.Annotations))
@@ -829,6 +835,7 @@ func (d *DB) submitServer(ctx context.Context, c caller, m ObjectMeta, spec MCPS
 			return err
 		}
 		if !change.Escalates {
+			auto = append([]string{}, change.Changed...)
 			return autoPublish(ctx, tx, c, sv, version, hash, row.Pending, change.Changed)
 		}
 		if _, err := tx.Exec(ctx, `UPDATE servers SET pending_version = $3, updated_at = now() WHERE namespace = $1 AND name = $2`, sv.Namespace, sv.Name, version); err != nil {
@@ -836,6 +843,10 @@ func (d *DB) submitServer(ctx context.Context, c caller, m ObjectMeta, spec MCPS
 		}
 		return auditV1(ctx, tx, c, "draft_submitted", "MCPServer", sv.Namespace, sv.Name, &version, map[string]any{"contentHash": hash, "replaced": row.Pending, "escalations": change.Reasons})
 	})
+	if err != nil {
+		return nil, err
+	}
+	return auto, nil
 }
 
 // classifySubmit compares a new generation with the published one. No
