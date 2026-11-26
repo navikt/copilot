@@ -88,6 +88,8 @@ describe("POST /api/fleet", () => {
     });
     const res = await post({ action: "register", namespace: "team-a", name: "docs", spec: full });
     expect(res.status).toBe(200);
+    // Register and edit open the MCP server page with the «sendt til godkjenning» receipt; approve does not (below).
+    await expect(res.clone().json()).resolves.toEqual({ href: "/fleet/mcp-servere/team-a/docs?sendt=1" });
     expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({
       apiVersion: "fleet.nav.no/v1alpha1",
       kind: "MCPServer",

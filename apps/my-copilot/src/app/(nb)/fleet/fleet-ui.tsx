@@ -4,7 +4,7 @@
 // are undefined when read off a client reference in a server component.
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import {
   Alert,
   BodyLong,
@@ -171,7 +171,7 @@ export function KortFortalt({ children, collapsed = false }: { children: ReactNo
 
 /** Client side, since a server component cannot pass NextLink to Button. */
 export const RegisterButton = ({ team }: { team: string }) => (
-  <Button as={NextLink} href={`/fleet/registrer?team=${team}`}>
+  <Button as={NextLink} href={`/fleet/registrer?team=${team}`} className="w-full sm:w-auto">
     Registrer MCP-server
   </Button>
 );
@@ -217,11 +217,34 @@ export function SubmittedAlert({ server }: { server: MCPServer }) {
 }
 
 /** A number with a label, as in the stat strip on top of the overview. */
-export function Stat({ label, value, help }: { label: string; value: ReactNode; help?: string }) {
+export function Stat({
+  label,
+  short,
+  value,
+  help,
+}: {
+  label: string;
+  short?: string;
+  value: ReactNode;
+  help?: string;
+}) {
   return (
-    <Box background="default" borderWidth="1" borderColor="neutral-subtle" borderRadius="12" padding="space-20">
+    <Box background="default" borderWidth="1" borderColor="neutral-subtle" borderRadius="12" padding="space-16">
       <VStack gap="space-4">
-        <BodyShort size="small">{label}</BodyShort>
+        <BodyShort size="small" className="md:whitespace-nowrap">
+          {short ? (
+            <>
+              <Hide below="md" asChild>
+                <span>{label}</span>
+              </Hide>
+              <Show below="md" asChild>
+                <span>{short}</span>
+              </Show>
+            </>
+          ) : (
+            label
+          )}
+        </BodyShort>
         <Heading level="3" size="large" as="p">
           {value}
         </Heading>
@@ -240,11 +263,16 @@ export function TeamStats({ servers, me }: { servers: MCPServer[]; me?: string }
   ).length;
   return (
     <HGrid columns={{ xs: 2, md: 4 }} gap="space-16">
-      <Stat label="Publisert" value={published} help={`av ${servers.length} registrerte`} />
-      <Stat label="Venter på godkjenning" value={pending.length} help={`${forMe} venter på deg`} />
+      <Stat
+        label="Publiserte MCP-servere"
+        short="Publisert"
+        value={published}
+        help={`av ${servers.length} registrerte`}
+      />
+      <Stat label="Venter på godkjenning" short="Venter" value={pending.length} help={`${forMe} venter på deg`} />
       {/* shortcut: Fleet has no calls or users per team yet (#2753); the cards stay so the layout matches. */}
-      <Stat label="Kall, 7 dager" value="–" help="Kommer" />
-      <Stat label="Brukere, 7 dager" value="–" help="Kommer" />
+      <Stat label="Kall siste 7 dager" short="Kall, 7 dager" value="–" help="Kommer" />
+      <Stat label="Unike brukere, 7 dager" short="Brukere" value="–" help="Kommer" />
     </HGrid>
   );
 }
@@ -300,8 +328,13 @@ export function ServerInbox({ servers, me }: { servers: MCPServer[]; me?: string
                     {mine ? `alle andre i ${s.metadata.namespace}` : `du og de andre i ${s.metadata.namespace}`}
                   </BodyShort>
                 </VStack>
-                <div className="shrink-0">
-                  <Button as={NextLink} href={href} variant={mine ? "secondary" : "primary"}>
+                <div className="w-full shrink-0 md:w-auto">
+                  <Button
+                    as={NextLink}
+                    href={href}
+                    variant={mine ? "secondary" : "primary"}
+                    className="w-full md:w-auto"
+                  >
                     Se endringen
                   </Button>
                 </div>
@@ -436,6 +469,37 @@ export function TeamSections({ teams, me }: { teams: TeamData[]; me?: string }) 
         </section>
       ))}
     </VStack>
+  );
+}
+
+/** Rows as cards on a phone, where a table would push columns off-screen. */
+export function CardList({
+  label,
+  items,
+}: {
+  label: string;
+  items: { key: string; title: ReactNode; aside?: ReactNode; lines: ReactNode[] }[];
+}) {
+  return (
+    <Box background="default" borderWidth="1" borderColor="neutral-subtle" borderRadius="12">
+      <VStack as="ul" aria-label={label}>
+        {items.map((it, i) => (
+          <Box as="li" key={it.key} padding="space-16" borderWidth={i ? "1 0 0 0" : "0"} borderColor="neutral-subtle">
+            <VStack gap="space-8">
+              <HStack justify="space-between" align="start" gap="space-8" wrap={false}>
+                <div className="min-w-0 [overflow-wrap:anywhere]">{it.title}</div>
+                {it.aside}
+              </HStack>
+              {it.lines.map((l, j) => (
+                <div key={j} className="min-w-0 [overflow-wrap:anywhere]">
+                  {l}
+                </div>
+              ))}
+            </VStack>
+          </Box>
+        ))}
+      </VStack>
+    </Box>
   );
 }
 
@@ -589,36 +653,62 @@ export function PendingInbox({ agents }: { agents: AgentProfile[] }) {
       {agents.length === 0 ? (
         <BodyShort>Ingen agentprofiler venter på teamene dine.</BodyShort>
       ) : (
-        <FleetTable aria-label="Agentprofiler til godkjenning">
-          <Table.Header>
-            <Table.Row>
-              <Table.HeaderCell scope="col">Agentprofil</Table.HeaderCell>
-              <Table.HeaderCell scope="col">Fra team</Table.HeaderCell>
-              <Table.HeaderCell scope="col">Venter på tilgang</Table.HeaderCell>
-              <Table.HeaderCell scope="col">Handling</Table.HeaderCell>
-            </Table.Row>
-          </Table.Header>
-          <Table.Body>
-            {agents.map((a) => (
-              <Table.Row key={refKey(a.metadata)}>
-                <Table.DataCell>
+        <>
+          <Show below="md">
+            <CardList
+              label="Agentprofiler til godkjenning"
+              items={agents.map((a) => ({
+                key: refKey(a.metadata),
+                title: (
                   <NextLink className={linkClass} href={`/fleet/agenter/${refKey(a.metadata)}`}>
-                    {a.metadata.name}
+                    <strong>{a.metadata.name}</strong>
                   </NextLink>
-                </Table.DataCell>
-                <Table.DataCell>{a.metadata.namespace}</Table.DataCell>
-                <Table.DataCell>{awaiting(a).join(", ")}</Table.DataCell>
-                <Table.DataCell>
-                  <VStack gap="space-8" align="start">
-                    {waitingGrants(a).map((g) => (
-                      <GrantAccess key={refKey(g.serverRef)} profile={a} serverRef={g.serverRef} withServerName />
-                    ))}
-                  </VStack>
-                </Table.DataCell>
-              </Table.Row>
-            ))}
-          </Table.Body>
-        </FleetTable>
+                ),
+                lines: [
+                  <Detail key="t">Fra {a.metadata.namespace}</Detail>,
+                  <BodyShort key="w" size="small">
+                    Venter på: {awaiting(a).join(", ")}
+                  </BodyShort>,
+                  ...waitingGrants(a).map((g) => (
+                    <GrantAccess key={refKey(g.serverRef)} profile={a} serverRef={g.serverRef} withServerName />
+                  )),
+                ],
+              }))}
+            />
+          </Show>
+          <Hide below="md">
+            <FleetTable aria-label="Agentprofiler til godkjenning">
+              <Table.Header>
+                <Table.Row>
+                  <Table.HeaderCell scope="col">Agentprofil</Table.HeaderCell>
+                  <Table.HeaderCell scope="col">Fra team</Table.HeaderCell>
+                  <Table.HeaderCell scope="col">Venter på tilgang</Table.HeaderCell>
+                  <Table.HeaderCell scope="col">Handling</Table.HeaderCell>
+                </Table.Row>
+              </Table.Header>
+              <Table.Body>
+                {agents.map((a) => (
+                  <Table.Row key={refKey(a.metadata)}>
+                    <Table.DataCell>
+                      <NextLink className={linkClass} href={`/fleet/agenter/${refKey(a.metadata)}`}>
+                        {a.metadata.name}
+                      </NextLink>
+                    </Table.DataCell>
+                    <Table.DataCell>{a.metadata.namespace}</Table.DataCell>
+                    <Table.DataCell>{awaiting(a).join(", ")}</Table.DataCell>
+                    <Table.DataCell>
+                      <VStack gap="space-8" align="start">
+                        {waitingGrants(a).map((g) => (
+                          <GrantAccess key={refKey(g.serverRef)} profile={a} serverRef={g.serverRef} withServerName />
+                        ))}
+                      </VStack>
+                    </Table.DataCell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </FleetTable>
+          </Hide>
+        </>
       )}
     </VStack>
   );
@@ -749,7 +839,7 @@ export function ServerDetail({
           <Box background="default" borderWidth="1" borderColor="neutral-subtle" borderRadius="12" padding="space-20">
             <VStack gap="space-12">
               {/* shortcut: Fleet has no usage numbers per MCP server yet (#2753); Grafana has them. */}
-              <HGrid columns={{ xs: 3 }} gap="space-16">
+              <HGrid columns={{ xs: 1, sm: 3 }} gap="space-16">
                 {["Kall", "Unike brukere", "Konsumenter (team)"].map((l) => (
                   <VStack key={l} gap="space-4">
                     <BodyShort size="small">{l}</BodyShort>
@@ -836,20 +926,27 @@ function TestCurl({ path, gateway }: { path: string; gateway?: string }) {
       <Heading level="2" size="medium">
         Test MCP-endpointet
       </Heading>
-      <Box
-        padding="space-16"
-        borderRadius="8"
-        style={{ background: "var(--ax-bg-neutral-strong)", color: "var(--ax-text-neutral-contrast)" }}
-      >
-        <VStack gap="space-8">
-          <HStack justify="space-between" align="center">
-            <BodyShort size="small">Liste verktøyene (tools/list)</BodyShort>
-            <CopyButton copyText={curl} text="Kopier" activeText="Kopiert" />
-          </HStack>
-          <pre className="overflow-x-auto">
+      <Box borderWidth="1" borderColor="neutral-subtle" borderRadius="8" className="overflow-hidden">
+        <HStack
+          justify="space-between"
+          align="center"
+          gap="space-8"
+          paddingBlock="space-4"
+          paddingInline="space-16"
+          className="bg-[var(--ax-bg-neutral-soft)]"
+        >
+          <BodyShort size="small">Liste verktøyene (tools/list)</BodyShort>
+          <CopyButton copyText={curl} text="Kopier" activeText="Kopiert" />
+        </HStack>
+        {/* The contrast text token on the strong background: the pair Aksel makes for WCAG AA. */}
+        <Box
+          padding="space-16"
+          style={{ background: "var(--ax-bg-neutral-strong)", color: "var(--ax-text-neutral-contrast)" }}
+        >
+          <pre className="overflow-x-auto" tabIndex={0} aria-label="curl-kommando">
             <code>{curl}</code>
           </pre>
-        </VStack>
+        </Box>
       </Box>
     </VStack>
   );
@@ -973,9 +1070,9 @@ function ToolDiff({ now, next }: { now?: string[]; next?: string[] }) {
             background="success-soft"
             paddingInline="space-4"
             borderRadius="4"
-            className="[overflow-wrap:anywhere] md:whitespace-nowrap"
+            className="[overflow-wrap:anywhere]"
           >
-            <strong>+ {t}</strong>
+            <strong>+&nbsp;{t}</strong>
           </Box>
         )
       )}
@@ -988,9 +1085,9 @@ function ToolDiff({ now, next }: { now?: string[]; next?: string[] }) {
             background="danger-soft"
             paddingInline="space-4"
             borderRadius="4"
-            className="[overflow-wrap:anywhere] md:whitespace-nowrap"
+            className="[overflow-wrap:anywhere]"
           >
-            <s>− {t}</s>
+            <s>−&nbsp;{t}</s>
           </Box>
         ))}
     </HStack>
@@ -1058,8 +1155,14 @@ function Versjoner({ server, next }: { server: MCPServer; next: MCPServerSpec })
               <Table.HeaderCell scope="col" className="w-44">
                 Felt
               </Table.HeaderCell>
-              {!none && <Table.HeaderCell scope="col">Publisert{pub ? ` (v${pub})` : ""}</Table.HeaderCell>}
-              <Table.HeaderCell scope="col">Venter{gen ? ` (v${gen})` : ""}</Table.HeaderCell>
+              {!none && (
+                <Table.HeaderCell scope="col" className="whitespace-nowrap">
+                  Publisert{pub ? ` (v${pub})` : ""}
+                </Table.HeaderCell>
+              )}
+              <Table.HeaderCell scope="col" className="whitespace-nowrap">
+                Venter{gen ? ` (v${gen})` : ""}
+              </Table.HeaderCell>
             </Table.Row>
           </Table.Header>
           <Table.Body>
@@ -1146,7 +1249,10 @@ function ConfirmForm({
   confirm,
   busy,
   children,
+  fields,
 }: {
+  /** Inputs asked for in the Modal, such as the reason. They belong to the form through form={id}. */
+  fields?: (formId: string) => ReactNode;
   onSubmit: (e: FormEvent<HTMLFormElement>) => void;
   heading: string;
   question: ReactNode;
@@ -1156,30 +1262,36 @@ function ConfirmForm({
 }) {
   const form = useRef<HTMLFormElement>(null);
   const [open, setOpen] = useState(false);
+  const id = useId();
   return (
-    <form ref={form} onSubmit={onSubmit}>
+    <form ref={form} id={id} onSubmit={onSubmit}>
       <VStack gap="space-8" align="start">
         {children}
         <Button
           type="button"
           variant="danger"
           loading={busy}
-          onClick={() => form.current?.reportValidity() && setOpen(true)}
+          className="w-full md:w-auto"
+          onClick={() => setOpen(true)}
         >
           {confirm}
         </Button>
       </VStack>
       <Modal open={open} onClose={() => setOpen(false)} header={{ heading }} width="small">
         <Modal.Body>
-          <BodyLong>{question}</BodyLong>
+          <VStack gap="space-16">
+            <BodyLong>{question}</BodyLong>
+            {fields?.(id)}
+          </VStack>
         </Modal.Body>
         <Modal.Footer>
           <Button
             type="button"
             variant="danger"
             onClick={() => {
+              if (!form.current?.reportValidity()) return;
+              form.current.requestSubmit();
               setOpen(false);
-              form.current?.requestSubmit();
             }}
           >
             {confirm}
@@ -1220,7 +1332,7 @@ function ServerActions({
   if (part === "approve")
     return pending?.contentHash ? (
       <Box background="default" borderWidth="1" borderColor="warning" borderRadius="12" padding="space-20">
-        <VStack gap="space-12" align="start">
+        <VStack gap="space-12" align={{ xs: "stretch", md: "start" }}>
           <Heading level="2" size="medium">
             Versjon {pending.generation} venter
           </Heading>
@@ -1246,12 +1358,14 @@ function ServerActions({
             </BodyShort>
           ) : (
             <form onSubmit={approve.onSubmit}>
-              <VStack gap="space-8" align="start">
+              <VStack gap="space-8" align={{ xs: "stretch", md: "start" }}>
                 {ids}
                 <input type="hidden" name="generation" value={pending.generation} />
                 <input type="hidden" name="contentHash" value={pending.contentHash} />
                 <ActionError error={approve.error} />
-                <Button loading={approve.busy}>Godkjenn versjon {pending.generation}</Button>
+                <Button loading={approve.busy} className="w-full md:w-auto">
+                  Godkjenn versjon {pending.generation}
+                </Button>
               </VStack>
             </form>
           )}
@@ -1290,16 +1404,27 @@ function ServerActions({
               question="Ingen kan bruke MCP-serveren etterpå, og agentene mister tilgangen. For å publisere den igjen må dere sende inn en ny versjon som en annen på teamet godkjenner."
               confirm="Trekk tilbake"
               busy={revoke.busy}
+              fields={(formId) => (
+                <>
+                  <Textarea
+                    label="Begrunnelse"
+                    description="Vises i historikken."
+                    name="reason"
+                    form={formId}
+                    maxLength={500}
+                    required
+                  />
+                  <Checkbox name="block" form={formId}>
+                    Sperr denne versjonen for alltid. Den kan aldri sendes inn eller publiseres igjen.
+                  </Checkbox>
+                </>
+              )}
             >
               <Heading level="3" size="small">
                 Trekk tilbake
               </Heading>
               <BodyShort>Adressen slutter å svare. Agentene som bruker MCP-serveren, får feil.</BodyShort>
               {ids}
-              <Textarea label="Begrunnelse" name="reason" maxLength={500} required />
-              <Checkbox name="block">
-                Sperr denne versjonen for alltid. Den kan aldri sendes inn eller publiseres igjen.
-              </Checkbox>
               <ActionError error={revoke.error} />
             </ConfirmForm>
           </HGrid>
@@ -1344,12 +1469,15 @@ export function AccessPolicy({ app }: { app?: string }) {
         at <code>nais.yaml</code> har dette:
       </BodyLong>
       <Box background="neutral-soft" padding="space-12" borderRadius="8">
-        <HStack gap="space-8" justify="space-between" align="start" wrap={false}>
-          <pre className="overflow-x-auto">
+        <VStack gap="space-8">
+          <HStack justify="space-between" align="center">
+            <Detail as="code">nais.yaml</Detail>
+            <CopyButton copyText={FLEET_GATEWAY_POLICY} text="Kopier" activeText="Kopiert" />
+          </HStack>
+          <pre className="overflow-x-auto" tabIndex={0} aria-label="nais.yaml">
             <code>{FLEET_GATEWAY_POLICY}</code>
           </pre>
-          <CopyButton copyText={FLEET_GATEWAY_POLICY} text="Kopier" activeText="Kopiert" />
-        </HStack>
+        </VStack>
       </Box>
       <BodyShort size="small">Mangler regelen, svarer fleet-gateway med feil når agentene kaller verktøyene.</BodyShort>
     </VStack>
@@ -1469,6 +1597,27 @@ export function agentNextStep(p: AgentProfile): string {
   return "Ingen. Profilen blir godkjent når alle har gitt tilgang.";
 }
 
+/** What the owner team has done with one grant. Another team's view of the profile leaves out who granted access. */
+function grantGiven(grants: NonNullable<AgentProfile["status"]["grants"]>, ref: ServerRef): string {
+  const st = grants.find((s) => refKey(s.serverRef) === refKey(ref));
+  if (["AccessRevoked", "ServerRevoked"].includes(st?.reason ?? "")) return "tilgang trukket tilbake";
+  if (st?.granted)
+    return ["tilgang gitt", st.grantedBy && `av ${st.grantedBy.name}`, st.grantedAt && date(st.grantedAt)]
+      .filter(Boolean)
+      .join(" ");
+  return "ikke gitt tilgang";
+}
+
+function GrantTag({ given }: { given: string }) {
+  const ok = given.startsWith("tilgang gitt");
+  const wait = given === "ikke gitt tilgang";
+  return (
+    <Tag size="small" className="whitespace-nowrap" variant={ok ? "success" : wait ? "warning" : "neutral"}>
+      {ok ? "I bruk" : wait ? "Venter på eierteamet" : "Trukket tilbake"}
+    </Tag>
+  );
+}
+
 export function AgentDetailView({ profile: p, events }: { profile: AgentProfile; events: AuditEvent[] | null }) {
   const grants = p.status.grants ?? [];
   // Show what waits for approval, since status.grants describe that generation.
@@ -1495,66 +1644,72 @@ export function AgentDetailView({ profile: p, events }: { profile: AgentProfile;
         {(spec.grants ?? []).length === 0 ? (
           <BodyShort>Profilen ber ikke om tilgang til noen MCP-server.</BodyShort>
         ) : (
-          <FleetTable aria-label="Tilganger per MCP-server">
-            <Table.Header>
-              <Table.Row>
-                <Table.HeaderCell scope="col">MCP-server og verktøy</Table.HeaderCell>
-                <Table.HeaderCell scope="col">Eierteam</Table.HeaderCell>
-                <Table.HeaderCell scope="col">Status</Table.HeaderCell>
-              </Table.Row>
-            </Table.Header>
-            <Table.Body>
-              {(spec.grants ?? []).map((g) => {
-                const st = grants.find((s) => refKey(s.serverRef) === refKey(g.serverRef));
-                // Another team's view of the profile leaves out who granted access.
-                const given = ["AccessRevoked", "ServerRevoked"].includes(st?.reason ?? "")
-                  ? "tilgang trukket tilbake"
-                  : st?.granted
-                    ? ["tilgang gitt", st.grantedBy && `av ${st.grantedBy.name}`, st.grantedAt && date(st.grantedAt)]
-                        .filter(Boolean)
-                        .join(" ")
-                    : "ikke gitt tilgang";
-                return (
-                  <Table.Row key={refKey(g.serverRef)}>
-                    <Table.DataCell className="min-w-64">
-                      <VStack gap="space-4">
-                        <NextLink className={linkClass} href={`/fleet/mcp-servere/${refKey(g.serverRef)}`}>
-                          <strong>{g.serverRef.name}</strong>
-                        </NextLink>
-                        <Detail as="code" className="[overflow-wrap:anywhere]">
-                          /mcp/{g.serverRef.namespace}/{g.serverRef.name}
-                        </Detail>
-                        <Detail className="[overflow-wrap:anywhere]">{g.allowedTools.join(", ")}</Detail>
-                      </VStack>
-                    </Table.DataCell>
-                    <Table.DataCell>{g.serverRef.namespace}</Table.DataCell>
-                    <Table.DataCell>
-                      <VStack gap="space-4" align="start">
-                        <Tag
-                          size="small"
-                          className="whitespace-nowrap"
-                          variant={
-                            given.startsWith("tilgang gitt")
-                              ? "success"
-                              : given === "ikke gitt tilgang"
-                                ? "warning"
-                                : "neutral"
-                          }
-                        >
-                          {given.startsWith("tilgang gitt")
-                            ? "I bruk"
-                            : given === "ikke gitt tilgang"
-                              ? "Venter på eierteamet"
-                              : "Trukket tilbake"}
-                        </Tag>
-                        <Detail>{given}</Detail>
-                      </VStack>
-                    </Table.DataCell>
+          <>
+            <Show below="md">
+              <CardList
+                label="Tilganger per MCP-server"
+                items={(spec.grants ?? []).map((g) => {
+                  const given = grantGiven(grants, g.serverRef);
+                  return {
+                    key: refKey(g.serverRef),
+                    title: (
+                      <NextLink className={linkClass} href={`/fleet/mcp-servere/${refKey(g.serverRef)}`}>
+                        <strong>{g.serverRef.name}</strong>
+                      </NextLink>
+                    ),
+                    aside: <GrantTag given={given} />,
+                    lines: [
+                      <Detail key="r" as="code">
+                        /mcp/{g.serverRef.namespace}/{g.serverRef.name}
+                      </Detail>,
+                      <Detail key="t">{g.allowedTools.join(", ")}</Detail>,
+                      <Detail key="g">
+                        Eierteam {g.serverRef.namespace}: {given}
+                      </Detail>,
+                    ],
+                  };
+                })}
+              />
+            </Show>
+            <Hide below="md">
+              <FleetTable aria-label="Tilganger per MCP-server">
+                <Table.Header>
+                  <Table.Row>
+                    <Table.HeaderCell scope="col">MCP-server og verktøy</Table.HeaderCell>
+                    <Table.HeaderCell scope="col">Eierteam</Table.HeaderCell>
+                    <Table.HeaderCell scope="col">Status</Table.HeaderCell>
                   </Table.Row>
-                );
-              })}
-            </Table.Body>
-          </FleetTable>
+                </Table.Header>
+                <Table.Body>
+                  {(spec.grants ?? []).map((g) => {
+                    const given = grantGiven(grants, g.serverRef);
+                    return (
+                      <Table.Row key={refKey(g.serverRef)}>
+                        <Table.DataCell className="min-w-64">
+                          <VStack gap="space-4">
+                            <NextLink className={linkClass} href={`/fleet/mcp-servere/${refKey(g.serverRef)}`}>
+                              <strong>{g.serverRef.name}</strong>
+                            </NextLink>
+                            <Detail as="code" className="[overflow-wrap:anywhere]">
+                              /mcp/{g.serverRef.namespace}/{g.serverRef.name}
+                            </Detail>
+                            <Detail className="[overflow-wrap:anywhere]">{g.allowedTools.join(", ")}</Detail>
+                          </VStack>
+                        </Table.DataCell>
+                        <Table.DataCell>{g.serverRef.namespace}</Table.DataCell>
+                        <Table.DataCell>
+                          <VStack gap="space-4" align="start">
+                            <GrantTag given={given} />
+                            <Detail>{given}</Detail>
+                          </VStack>
+                        </Table.DataCell>
+                      </Table.Row>
+                    );
+                  })}
+                </Table.Body>
+              </FleetTable>
+            </Hide>
+          </>
         )}
       </VStack>
       <Detaljer

@@ -200,7 +200,9 @@ describe("/fleet", () => {
       "href",
       "https://console.nav.cloud.nais.io/"
     );
-    expect(screen.getByRole("link", { name: "saker" })).toHaveAttribute("href", "/fleet/mcp-servere/team-b/saker");
+    expect(
+      within(screen.getByRole("table", { name: "Publiserte MCP-servere" })).getByRole("link", { name: "saker" })
+    ).toHaveAttribute("href", "/fleet/mcp-servere/team-b/saker");
   });
 
   it("lists published MCP servers from every team, with search and a data category filter", async () => {
@@ -209,15 +211,15 @@ describe("/fleet", () => {
     expect(table()).toHaveTextContent("team-b");
     expect(table()).toHaveTextContent("Fortrolige data");
     fireEvent.change(screen.getByRole("textbox", { name: /Søk/ }), { target: { value: "SAKER" } });
-    expect(screen.queryByRole("link", { name: "docs" })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "saker" })).toBeInTheDocument();
+    expect(within(table()).queryByRole("link", { name: "docs" })).not.toBeInTheDocument();
+    expect(within(table()).getByRole("link", { name: "saker" })).toBeInTheDocument();
     // Katalog: the search also finds a tool name.
     fireEvent.change(screen.getByRole("textbox", { name: /Søk/ }), { target: { value: "hent_sak" } });
-    expect(screen.getByRole("link", { name: "saker" })).toBeInTheDocument();
+    expect(within(table()).getByRole("link", { name: "saker" })).toBeInTheDocument();
     fireEvent.change(screen.getByRole("textbox", { name: /Søk/ }), { target: { value: "" } });
     fireEvent.change(screen.getByRole("combobox", { name: "Datakategori" }), { target: { value: "Intern" } });
-    expect(screen.getByRole("link", { name: "docs" })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "saker" })).not.toBeInTheDocument();
+    expect(within(table()).getByRole("link", { name: "docs" })).toBeInTheDocument();
+    expect(within(table()).queryByRole("link", { name: "saker" })).not.toBeInTheDocument();
     expect(screen.getByText("Viser 1 av 2")).toBeInTheDocument();
   });
 
@@ -508,7 +510,7 @@ describe("/fleet", () => {
     stub({ [`${API}/agentprofiles?awaitingApprovalBy=me`]: { items: [waiting()] } });
     const { default: AgentsPage } = await import("./agenter/page");
     const { unmount } = render(await AgentsPage(sp("team-a")));
-    expect(screen.getByRole("button", { name: "Gi tilgang til docs" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Gi tilgang til docs" }).at(-1)!).toBeInTheDocument();
     unmount();
     render(await ServerPage(params("team-a", "docs")));
     const table = screen.getByRole("table", { name: "Agentprofiler som venter på tilgang" });
@@ -525,12 +527,18 @@ describe("/fleet", () => {
 
   it("asks in a Modal before revoking", async () => {
     render(await ServerPage(params("team-a", "docs")));
-    const reason = screen.getAllByRole("textbox", { name: "Begrunnelse" }).at(-1)!;
-    fireEvent.change(reason, { target: { value: "lekker data" } });
     const before = vi.mocked(fetch).mock.calls.length;
     fireEvent.click(screen.getByRole("button", { name: "Trekk tilbake" }));
-    expect(screen.getByRole("dialog", { name: "Trekk tilbake docs?" })).toBeInTheDocument();
+    const dialog = screen.getByRole("dialog", { name: "Trekk tilbake docs?" });
     expect(vi.mocked(fetch).mock.calls.length).toBe(before);
+    // The reason is asked for in the Modal and still belongs to the form.
+    const reason = within(dialog).getByRole("textbox", { name: /Begrunnelse/ });
+    expect(document.getElementById(reason.getAttribute("form")!)?.tagName).toBe("FORM");
+    fireEvent.change(reason, { target: { value: "lekker data" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Trekk tilbake" }));
+    await vi.waitFor(() => expect(vi.mocked(fetch).mock.calls.length).toBe(before + 1));
+    const sent = JSON.parse(String((vi.mocked(fetch).mock.calls.at(-1)![1] as RequestInit).body));
+    expect(sent).toMatchObject({ action: "revoke", name: "docs", reason: "lekker data" });
   });
 
   it("tells a revoked MCP server how to come back, not «Ingen»", async () => {
@@ -549,7 +557,7 @@ describe("/fleet", () => {
     render(await AgentsPage(sp("team-a")));
     const post = vi.fn(async () => new Response(JSON.stringify({ error: "Nei" }), { status: 403 }));
     vi.stubGlobal("fetch", post);
-    fireEvent.click(screen.getByRole("button", { name: "Gi tilgang til docs" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Gi tilgang til docs" }).at(-1)!);
     expect(await screen.findByText("Nei")).toBeInTheDocument();
     const [url, init] = post.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("/api/fleet");

@@ -64,14 +64,15 @@ export default async function FleetPage({ searchParams }: Props) {
           : "Du er med i flere team. Fleet viser alltid ett team om gangen. Vi husker valget ditt til neste gang."
       }
       crumbs={picked ? [] : false}
+      bare={!picked}
       action={picked ? <RegisterButton team={picked.team} /> : undefined}
       nav={
         picked
           ? {
               team: picked.team,
               teams: teams.map((t) => t.team),
-              pending: pending.length + picked.servers.filter((s) => s.status.pending).length,
-              hasAgents: picked.agents.length > 0,
+              // Same count as the «Venter på godkjenning» card.
+              pending: picked.servers.filter((s) => s.status.pending).length,
             }
           : undefined
       }

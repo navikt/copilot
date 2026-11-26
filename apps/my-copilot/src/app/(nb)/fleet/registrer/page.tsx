@@ -3,7 +3,7 @@ import { BodyLong } from "@navikt/ds-react";
 import { isLocalDev } from "@/lib/backend-api";
 import { fleetApi, fleetLoad, requireFleet } from "@/lib/fleet-control";
 import { isName } from "@/lib/fleet-names";
-import { FleetFrame, fleetRobots } from "../frame";
+import { FleetFrame, fleetRobots, teamNav } from "../frame";
 import { FleetProblemAlert } from "../fleet-ui";
 import { RegisterWizard } from "./wizard";
 
@@ -28,6 +28,8 @@ export default async function RegisterPage({ searchParams }: Props) {
   const requireRos = !isLocalDev() && !(process.env.NAIS_CLUSTER_NAME ?? "").startsWith("dev-");
   return (
     <FleetFrame
+      nav={await teamNav(teams, team)}
+      crumbs={team ? [{ label: team, href: `/fleet?team=${team}` }] : []}
       title="Registrer MCP-server"
       description={`${team ? `For ${team}. ` : ""}Tar rundt fem minutter. Ingenting publiseres før en annen i teamet har godkjent.`}
     >

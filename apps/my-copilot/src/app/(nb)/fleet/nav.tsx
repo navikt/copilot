@@ -4,11 +4,11 @@ import { useEffect, useRef, type ReactNode } from "react";
 import NextLink from "next/link";
 import { usePathname } from "next/navigation";
 import { TEAM_COOKIE } from "@/lib/fleet-names";
-import { BodyShort, Box, Button, Detail, Hide, HStack, Link, Select, Tag, VStack } from "@navikt/ds-react";
+import { BodyShort, Box, Button, Detail, Hide, HStack, Link, Select, Show, Tag, VStack } from "@navikt/ds-react";
 
 /** A Button that is a link, for server components (they cannot pass NextLink themselves). */
 export const LinkButton = ({ href, children }: { href: string; children: ReactNode }) => (
-  <Button as={NextLink} href={href}>
+  <Button as={NextLink} href={href} className="w-full sm:w-auto">
     {children}
   </Button>
 );
@@ -51,7 +51,6 @@ export type FleetNavProps = {
   team?: string;
   teams?: string[];
   pending?: number;
-  hasAgents?: boolean;
 };
 
 function NavItem({ href, current, children }: { href: string; current?: boolean; children: ReactNode }) {
@@ -77,13 +76,35 @@ function NavItem({ href, current, children }: { href: string; current?: boolean;
   );
 }
 
-export function FleetNav({ team, teams = [], pending = 0, hasAgents = false }: FleetNavProps) {
+export function FleetNav({ team, teams = [], pending = 0 }: FleetNavProps) {
   const path = usePathname();
   const form = useRef<HTMLFormElement>(null);
   useEffect(() => {
     if (team) document.cookie = `${TEAM_COOKIE}=${team}; path=/; max-age=31536000; samesite=lax; secure`;
   }, [team]);
   const base = team ? `/fleet?team=${team}` : "/fleet";
+  const links: { label: string; href: string; current?: boolean; count?: number; team?: boolean }[] = team
+    ? [
+        { label: "Oversikt", href: base, current: path === "/fleet", team: true },
+        {
+          label: "MCP-servere",
+          href: `${base}#mcp-servere`,
+          current: path.startsWith("/fleet/mcp-servere"),
+          team: true,
+        },
+        {
+          label: "Agentprofiler",
+          href: `/fleet/agenter?team=${team}`,
+          current: path.startsWith("/fleet/agenter"),
+          team: true,
+        },
+        { label: "Til godkjenning", href: `${base}#til-godkjenning`, count: pending, team: true },
+        { label: "Katalog", href: "/fleet/katalog", current: path === "/fleet/katalog" },
+      ]
+    : [
+        { label: "Oversikt", href: "/fleet", current: path === "/fleet" },
+        { label: "Katalog", href: "/fleet/katalog", current: path === "/fleet/katalog" },
+      ];
   return (
     <nav aria-label="Fleet">
       <VStack gap="space-16">
@@ -113,30 +134,39 @@ export function FleetNav({ team, teams = [], pending = 0, hasAgents = false }: F
           </form>
         )}
         {team && teams.length === 1 && <BodyShort weight="semibold">{team}</BodyShort>}
-        {/* On a phone the sketches keep only the team picker; the page itself links onwards. */}
+        {/* On a phone: a short link list under the team picker instead of the side menu. */}
+        <Show below="md">
+          <HStack as="ul" gap="space-8 space-16" wrap aria-label="Fleet-sider">
+            {links.map((l) => (
+              <li key={l.label}>
+                <Link as={NextLink} href={l.href} aria-current={l.current ? "page" : undefined}>
+                  {l.current ? <strong>{l.label}</strong> : l.label}
+                  {l.count ? ` (${l.count})` : ""}
+                </Link>
+              </li>
+            ))}
+          </HStack>
+        </Show>
         <Hide below="md">
           <VStack gap="space-16">
             {team && (
               <VStack as="ul" gap="space-4">
-                <NavItem href={base} current={path === "/fleet"}>
-                  Oversikt
-                </NavItem>
-                <NavItem href={`${base}#mcp-servere`}>MCP-servere</NavItem>
-                {hasAgents && (
-                  <NavItem href={`/fleet/agenter?team=${team}`} current={path === "/fleet/agenter"}>
-                    Agentprofiler
-                  </NavItem>
-                )}
-                {pending > 0 && (
-                  <NavItem href={`${base}#til-godkjenning`}>
-                    <HStack gap="space-8" align="center" justify="space-between">
-                      Til godkjenning
-                      <Tag size="xsmall" variant="warning" aria-label={`${pending} venter`}>
-                        {pending}
-                      </Tag>
-                    </HStack>
-                  </NavItem>
-                )}
+                {links
+                  .filter((l) => l.team)
+                  .map((l) => (
+                    <NavItem key={l.label} href={l.href} current={l.current}>
+                      {l.count ? (
+                        <HStack gap="space-8" align="center" justify="space-between">
+                          {l.label}
+                          <Tag size="xsmall" variant="warning" aria-label={`${l.count} venter`}>
+                            {l.count}
+                          </Tag>
+                        </HStack>
+                      ) : (
+                        l.label
+                      )}
+                    </NavItem>
+                  ))}
               </VStack>
             )}
             <Box
@@ -147,14 +177,13 @@ export function FleetNav({ team, teams = [], pending = 0, hasAgents = false }: F
               <VStack gap="space-4">
                 <Detail as="p">For alle team</Detail>
                 <VStack as="ul" gap="space-4">
-                  {!team && (
-                    <NavItem href="/fleet" current={path === "/fleet"}>
-                      Oversikt
-                    </NavItem>
-                  )}
-                  <NavItem href="/fleet/katalog" current={path === "/fleet/katalog"}>
-                    Katalog
-                  </NavItem>
+                  {links
+                    .filter((l) => !l.team)
+                    .map((l) => (
+                      <NavItem key={l.label} href={l.href} current={l.current}>
+                        {l.label}
+                      </NavItem>
+                    ))}
                 </VStack>
               </VStack>
             </Box>

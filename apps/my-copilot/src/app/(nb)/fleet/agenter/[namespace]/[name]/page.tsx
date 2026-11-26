@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { isName } from "@/lib/fleet-names";
 import { notFound } from "next/navigation";
 import { FleetControlError, fleetApi, fleetLoad, requireFleet } from "@/lib/fleet-control";
-import { FleetFrame, fleetRobots } from "../../../frame";
+import { FleetFrame, fleetRobots, teamNav } from "../../../frame";
 import { AgentDetailView, AgentStatusTag, FleetProblemAlert } from "../../../fleet-ui";
 
 export const metadata: Metadata = { title: "Agentprofil", robots: fleetRobots };
@@ -14,7 +14,7 @@ export default async function AgentPage({ params }: Props) {
   const { namespace, name } = await params;
   if (!isName(namespace) || !isName(name)) notFound();
   const result = await fleetLoad(async () => {
-    const profile = await fleetApi.agent(namespace, name);
+    const [profile, me] = await Promise.all([fleetApi.agent(namespace, name), fleetApi.whoami()]);
     // The history is for the owner team only: an MCP server's owner team sees the profile without it.
     const events = await fleetApi.history("agentprofiles", namespace, name).then(
       (h) => h.items,
@@ -23,11 +23,12 @@ export default async function AgentPage({ params }: Props) {
         throw err;
       }
     );
-    return { profile, events };
+    return { profile, events, teams: me.teams };
   });
 
   return (
     <FleetFrame
+      nav={"data" in result ? await teamNav(result.data.teams, namespace) : undefined}
       title={name}
       description={`Agentprofil i ${namespace}`}
       crumbs={[

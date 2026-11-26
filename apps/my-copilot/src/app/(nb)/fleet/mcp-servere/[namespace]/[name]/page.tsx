@@ -3,7 +3,7 @@ import { isName } from "@/lib/fleet-names";
 import { notFound } from "next/navigation";
 import { FleetControlError, fleetApi, fleetLoad, requireFleet } from "@/lib/fleet-control";
 import { Tag } from "@navikt/ds-react";
-import { FleetFrame, fleetRobots } from "../../../frame";
+import { FleetFrame, fleetRobots, teamNav } from "../../../frame";
 import { LinkButton } from "../../../nav";
 import { FleetProblemAlert, ServerDetail, ServerHeader, ServerStatusTag } from "../../../fleet-ui";
 import { EntryHeader, ServerReadOnly } from "../../../catalog";
@@ -88,8 +88,8 @@ export default async function ServerPage({ params, searchParams }: Props) {
         )
       }
       nav={
-        "data" in result && result.data.owner && result.data.inTeam
-          ? { team: namespace, teams: result.data.teams }
+        "data" in result
+          ? await teamNav(result.data.owner ? result.data.teams : result.data.myTeams, namespace)
           : undefined
       }
     >

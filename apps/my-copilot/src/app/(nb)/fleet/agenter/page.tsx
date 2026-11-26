@@ -35,7 +35,7 @@ export default async function AgentsPage({ searchParams }: Props) {
       title="Agentprofiler"
       description="Hvilke MCP-servere KI-agentene i teamet får bruke."
       crumbs={team ? [{ label: team, href: `/fleet?team=${team}` }] : []}
-      nav={team ? { team, teams, hasAgents: true, pending: pending.length } : undefined}
+      nav={team ? { team, teams } : undefined}
     >
       {team ? (
         <>

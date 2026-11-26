@@ -10,10 +10,12 @@ import {
   Detail,
   Heading,
   HGrid,
+  Hide,
   HStack,
   Link,
   List,
   Select,
+  Show,
   Table,
   Tag,
   TextField,
@@ -22,7 +24,7 @@ import {
 import { ExternalLinkIcon } from "@navikt/aksel-icons";
 import type { CatalogEntry } from "@/lib/fleet-control";
 import { isName, refKey } from "@/lib/fleet-names";
-import { FleetTable } from "./fleet-ui";
+import { CardList, FleetTable } from "./fleet-ui";
 
 const NAIS_CONSOLE = "https://console.nav.cloud.nais.io/";
 
@@ -37,7 +39,7 @@ export function CategoryTag({ category }: { category?: string }) {
   if (!category) return <>–</>;
   const c = CATEGORY[category] ?? { label: category, variant: "info" as const };
   return (
-    <Tag size="small" variant={c.variant}>
+    <Tag size="small" variant={c.variant} className="whitespace-nowrap">
       {c.label}
     </Tag>
   );
@@ -81,33 +83,61 @@ export function Catalog({ entries }: { entries: CatalogEntry[] }) {
               Viser {shown.length} av {entries.length}
             </BodyShort>
             {shown.length > 0 && (
-              <FleetTable aria-label="Publiserte MCP-servere">
-                <Table.Header>
-                  <Table.Row>
-                    <Table.HeaderCell scope="col">MCP-server</Table.HeaderCell>
-                    <Table.HeaderCell scope="col">Eierteam</Table.HeaderCell>
-                    <Table.HeaderCell scope="col">Datakategori</Table.HeaderCell>
-                  </Table.Row>
-                </Table.Header>
-                <Table.Body>
-                  {shown.map((e) => (
-                    <Table.Row key={refKey(e.metadata)}>
-                      <Table.DataCell>
-                        <VStack>
-                          <Link as={NextLink} href={`/fleet/mcp-servere/${refKey(e.metadata)}`}>
-                            {e.metadata.name}
-                          </Link>
-                          {e.status.route && <Detail as="code">{e.status.route.path}</Detail>}
-                        </VStack>
-                      </Table.DataCell>
-                      <Table.DataCell>{e.metadata.namespace}</Table.DataCell>
-                      <Table.DataCell>
-                        <CategoryTag category={e.spec.dataCategory} />
-                      </Table.DataCell>
-                    </Table.Row>
-                  ))}
-                </Table.Body>
-              </FleetTable>
+              <>
+                <Show below="md">
+                  <CardList
+                    label="Publiserte MCP-servere"
+                    items={shown.map((e) => ({
+                      key: refKey(e.metadata),
+                      title: (
+                        <Link as={NextLink} href={`/fleet/mcp-servere/${refKey(e.metadata)}`}>
+                          <strong>{e.metadata.name}</strong>
+                        </Link>
+                      ),
+                      aside: <CategoryTag category={e.spec.dataCategory} />,
+                      lines: [
+                        ...(e.status.route
+                          ? [
+                              <Detail key="r" as="code">
+                                {e.status.route.path}
+                              </Detail>,
+                            ]
+                          : []),
+                        <Detail key="o">Eierteam: {e.metadata.namespace}</Detail>,
+                      ],
+                    }))}
+                  />
+                </Show>
+                <Hide below="md">
+                  <FleetTable aria-label="Publiserte MCP-servere">
+                    <Table.Header>
+                      <Table.Row>
+                        <Table.HeaderCell scope="col">MCP-server</Table.HeaderCell>
+                        <Table.HeaderCell scope="col">Eierteam</Table.HeaderCell>
+                        <Table.HeaderCell scope="col">Datakategori</Table.HeaderCell>
+                      </Table.Row>
+                    </Table.Header>
+                    <Table.Body>
+                      {shown.map((e) => (
+                        <Table.Row key={refKey(e.metadata)}>
+                          <Table.DataCell>
+                            <VStack>
+                              <Link as={NextLink} href={`/fleet/mcp-servere/${refKey(e.metadata)}`}>
+                                {e.metadata.name}
+                              </Link>
+                              {e.status.route && <Detail as="code">{e.status.route.path}</Detail>}
+                            </VStack>
+                          </Table.DataCell>
+                          <Table.DataCell>{e.metadata.namespace}</Table.DataCell>
+                          <Table.DataCell>
+                            <CategoryTag category={e.spec.dataCategory} />
+                          </Table.DataCell>
+                        </Table.Row>
+                      ))}
+                    </Table.Body>
+                  </FleetTable>
+                </Hide>
+              </>
             )}
           </>
         )}
@@ -244,20 +274,17 @@ export function EntryHeader({ entry }: { entry: CatalogEntry }) {
   const owner = entry.metadata.namespace;
   return (
     <VStack gap="space-8">
-      <HStack gap="space-8" align="center">
-        <Tag size="small" variant="success">
-          Publisert
-        </Tag>
-        {entry.status.route && (
-          <Detail as="code" className="[overflow-wrap:anywhere]">
-            {entry.status.route.path}
-          </Detail>
-        )}
-      </HStack>
+      {entry.status.route && (
+        <Detail as="code" className="[overflow-wrap:anywhere]">
+          {entry.status.route.path}
+        </Detail>
+      )}
       <HStack gap="space-16" wrap align="center">
         <BodyShort size="small">Eierteam: {owner}</BodyShort>
         <BodyShort size="small">{tools.length === 1 ? "1 verktøy" : `${tools.length} verktøy`}</BodyShort>
-        <CategoryTag category={entry.spec.dataCategory} />
+        {entry.spec.dataCategory && (
+          <BodyShort size="small">{CATEGORY[entry.spec.dataCategory]?.label ?? entry.spec.dataCategory}</BodyShort>
+        )}
       </HStack>
     </VStack>
   );
@@ -321,31 +348,8 @@ export function ServerReadOnly({
           </Link>
         </BodyShort>
       )}
-      <section aria-labelledby="be-om-tilgang">
-        <VStack gap="space-8">
-          <Heading id="be-om-tilgang" level="2" size="small">
-            Be eierteamet om tilgang
-          </Heading>
-          {myTeams.length === 0 ? (
-            <BodyLong>
-              Bare team kan få tilgang. Bli med i teamet ditt i <Link href={NAIS_CONSOLE}>Nais Console</Link> først.
-            </BodyLong>
-          ) : (
-            <List as="ol" size="small">
-              <List.Item>
-                Legg til MCP-serveren og verktøyene dere trenger i en agentprofil i teamet ditt, og send den inn.
-              </List.Item>
-              <List.Item>{owner} får forespørselen under «Til godkjenning» og gir tilgang, eller sier nei.</List.Item>
-              <List.Item>
-                Har dere spørsmål først, finner dere kontaktinformasjon og Slack-kanalen til eierteamet i{" "}
-                <Link href={`${NAIS_CONSOLE}team/${owner}`}>Nais Console</Link>.
-              </List.Item>
-            </List>
-          )}
-        </VStack>
-      </section>
       <VStack gap="space-8">
-        <Heading level="2" size="small">
+        <Heading level="2" size="medium">
           Konsumenter
         </Heading>
         {consumers.length === 0 ? (
@@ -378,6 +382,29 @@ export function ServerReadOnly({
           </>
         )}
       </VStack>
+      <section aria-labelledby="be-om-tilgang">
+        <VStack gap="space-8">
+          <Heading id="be-om-tilgang" level="2" size="medium">
+            Be eierteamet om tilgang
+          </Heading>
+          {myTeams.length === 0 ? (
+            <BodyLong>
+              Bare team kan få tilgang. Bli med i teamet ditt i <Link href={NAIS_CONSOLE}>Nais Console</Link> først.
+            </BodyLong>
+          ) : (
+            <List as="ol" size="small">
+              <List.Item>
+                Legg til MCP-serveren og verktøyene dere trenger i en agentprofil i teamet ditt, og send den inn.
+              </List.Item>
+              <List.Item>{owner} får forespørselen under «Til godkjenning» og gir tilgang, eller sier nei.</List.Item>
+              <List.Item>
+                Har dere spørsmål først, finner dere kontaktinformasjon og Slack-kanalen til eierteamet i{" "}
+                <Link href={`${NAIS_CONSOLE}team/${owner}`}>Nais Console</Link>.
+              </List.Item>
+            </List>
+          )}
+        </VStack>
+      </section>
     </VStack>
   );
 }
