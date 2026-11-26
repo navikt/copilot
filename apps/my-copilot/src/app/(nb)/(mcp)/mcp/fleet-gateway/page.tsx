@@ -114,7 +114,7 @@ export default function FleetGatewayPage() {
           <li>Gatewayen slipper bare inn brukere som har logget inn med Nav-kontoen, og logger hvert kall.</li>
           <li>Teamet bestemmer selv hvem som får gjøre hva på serveren. Gatewayen sjekker ikke tilgang til data.</li>
           <li>
-            Gatewayen når apper i alle team-namespacer, men serveren må selv slippe den inn i{" "}
+            Gatewayen når apper i alle teamenes navnerom, men serveren må selv slippe den inn i{" "}
             <code className={code}>accessPolicy.inbound</code>. Gatewayen sender bare kall til ruter som er godkjent i
             /fleet.
           </li>

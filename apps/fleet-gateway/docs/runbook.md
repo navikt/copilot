@@ -67,7 +67,7 @@ To make it stick across deploys, set `disabled_routes: "/mcp/copilot/kodeverk"` 
 
 A malformed entry (not `/mcp/<namespace>/<name>`) is logged as a WARN at startup and skipped; valid entries in the same list still apply. Startup does not fail, so a typo cannot block the deploy that disables a route. Check the startup log line `routes disabled by GATEWAY_DISABLED_ROUTES` lists what you meant, then confirm with the `curl` below.
 
-**Normal path, fleet-control (dev and prod):** the owner team or team copilot clicks «Avpubliser» on the server's page in `/fleet`. The route leaves the next snapshot, which pods poll every 30 s. While fleet-control is down a revoked route keeps serving; use the fast path.
+**Normal path, fleet-control (dev and prod):** the owner team or team copilot clicks «Avpubliser» on the server's page in `/fleet`. The route stays in the next routes snapshot with `enabled: false`, which pods poll every 30 s, and the gateway answers `503` on it; only the registry snapshot drops it. While fleet-control is down a revoked route keeps serving; use the fast path.
 
 **Slow path, file source only:** (no longer used in dev or prod; `pilot-routes.prod.yaml` is frozen)
 

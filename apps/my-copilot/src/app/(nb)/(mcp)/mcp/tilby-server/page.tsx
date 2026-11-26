@@ -467,7 +467,7 @@ export default function FleetGatewayForTeamPage() {
                   </BodyLong>
                   <BodyLong>
                     Team copilot godkjenner registreringen under «Til godkjenning». Ruten virker i fleet-gateway innen
-                    et minutt etter godkjenningen, uten deploy og uten PR. Gatewayen når apper i alle team-namespacer,
+                    et minutt etter godkjenningen, uten deploy og uten PR. Gatewayen når apper i alle teamenes navnerom,
                     så dere trenger ingen endring i nettverksreglene til fleet-gateway. Ta dev først, og prod når dere
                     har testet i dev.
                   </BodyLong>
@@ -607,8 +607,8 @@ export default function FleetGatewayForTeamPage() {
                 Gatewayen logger hvert kall med NAV-ident, rute og MCP-metode. Tilgang til data styrer dere i appen.
               </li>
               <li>
-                Rulle tilbake: velg en tidligere versjon på serverens side i /fleet. Avpublisere: trykk «Avpubliser» på
-                samme side. Eierteamet og team copilot kan gjøre begge deler.
+                På serverens side i /fleet kan eierteamet rulle tilbake til en tidligere godkjent versjon. Både
+                eierteamet og team copilot kan avpublisere med «Avpubliser».
               </li>
               <li>
                 Nødstopp: team copilot kan stenge én rute straks med{" "}
