@@ -234,7 +234,7 @@ func TestRealPostgresAutoPublishOverTeamBudget(t *testing.T) {
 	}
 	gens, autos := count(`SELECT count(*) FROM server_versions WHERE name = 'svc'`), count(`SELECT count(*) FROM audit_events WHERE action = 'auto_published'`)
 	// An explicit write entry is the same risk (no escalation) but adds tool_risk to the route.
-	if code, out := e.do("PUT", base+"/svc", person("B444444"), body(m.Metadata.ResourceVersion, map[string]any{"toolRisk": map[string]string{"t1": "write"}})); code != 409 {
+	if code, out := e.do("PUT", base+"/svc", person("B444444"), body(m.Metadata.ResourceVersion, map[string]any{"toolRisk": map[string]string{"t1": "write"}})); code != 409 || !strings.Contains(out, `"reason":"OverTeamBudget"`) {
 		t.Fatalf("auto-publish over team budget: %d %s, want 409", code, out)
 	}
 	if got := count(`SELECT count(*) FROM server_versions WHERE name = 'svc'`); got != gens {

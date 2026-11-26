@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 )
 
 const appClientID = "55555555-5555-4555-8555-555555555555"
@@ -212,5 +213,22 @@ func TestRealPostgresProfileStatusExpiredByDBTime(t *testing.T) {
 	}
 	if c := ready(); c.Reason != "Expired" {
 		t.Errorf("expired profile shows %+v, want Expired", c)
+	}
+	// A DB clock a day ahead of the pod: only the DB-time path calls an hour-away expiry Expired.
+	ctx := context.Background()
+	if _, err := e.db.pool.Exec(ctx, `UPDATE agent_profile_generations SET expires_at = now() + interval '1 hour'`); err != nil {
+		t.Fatal(err)
+	}
+	row, err := scanProfileRow(e.db.pool.QueryRow(ctx, `SELECT `+profileRowCols+` FROM agent_profile_resources r WHERE r.name = 'studio'`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	row.Now = row.Now.Add(24 * time.Hour)
+	obj, err := e.db.buildProfile(ctx, row)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c := condOf(obj.Status.Conditions, "Ready"); c.Reason != "Expired" {
+		t.Errorf("status ignores the DB clock: %+v, want Expired", c)
 	}
 }

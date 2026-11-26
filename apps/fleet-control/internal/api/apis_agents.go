@@ -466,15 +466,16 @@ type profileRow struct {
 	Published, Pending *int
 	Revoked            bool
 	Latest             int
+	Now                time.Time // DB clock at read, for expiry status
 }
 
 const profileRowCols = `r.namespace, r.name, r.uid::text, r.resource_version, r.labels::text, r.annotations::text, r.created_at,
 	r.published_generation, r.pending_generation, r.revoked,
-	(SELECT COALESCE(max(generation), 0) FROM agent_profile_generations g WHERE g.namespace = r.namespace AND g.name = r.name)`
+	(SELECT COALESCE(max(generation), 0) FROM agent_profile_generations g WHERE g.namespace = r.namespace AND g.name = r.name), now()`
 
 func scanProfileRow(row pgx.Row) (profileRow, error) {
 	var p profileRow
-	err := row.Scan(&p.NS, &p.Name, &p.UID, &p.RV, &p.Labels, &p.Annots, &p.Created, &p.Published, &p.Pending, &p.Revoked, &p.Latest)
+	err := row.Scan(&p.NS, &p.Name, &p.UID, &p.RV, &p.Labels, &p.Annots, &p.Created, &p.Published, &p.Pending, &p.Revoked, &p.Latest, &p.Now)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return p, errV1NotFound
 	}
@@ -685,15 +686,8 @@ func (d *DB) buildProfile(ctx context.Context, row profileRow) (AgentProfileV1, 
 	}
 	at := func(actions ...string) time.Time { return latest(ev, row.Created, actions...) }
 	published := pub != nil && !row.Revoked
-	expired := false
-	if published && pub.ExpiresAt != nil {
-		// DB time, like enforcement (txNow), so status and refusals agree under pod clock drift.
-		var now time.Time
-		if err := d.pool.QueryRow(ctx, `SELECT now()`).Scan(&now); err != nil {
-			return obj, err
-		}
-		expired = !pub.ExpiresAt.After(now)
-	}
+	// DB time from the row read, like enforcement (txNow), so status and refusals agree under pod clock drift.
+	expired := published && pub.ExpiresAt != nil && !pub.ExpiresAt.After(row.Now)
 	verified := st.IdentityVerifiedAt != nil
 	pubReason := "NeverApproved"
 	switch {
