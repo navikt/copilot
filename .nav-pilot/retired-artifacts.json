@@ -57,6 +57,70 @@
     "instructions/kotlin-spring.metadata.json": [
       "ff9b226688872751bf5a24e54a0d92408ed22fcb"
     ],
+    "prompts/aksel-component.metadata.json": [
+      "b21a636fed8ec16d14e87be5d90c78ae190fe0d0"
+    ],
+    "prompts/aksel-component.prompt.md": [
+      "00c50a3e8c0bf8ee27553235fc380e7360a9600d",
+      "42415e56f95e9513b4ee9e6306998f245874d179",
+      "af27caedd17f9640ba0f18996ed6f284df3c46db",
+      "efdc557ce469bd239a6558b5ea025907f9e864f9"
+    ],
+    "prompts/golang-service.metadata.json": [
+      "c79aba80fda9c3461a6197d221e4f63d3c98117c"
+    ],
+    "prompts/golang-service.prompt.md": [
+      "0f468b54ef0b441ab4cafc2d54b0c1570cecb99d",
+      "47f59740cc17662bcd3859d9ae01ba0bb5532693",
+      "51f5ddf294ebb8c437b005ec3e0449a48b69398b",
+      "78e13c73a4d31923c51cd683bff3610741adbaac",
+      "f85bc7000c182224b97e9199ee5db581d4a7f2cb"
+    ],
+    "prompts/kafka-topic.metadata.json": [
+      "8525287112c280fad0ec1f04a3efa153e2601c66"
+    ],
+    "prompts/kafka-topic.prompt.md": [
+      "55022405c26864e7976937814f1da3fd7b934409",
+      "c55dcf3122f132c801cf18551df7ae60e2438591"
+    ],
+    "prompts/ktor-endpoint.metadata.json": [
+      "3ddfab6d90096dc2dd00ceac6fa17b03f290f1ae",
+      "febb05be7d3b4c83082ae5f5ed53bf8c51b0c93a"
+    ],
+    "prompts/ktor-endpoint.prompt.md": [
+      "485550b721ff3a7916bbbe7fe1299b28ffe25afd",
+      "5433cddfee43008db560ceb1d4d95db7a23a24b0",
+      "59e7f19b9212bad084241458981dd6632b6e5ff9"
+    ],
+    "prompts/nais-manifest.metadata.json": [
+      "b54f244816fec2e4c8727d998d1881ad3ff333a5"
+    ],
+    "prompts/nais-manifest.prompt.md": [
+      "33a3ffe275f7982c9cd32cfb043b6dd4c50ea0cc",
+      "7cc18ec22634fd8b8c8247a97641694699aa37d8",
+      "cdd41ad96d7218e97a155d3a1b578c6ff59b585d",
+      "e00afb865f3f6639a45b393f0d767bcc32f1da2a",
+      "f12d16c414f2f26a1631d379f9afdcc4e0e6a767"
+    ],
+    "prompts/nextjs-api-route.metadata.json": [
+      "54383d5cfe5c6df214ce6c7c61074fb471f89224"
+    ],
+    "prompts/nextjs-api-route.prompt.md": [
+      "a70ba77537f5914859bd8af83165783b6179e020",
+      "af5720891cc7c6b10c8750cc57c9804a25d92909",
+      "bbed19db11bbc9e4e492ebf8763b19d302f8c00a"
+    ],
+    "prompts/spring-boot-endpoint.metadata.json": [
+      "aa844ffe756cce8a56124f54157501e69ef48b4b",
+      "fdc830e13612d65dd725a9c6f9a9ea255a5345cf"
+    ],
+    "prompts/spring-boot-endpoint.prompt.md": [
+      "92f1912101cdd46b3f84c47a9bce80cbfc406984",
+      "be2b4083cb253569610464926d11e025b9504ff9",
+      "c0ad3744c78d4526614088767b2ad5a34970ed56",
+      "c263f8fb039d3a5b7865465cd7152210877b1930",
+      "c37c512f53fa4729fa45840742d33a3493ecba45"
+    ],
     "skills/aksel-spacing/SKILL.md": [
       "6be8a0173d55ee0dba158744a484cfacad987fe5",
       "f03da473bc1513acbb01085e22e94089ee4ffbad",
@@ -68,6 +132,13 @@
     ]
   },
   "replacements": {
+    "prompts/aksel-component.prompt.md": "aksel-builder",
+    "prompts/golang-service.prompt.md": "api-design",
+    "prompts/kafka-topic.prompt.md": "kafka",
+    "prompts/ktor-endpoint.prompt.md": "ktor-scaffold",
+    "prompts/nais-manifest.prompt.md": "nais",
+    "prompts/nextjs-api-route.prompt.md": "api-design",
+    "prompts/spring-boot-endpoint.prompt.md": "spring-boot-scaffold",
     "skills/aksel-spacing": "aksel-builder"
   }
 }
