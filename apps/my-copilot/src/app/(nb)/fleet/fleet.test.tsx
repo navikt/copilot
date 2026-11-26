@@ -884,7 +884,7 @@ describe("ServerForm discovery (edit)", () => {
     expect(screen.getByText(/Kan endre data, ikke lagt inn/)).toBeInTheDocument();
     expect(JSON.parse((fetch.mock.calls[0] as unknown as [string, RequestInit])[1].body as string)).toEqual({
       namespace: "team-a",
-      url: "http://docs-mcp.team-a/mcp",
+      app: "docs-mcp",
     });
   });
 

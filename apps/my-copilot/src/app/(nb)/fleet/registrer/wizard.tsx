@@ -274,7 +274,6 @@ export function RegisterWizard({ teams, team, apps, requireRos, discoveryEnabled
                 <ToolDiscovery
                   namespace={s.team}
                   app={s.app}
-                  url={() => s.url.trim()}
                   // The team ticks; destructive tools start unticked. Annotations never decide access.
                   onTools={(tools) =>
                     set({

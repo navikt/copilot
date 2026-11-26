@@ -90,6 +90,8 @@ describe("discoverTools", () => {
   it.each([
     ["404, the probe is off", new Response("404 page not found", { status: 404 }), "off"],
     ["429, rate limited", json({ error: "unavailable" }, 429), "unavailable"],
+    ["403, not on the team", json({ error: "access" }, 403), "member"],
+    ["422, address outside the team", json({ error: "invalid" }, 422), "target"],
     ["an unknown kind", json({ error: "secret detail" }, 502), "unavailable"],
     ["a non-JSON error", new Response("oops", { status: 500 }), "unavailable"],
     ["a 200 without JSON", new Response("oops"), "invalid"],

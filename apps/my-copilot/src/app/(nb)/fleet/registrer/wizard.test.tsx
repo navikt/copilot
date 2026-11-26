@@ -78,10 +78,17 @@ describe("RegisterWizard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Hent verktøy" }));
     expect(await screen.findByText(/Fleet fikk ikke kontakt/)).toBeInTheDocument();
     expect(screen.getByText(/application: fleet-gateway/)).toBeInTheDocument();
-    expect(JSON.parse(fetch.mock.calls[0][1].body)).toMatchObject({
-      namespace: "team-a",
-      url: expect.stringMatching(/^http:\/\/.+\.team-a/),
-    });
+    // Every cause, since the gateway gives them all the same answer.
+    expect(screen.getByText(/teamets namespace/)).toBeInTheDocument();
+    expect(screen.getByText(/OBO-tokener fra fleet-gateway/)).toBeInTheDocument();
+    expect(screen.getByText(/svarer som en MCP-server/)).toBeInTheDocument();
+    expect(screen.getByText(/512 KiB/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "mcp-compliance" })).toHaveAttribute(
+      "href",
+      "/mcp/referanse#mcp-compliance"
+    );
+    const body = JSON.parse(fetch.mock.calls[0][1].body);
+    expect(body).toEqual({ namespace: "team-a", app: expect.any(String) });
   });
 
   it("shows a missing route as a warning, without the snippet, and allows typing tools", async () => {

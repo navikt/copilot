@@ -4,6 +4,7 @@
 // are undefined when read off a client reference in a server component.
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
+import { ListItem } from "@navikt/ds-react/List";
 import { useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import {
   Alert,
@@ -22,6 +23,7 @@ import {
   Radio,
   RadioGroup,
   Link,
+  List,
   ReadMore,
   Heading,
   Select,
@@ -1582,14 +1584,12 @@ const RETRY = "Fleet kunne ikke hente verktøyene akkurat nå. Prøv igjen om li
  */
 export function ToolDiscovery({
   namespace,
-  url,
   app,
   onTools,
   onManual,
 }: {
   namespace: string;
-  url: () => string;
-  app?: string;
+  app: string;
   onTools: (tools: FoundTool[]) => void;
   onManual: () => void;
 }) {
@@ -1600,7 +1600,7 @@ export function ToolDiscovery({
       const res = await fetch("/api/fleet/tools", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ namespace, url: url() }),
+        body: JSON.stringify({ namespace, app }),
       });
       const out = (await res.json().catch(() => ({}))) as { tools?: FoundTool[]; error?: string; kind?: string };
       if (!res.ok || !out.tools) {
@@ -1624,7 +1624,7 @@ export function ToolDiscovery({
         </Button>
       </HStack>
       <BodyShort size="small">
-        fleet-gateway kaller <code>tools/list</code> på appen som deg. Svaret fyller bare ut listen, du velger selv.
+        fleet-gateway kaller <code>tools/list</code> på appen som deg. Svaret fyller bare ut listen. Du velger selv.
       </BodyShort>
       {d.state === "ok" && (
         <Alert variant="success" size="small" role="status">
@@ -1637,30 +1637,38 @@ export function ToolDiscovery({
             <BodyLong>{d.message}</BodyLong>
             {d.kind === "access" && (
               <>
-                <BodyLong>
-                  Legg dette til i <code>nais.yaml</code> for {app ? <code>{app}</code> : "appen"}, deploy på nytt og
-                  prøv igjen:
-                </BodyLong>
-                <Box background="neutral-soft" padding="space-12" borderRadius="8">
-                  <HStack gap="space-8" justify="space-between" align="start" wrap={false}>
-                    <pre className="overflow-x-auto">
-                      <code>{FLEET_GATEWAY_POLICY}</code>
-                    </pre>
-                    <CopyButton copyText={FLEET_GATEWAY_POLICY} text="Kopier" activeText="Kopiert" />
-                  </HStack>
-                </Box>
+                <BodyLong>Sjekk dette for {app ? <code>{app}</code> : "appen"}, deploy på nytt og prøv igjen:</BodyLong>
+                <List size="small">
+                  <ListItem>
+                    Appen slipper inn fleet-gateway i <code>accessPolicy.inbound</code> i <code>nais.yaml</code>:
+                    <Box background="neutral-soft" padding="space-12" borderRadius="8">
+                      <HStack gap="space-8" justify="space-between" align="start" wrap={false}>
+                        <pre className="overflow-x-auto">
+                          <code>{FLEET_GATEWAY_POLICY}</code>
+                        </pre>
+                        <CopyButton copyText={FLEET_GATEWAY_POLICY} text="Kopier" activeText="Kopiert" />
+                      </HStack>
+                    </Box>
+                  </ListItem>
+                  <ListItem>Appnavnet er riktig, og appen kjører i teamets namespace.</ListItem>
+                  <ListItem>
+                    Appen har Entra ID (<code>azure.application.enabled</code>) og godtar OBO-tokener fra fleet-gateway.
+                  </ListItem>
+                  <ListItem>Appen svarer som en MCP-server på adressen.</ListItem>
+                  <ListItem>Svaret er mindre enn 512 KiB.</ListItem>
+                </List>
               </>
             )}
-            {d.kind === "invalid" && (
+            {(d.kind === "access" || d.kind === "invalid") && (
               <BodyLong>
                 Se{" "}
                 <NextLink className={linkClass} href="/mcp/tilby-server/retningslinjer">
                   retningslinjene for MCP-servere
                 </NextLink>
                 , og test serveren med{" "}
-                <a className={linkClass} href="https://github.com/navikt/copilot/tree/main/cli/mcp-compliance">
+                <NextLink className={linkClass} href="/mcp/referanse#mcp-compliance">
                   mcp-compliance
-                </a>
+                </NextLink>
                 .
               </BodyLong>
             )}
@@ -1698,7 +1706,6 @@ export function ServerForm({
   discoveryEnabled?: boolean;
 }) {
   const post = useFleetPost(server ? "edit" : "register");
-  const urlRef = useRef<HTMLInputElement>(null);
   const toolsRef = useRef<HTMLTextAreaElement>(null);
   const [found, setFound] = useState<FoundTool[]>([]);
   const spec = server?.status.pending?.spec ?? server?.spec;
@@ -1741,7 +1748,6 @@ export function ServerForm({
         <TextField
           label="Intern adresse"
           name="url"
-          ref={urlRef}
           defaultValue={spec?.upstream?.url}
           error={err?.url}
           description="For eksempel http://min-app.mitt-team/mcp eller http://min-app.mitt-team.svc.cluster.local/mcp"
@@ -1750,8 +1756,7 @@ export function ServerForm({
         {server && discoveryEnabled && (
           <ToolDiscovery
             namespace={server.metadata.namespace}
-            app={spec?.upstream?.app}
-            url={() => urlRef.current?.value.trim() ?? ""}
+            app={spec?.upstream?.app ?? ""}
             onTools={(tools) => {
               // Destructive tools stay out of the field; the team adds them by hand if they belong.
               if (toolsRef.current)

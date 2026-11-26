@@ -7,7 +7,8 @@ import { DiscoveryError, type DiscoveryFailure, discoverTools } from "@/lib/flee
 /**
  * Tool discovery for the registration wizard and the edit form: fleet-gateway's
  * probe as the logged-in person. Answers { tools } or { error, kind }. The
- * client adds the nais.yaml snippet for "access" and links for "invalid".
+ * address is built here from team and app, never taken from the client. The
+ * client adds the checklist and nais.yaml snippet for "access".
  */
 const fail = (error: string, kind: string, status: number) => NextResponse.json({ error, kind }, { status });
 
@@ -15,8 +16,11 @@ const fail = (error: string, kind: string, status: number) => NextResponse.json(
 const MESSAGES: Record<DiscoveryFailure, [string, number]> = {
   off: ["Henting av verktøy er ikke slått på her.", 503],
   unavailable: ["Fleet kunne ikke hente verktøyene akkurat nå. Prøv igjen om litt.", 503],
-  auth: ["MCP-serveren godtok ikke tokenet. Appen må godta OBO-tokener fra fleet-gateway.", 502],
-  access: ["fleet-gateway slipper ikke inn til appen. Legg fleet-gateway til i accessPolicy.inbound.", 502],
+  auth: ["Logg inn på nytt og prøv igjen.", 401],
+  // The gateway gives every failure at the app the same answer, so the client lists all causes.
+  access: ["Fleet fikk ikke hentet verktøyene fra appen.", 502],
+  member: ["Du er ikke medlem av teamet. Be noen på teamet hente verktøyene, eller skriv dem inn selv.", 403],
+  target: ["Adressen hører ikke til teamet. Velg en app som kjører i teamets namespace.", 422],
   noroute: ["Fant ikke MCP-serveren på adressen. Sjekk appnavnet og at appen kjører i teamets namespace.", 502],
   toolarge: ["Svaret fra MCP-serveren var for stort. Ta bort verktøy eller kort ned beskrivelsene.", 502],
   invalid: ["MCP-serveren svarte ikke som en MCP-server.", 502],
@@ -28,12 +32,13 @@ export async function POST(request: Request) {
   if (!(await getUser(false)) || !token) return fail(MESSAGES.auth[0], "auth", 401);
   if (!isSameOrigin(request.headers))
     return fail("Vi kunne ikke bekrefte at skjemaet kom fra denne siden. Last inn siden på nytt.", "origin", 403);
-  const b = (await request.json().catch(() => null)) as { namespace?: unknown; url?: unknown } | null;
+  const b = (await request.json().catch(() => null)) as { namespace?: unknown; app?: unknown } | null;
   const ns = typeof b?.namespace === "string" ? b.namespace : "";
-  const url = typeof b?.url === "string" ? b.url.trim() : "";
-  if (!isName(ns) || !url) return fail("Velg team og fyll inn den interne adressen først.", "invalid", 400);
+  const app = typeof b?.app === "string" ? b.app.trim() : "";
+  if (!isName(ns) || !isName(app)) return fail("Velg team og app først.", "invalid", 400);
   try {
-    return NextResponse.json({ tools: await discoverTools(token, ns, url) });
+    // The form fleet-gateway's probe accepts; it resolves it to <app>.<team>.svc.cluster.local.
+    return NextResponse.json({ tools: await discoverTools(token, ns, `http://${app}.${ns}`) });
   } catch (err) {
     const kind = err instanceof DiscoveryError ? err.kind : "unavailable";
     const [msg, status] = MESSAGES[kind];

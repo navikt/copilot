@@ -12,8 +12,13 @@ import { isName } from "@/lib/fleet-names";
 export type Risk = "read" | "propose" | "write";
 export type DiscoveredTool = { name: string; description?: string; suggestedRisk: Risk; destructive: boolean };
 
-/** Why discovery failed: the probe's error kinds, plus "off" where the probe is not enabled. */
-export type DiscoveryFailure = "off" | "unavailable" | "auth" | "access" | "noroute" | "toolarge" | "invalid";
+/**
+ * Why discovery failed: the probe's error kinds, "off" where the probe is not
+ * enabled, and from the status: "member" (403, not on the team) and "target"
+ * (422, address outside the team).
+ */
+export type DiscoveryFailure =
+  "off" | "unavailable" | "auth" | "access" | "member" | "target" | "noroute" | "toolarge" | "invalid";
 const KINDS = new Set<string>(["unavailable", "auth", "access", "noroute", "toolarge", "invalid"]);
 
 export class DiscoveryError extends Error {
@@ -115,6 +120,9 @@ export async function discoverTools(userToken: string, team: string, upstreamUrl
   // 404: the probe route is not registered in this environment.
   if (res.status === 404) throw new DiscoveryError("off");
   if (res.status === 429) throw new DiscoveryError("unavailable");
+  // Caller errors keep their status: the body says only "access" or "invalid".
+  if (res.status === 403) throw new DiscoveryError("member");
+  if (res.status === 422) throw new DiscoveryError("target");
   const body = await readCapped(res);
   let out: { tools?: unknown; error?: unknown };
   try {
