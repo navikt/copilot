@@ -207,6 +207,13 @@ describe("POST /api/fleet", () => {
     await expect((await post(approve)).json()).resolves.toMatchObject({ error: expect.stringMatching(/Nais Console/) });
   });
 
+  it("tells a team outside the pilot so, not that it lacks access", async () => {
+    fetch.mockResolvedValueOnce(status(403, "Forbidden", "writes are not enabled for this team in this cluster"));
+    await expect((await post(approve)).json()).resolves.toMatchObject({
+      error: "Teamet ditt er ikke med i piloten ennå. Skriv i #ki-produktutvikling-diskusjon hvis dere vil være med.",
+    });
+  });
+
   it("marks the field from details.causes, and falls back to the detail for unknown fields", async () => {
     fetch.mockResolvedValueOnce(status(422, "Invalid", "route.upstream_url: host must be docs.team-a", ["spec"]));
     let out = await (await post(register)).json();
