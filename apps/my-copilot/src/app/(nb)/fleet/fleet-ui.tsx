@@ -429,8 +429,12 @@ export function TeamSections({ teams, me }: { teams: TeamData[]; me?: string }) 
                         <Table.Row>
                           <Table.HeaderCell scope="col">MCP-server</Table.HeaderCell>
                           <Table.HeaderCell scope="col">Status</Table.HeaderCell>
-                          <Table.HeaderCell scope="col">Neste steg</Table.HeaderCell>
-                          <Table.HeaderCell scope="col">Publisert versjon</Table.HeaderCell>
+                          <Table.HeaderCell scope="col" className="whitespace-nowrap">
+                            Neste steg
+                          </Table.HeaderCell>
+                          <Table.HeaderCell scope="col" className="whitespace-nowrap">
+                            Publisert versjon
+                          </Table.HeaderCell>
                         </Table.Row>
                       </Table.Header>
                       <Table.Body>
@@ -534,7 +538,9 @@ export function AgentTable({ t }: { t: TeamData }) {
                 <Table.Row>
                   <Table.HeaderCell scope="col">Navn</Table.HeaderCell>
                   <Table.HeaderCell scope="col">Status</Table.HeaderCell>
-                  <Table.HeaderCell scope="col">MCP-servere</Table.HeaderCell>
+                  <Table.HeaderCell scope="col" className="whitespace-nowrap">
+                    MCP-servere
+                  </Table.HeaderCell>
                 </Table.Row>
               </Table.Header>
               <Table.Body>
@@ -703,7 +709,9 @@ export function PendingInbox({ agents }: { agents: AgentProfile[] }) {
                 <Table.Row>
                   <Table.HeaderCell scope="col">Agentprofil</Table.HeaderCell>
                   <Table.HeaderCell scope="col">Fra team</Table.HeaderCell>
-                  <Table.HeaderCell scope="col">Venter på tilgang</Table.HeaderCell>
+                  <Table.HeaderCell scope="col" className="whitespace-nowrap">
+                    Venter på tilgang
+                  </Table.HeaderCell>
                   <Table.HeaderCell scope="col">Handling</Table.HeaderCell>
                 </Table.Row>
               </Table.Header>
@@ -786,7 +794,9 @@ function Detaljer({ rows }: { rows: [string, ReactNode][] }) {
           <Table.Body>
             {rows.map(([k, v]) => (
               <Table.Row key={k}>
-                <Table.HeaderCell scope="row">{k}</Table.HeaderCell>
+                <Table.HeaderCell scope="row" className="whitespace-nowrap">
+                  {k}
+                </Table.HeaderCell>
                 <Table.DataCell>{v}</Table.DataCell>
               </Table.Row>
             ))}
@@ -1195,7 +1205,9 @@ function Versjoner({ server, next }: { server: MCPServer; next: MCPServerSpec })
           <Table.Body>
             {rows.map(([k, v], i) => (
               <Table.Row key={k}>
-                <Table.HeaderCell scope="row">{k}</Table.HeaderCell>
+                <Table.HeaderCell scope="row" className="whitespace-nowrap">
+                  {k}
+                </Table.HeaderCell>
                 {!none && <Table.DataCell className="[overflow-wrap:anywhere]">{now[i][1]}</Table.DataCell>}
                 <Table.DataCell className="[overflow-wrap:anywhere]">
                   {none ? k === "Verktøy" ? <ToolDiff next={next.allowedTools} /> : v : value(k, v, i)}

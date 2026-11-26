@@ -371,7 +371,7 @@ export function SectionLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   return (
     <div className="max-w-7xl mx-auto lg:flex">
-      <nav aria-label={sectionFor(pathname).title} className="hidden lg:block w-60 shrink-0 section-nav">
+      <nav aria-label={sectionFor(pathname).title} className="hidden lg:block w-72 shrink-0 section-nav">
         <div className="sticky top-4">
           <SectionTitle of={pathname} />
           <SectionMenu />

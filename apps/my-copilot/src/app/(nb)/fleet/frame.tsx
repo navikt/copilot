@@ -94,7 +94,7 @@ export function FleetFrame({
             wrap={false}
           >
             {!bare && (
-              <Box as="aside" className="w-full md:w-56 shrink-0">
+              <Box as="aside" className="w-full md:w-64 shrink-0">
                 <FleetNav {...nav} />
               </Box>
             )}

@@ -6,7 +6,7 @@ import { CodeBlock } from "@/components/code-block";
 import { detectOs, noSubscribe } from "@/components/install-picker";
 import { UPGRADE_COMMANDS, type UpgradeMethod } from "@/lib/install-commands";
 
-// "Oppgrader først" at the top of the nav-pilot guides. Opens on the visitor's
+// "Oppgrader verktøyene først" at the top of the nav-pilot guides. Opens on the visitor's
 // OS: Homebrew on a Mac, apt elsewhere (the recommended Linux and WSL route).
 export function UpgradeSnippet() {
   const os = useSyncExternalStore(noSubscribe, detectOs, () => "mac" as const);
@@ -14,7 +14,7 @@ export function UpgradeSnippet() {
   const method = picked ?? (os === "mac" ? "brew" : "apt");
 
   return (
-    <ReadMore header="Oppgrader først: nav-pilot, cplt og klienten">
+    <ReadMore header="Oppgrader verktøyene først">
       <VStack gap="space-12">
         <ToggleGroup
           aria-label="Hvordan installerte du nav-pilot?"
