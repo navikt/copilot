@@ -62,11 +62,11 @@ func TestRealPostgresApprovalModel(t *testing.T) {
 	}
 
 	// Approve: owners and the submitter cannot, outsiders get 404.
-	e.want(403, "POST", base+"/svc/approval", person("B444444"), gen1)
-	e.want(403, "POST", base+"/svc/approval", person("B555555"), gen1)
+	e.wantReason(403, ReasonNotPlatformTeam, "POST", base+"/svc/approval", person("B444444"), gen1)
+	e.wantReason(403, ReasonNotPlatformTeam, "POST", base+"/svc/approval", person("B555555"), gen1)
 	e.want(404, "POST", base+"/svc/approval", person("A555555"), gen1)
 	e.srv.operatorTeam = ""
-	e.want(403, "POST", base+"/svc/approval", person("B555555"), gen1)
+	e.wantReason(403, ReasonNotPlatformTeam, "POST", base+"/svc/approval", person("B555555"), gen1)
 	e.want(404, "POST", base+"/svc/approval", person("C222222"), gen1)
 	e.srv.operatorTeam = "copilot"
 	m = decodeServer(t, e.want(200, "POST", base+"/svc/approval", person("C222222"), gen1))

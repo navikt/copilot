@@ -94,7 +94,7 @@ const pendingValidity = 30 * 24 * time.Hour
 
 // errPendingExpired is 410 for an approval on a generation past pendingValidity.
 func errPendingExpired(gen int) error {
-	return stErr(http.StatusGone, "Expired", "generation %d waited more than 30 days for approval and has expired; submit it again", gen)
+	return stErr(http.StatusGone, ReasonExpired, "generation %d waited more than 30 days for approval and has expired; submit it again", gen)
 }
 
 var uuidRe = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)

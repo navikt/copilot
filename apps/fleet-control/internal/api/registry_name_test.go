@@ -72,7 +72,7 @@ func TestRealPostgresRegistryNamePrefix(t *testing.T) {
 	m = decodeServer(t, e.want(201, "POST", nsBase+"copilot/mcpservers", person("A111111"), registryServerJSON("copilot", "playwright-mcp", "com.microsoft/playwright-mcp")))
 	e.want(200, "POST", nsBase+"copilot/mcpservers/playwright-mcp/approval", person("C222222"), approval(1, m.Status.Pending.ContentHash))
 	m = decodeServer(t, e.want(201, "POST", nsBase+"copilot/mcpservers", person("A111111"), registryServerJSON("copilot", "svc", "No.Nav.Team-A/svc")))
-	e.want(409, "POST", nsBase+"copilot/mcpservers/svc/approval", person("C222222"), approval(1, m.Status.Pending.ContentHash))
+	e.wantReason(409, ReasonRegistryNameTaken, "POST", nsBase+"copilot/mcpservers/svc/approval", person("C222222"), approval(1, m.Status.Pending.ContentHash))
 }
 
 // A generation published before #2853 under a foreign name is not republished

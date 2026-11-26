@@ -18,11 +18,10 @@ const fail = (error: string, status: number, detail?: string, fields?: Record<st
 const NO_ACCESS = (team: string) =>
   `Du har ikke tilgang. Bare medlemmer av ${team} kan gjøre dette. Er du på teamet, be en eier legge deg til i Nais Console.`;
 
-// fleet-control's 403 on approval has no distinct reason, so the exact message decides; anything else is NO_ACCESS.
-const SELF_APPROVAL = "the submitter cannot approve their own generation";
+// The 403 reason decides (apps/fleet-control/internal/api/reasons.json); anything else is NO_ACCESS.
+// shortcut: the message match is the fallback for fleet-control without reasons; drop it one release after #3086.
 const NO_PERSON = "the pending generation has no person as submitter; a person must submit it again";
 const NO_OID = "the approver has no object id";
-const NOT_IN_PILOT = "writes are not enabled for this team in this cluster";
 const SELF_GRANT = "the submitter cannot grant access to their own profile";
 
 /**
@@ -125,18 +124,14 @@ function failure(err: unknown, team: string, name: string, generation: number, w
   const detail = fce?.detail ?? "";
   if (status === 401) return fail("Du er logget ut. Last inn siden på nytt og logg inn.", 401);
   if (status === 403) {
-    if (detail === SELF_APPROVAL)
-      return fail(`Du sendte inn versjon ${generation} selv. En annen på ${team} må godkjenne den.`, 403);
-    if (detail === NO_PERSON)
+    const reason = fce?.reason;
+    const legacy = !reason || reason === "Forbidden";
+    if (reason === "SubmitterNotPerson" || (legacy && detail === NO_PERSON))
       return fail(`Ingen person sendte inn versjon ${generation}. Noen på ${team} må sende den inn på nytt.`, 403);
-    if (detail === SELF_GRANT) return fail(`Du sendte inn agentprofilen selv. En annen på ${team} må gi tilgang.`, 403);
-    if (detail === NO_OID)
+    if (reason === "SelfApproval" || (legacy && detail === SELF_GRANT))
+      return fail(`Du sendte inn agentprofilen selv. En annen på ${team} må gi tilgang.`, 403);
+    if (reason === "ApproverNoOid" || (legacy && detail === NO_OID))
       return fail("Fleet kjenner ikke igjen innloggingen din. Logg ut, logg inn og prøv igjen.", 403);
-    if (detail === NOT_IN_PILOT)
-      return fail(
-        "Teamet ditt er ikke med i piloten ennå. Skriv i #ki-produktutvikling-diskusjon hvis dere vil være med.",
-        403
-      );
     return fail(NO_ACCESS(team), 403);
   }
   if (status === 404) return fail(`Fant ikke ${what}, eller du har ikke tilgang.`, 404);

@@ -213,7 +213,7 @@ func listProfilesNS(w http.ResponseWriter, r *http.Request, c caller, db *DB) er
 // profiles whose pending generation waits for a grant from the caller's teams.
 func listAwaitingProfiles(w http.ResponseWriter, r *http.Request, c caller, db *DB) error {
 	if r.URL.Query().Get("awaitingApprovalBy") != "me" {
-		return stErr(http.StatusBadRequest, "BadRequest", "only ?awaitingApprovalBy=me is supported")
+		return stErr(http.StatusBadRequest, ReasonBadRequest, "only ?awaitingApprovalBy=me is supported")
 	}
 	items, err := db.awaitingProfiles(r.Context(), c)
 	if err != nil {
@@ -381,11 +381,11 @@ func (s *server) submitProfileHTTP(w http.ResponseWriter, r *http.Request, c cal
 func grantTeamGuard(c caller, ns string, ref TypedRef) error {
 	switch {
 	case !dnsLabelRegex.MatchString(ref.Namespace) || !dnsLabelRegex.MatchString(ref.Name):
-		return stErr(http.StatusBadRequest, "BadRequest", "serverRef must have DNS-label namespace and name")
+		return stErr(http.StatusBadRequest, ReasonBadRequest, "serverRef must have DNS-label namespace and name")
 	case c.in(ref.Namespace):
 		return nil
 	case c.in(ns):
-		return stErr(http.StatusForbidden, "Forbidden", "only the owner team of MCP server %s can act on its grant", ref.key())
+		return stErr(http.StatusForbidden, ReasonNotServerOwnerTeam, "only the owner team of MCP server %s can act on its grant", ref.key())
 	}
 	return errV1NotFound
 }
@@ -398,7 +398,7 @@ func approveProfile(w http.ResponseWriter, r *http.Request, c caller, db *DB) er
 		ContentHash string   `json:"contentHash"`
 	}
 	if err := decodeBody(w, r, &body); err != nil {
-		return stErr(http.StatusBadRequest, "BadRequest", "%v", err)
+		return stErr(http.StatusBadRequest, ReasonBadRequest, "%v", err)
 	}
 	if err := grantTeamGuard(c, ns, body.ServerRef); err != nil {
 		return err
@@ -416,7 +416,7 @@ func (s *server) revokeProfile(w http.ResponseWriter, r *http.Request, c caller,
 		ServerRef *TypedRef `json:"serverRef"`
 	}
 	if err := decodeBody(w, r, &body); err != nil {
-		return stErr(http.StatusBadRequest, "BadRequest", "%v", err)
+		return stErr(http.StatusBadRequest, ReasonBadRequest, "%v", err)
 	}
 	by := ""
 	var err error
@@ -778,7 +778,7 @@ func (d *DB) insertProfileGeneration(ctx context.Context, c caller, m ObjectMeta
 				return err
 			}
 			if tag.RowsAffected() == 0 {
-				return stErr(http.StatusConflict, "AlreadyExists", "agentprofiles %q already exists", name)
+				return stErr(http.StatusConflict, ReasonAlreadyExists, "agentprofiles %q already exists", name)
 			}
 		}
 		row, err := scanProfileRow(tx.QueryRow(ctx, `SELECT `+profileRowCols+` FROM agent_profile_resources r WHERE r.namespace = $1 AND r.name = $2 FOR UPDATE`, ns, name))
@@ -815,7 +815,7 @@ func (d *DB) insertProfileGeneration(ctx context.Context, c caller, m ObjectMeta
 			return err
 		}
 		if taken {
-			return conflict("spec.identity.entraClientID", "FieldValueDuplicate", "the client id is in another live profile")
+			return conflict("spec.identity.entraClientID", ReasonClientIDInUse, "the client id is in another live profile")
 		}
 		gen := row.Latest + 1
 		specJSON, _ := json.Marshal(spec)
@@ -826,7 +826,7 @@ func (d *DB) insertProfileGeneration(ctx context.Context, c caller, m ObjectMeta
 		}
 		// Written as both entra_client_id and {issuer, subject} (#2896).
 		if entraIssuer == "" {
-			return stErr(http.StatusServiceUnavailable, "ServiceUnavailable", "the identity issuer is not configured")
+			return stErr(http.StatusServiceUnavailable, ReasonIssuerNotConfigured, "the identity issuer is not configured")
 		}
 		if _, err := tx.Exec(ctx, `INSERT INTO agent_profile_generations (namespace, name, generation, spec, spec_hash, entra_client_id, submitted_by, submitted_by_kind,
 			submitted_by_oid, identity_verified_at, grant_hashes, identity_issuer, identity_subject)
@@ -873,7 +873,7 @@ func (d *DB) grantProfile(ctx context.Context, c caller, ns, name string, gen in
 			return err
 		}
 		if row.Pending == nil || *row.Pending != gen {
-			return conflict("generation", "FieldValueInvalid", "generation %d is not the one awaiting approval", gen)
+			return conflict("generation", ReasonGenerationNotPending, "generation %d is not the one awaiting approval", gen)
 		}
 		g, err := loadProfileGen(ctx, tx, ns, name, gen)
 		if err != nil {
@@ -883,7 +883,7 @@ func (d *DB) grantProfile(ctx context.Context, c caller, ns, name string, gen in
 		i := slices.IndexFunc(g.Spec.Grants, func(gr AgentGrantV1) bool { return gr.ServerRef.key() == ref.key() })
 		if !ok || i < 0 {
 			// Before the expiry check: only a grant in this generation may write an approval_expired row.
-			return conflict("serverRef", "FieldValueNotFound", "generation %d grants nothing on %s", gen, ref.key())
+			return conflict("serverRef", ReasonGrantNotInGeneration, "generation %d grants nothing on %s", gen, ref.key())
 		}
 		now, err := txNow(ctx, tx)
 		if err != nil {
@@ -897,11 +897,11 @@ func (d *DB) grantProfile(ctx context.Context, c caller, ns, name string, gen in
 		}
 		switch {
 		case want != hash || !strings.HasPrefix(hash, canon.Prefix):
-			return conflict("contentHash", "FieldValueInvalid", "contentHash does not match the grant on %s", ref.key())
+			return conflict("contentHash", ReasonContentHashMismatch, "contentHash does not match the grant on %s", ref.key())
 		case g.SubKind != "User" || g.SubOid == nil:
-			return stErr(http.StatusForbidden, "Forbidden", "the pending generation has no person as submitter; a person must submit it again")
+			return stErr(http.StatusForbidden, ReasonSubmitterNotPerson, "the pending generation has no person as submitter; a person must submit it again")
 		case *g.SubOid == c.Oid || g.SubName == c.Ident:
-			return stErr(http.StatusForbidden, "Forbidden", "the submitter cannot grant access to their own profile")
+			return stErr(http.StatusForbidden, ReasonSelfApproval, "the submitter cannot grant access to their own profile")
 		}
 		// FOR SHARE waits for, and blocks, a concurrent server write.
 		if _, err = tx.Exec(ctx, `SELECT 1 FROM servers WHERE namespace = $1 AND name = $2 FOR SHARE`, ref.Namespace, ref.Name); err != nil {
@@ -916,7 +916,7 @@ func (d *DB) grantProfile(ctx context.Context, c caller, ns, name string, gen in
 			return err
 		}
 		if tag.RowsAffected() == 0 {
-			return conflict("serverRef", "FieldValueDuplicate", "access to %s is already granted", ref.key())
+			return conflict("serverRef", ReasonAlreadyGranted, "access to %s is already granted", ref.key())
 		}
 		if err := auditV1(ctx, tx, c, "agent_profile_access_granted", "AgentProfile", ns, name, &gen, map[string]any{"server": ref.key(), "contentHash": hash}); err != nil {
 			return err
@@ -947,7 +947,7 @@ func (d *DB) grantProfile(ctx context.Context, c caller, ns, name string, gen in
 			return err
 		}
 		if stale {
-			return conflict("serverRef", "InvalidState", "a grant was revoked, or its server revoked, after it was given; submit the profile again")
+			return conflict("serverRef", ReasonGrantRevokedSinceApproval, "a grant was revoked, or its server revoked, after it was given; submit the profile again")
 		}
 		if err := releaseExpiredClientIDs(ctx, tx, g.ClientID); err != nil {
 			return err
@@ -955,7 +955,7 @@ func (d *DB) grantProfile(ctx context.Context, c caller, ns, name string, gen in
 		if _, err := tx.Exec(ctx, `UPDATE agent_profile_resources SET published_generation = $3, pending_generation = NULL, revoked = false,
 			published_client_id = CASE WHEN $5 THEN $4::uuid END WHERE namespace = $1 AND name = $2`, ns, name, gen, g.ClientID, g.VerifiedAt != nil); err != nil {
 			if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok && pgErr.Code == "23505" {
-				return conflict("spec.identity.entraClientID", "FieldValueDuplicate", "the client id is in another live profile")
+				return conflict("spec.identity.entraClientID", ReasonClientIDInUse, "the client id is in another live profile")
 			}
 			return err
 		}
@@ -987,7 +987,7 @@ func (d *DB) revokeProfileV1(ctx context.Context, c caller, by, ns, name, reason
 			}
 		}
 		if row.Published == nil || row.Revoked {
-			return conflict("", "InvalidState", "profile is not published")
+			return conflict("", ReasonNotPublished, "profile is not published")
 		}
 		if ref != nil {
 			tag, err := tx.Exec(ctx, `UPDATE agent_profile_grants SET revoked_at = clock_timestamp() WHERE namespace = $1 AND name = $2 AND generation = $3 AND server = $4 AND revoked_at IS NULL`,
@@ -996,7 +996,7 @@ func (d *DB) revokeProfileV1(ctx context.Context, c caller, by, ns, name, reason
 				return err
 			}
 			if tag.RowsAffected() == 0 {
-				return conflict("serverRef", "InvalidState", "no active grant on %s", ref.key())
+				return conflict("serverRef", ReasonNoActiveGrant, "no active grant on %s", ref.key())
 			}
 			// Touch the resource so resourceVersion moves.
 			if _, err := tx.Exec(ctx, `UPDATE agent_profile_resources SET revoked = revoked WHERE namespace = $1 AND name = $2`, ns, name); err != nil {
