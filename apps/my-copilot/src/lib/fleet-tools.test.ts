@@ -9,10 +9,9 @@ vi.mock("@/lib/backend-api", async (orig) => ({
 
 import { DiscoveryError, MAX_BODY_BYTES, discoverTools, parseTools } from "./fleet-tools";
 
-const json = (result: unknown, headers: Record<string, string> = {}) =>
-  new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, result }), {
-    headers: { "content-type": "application/json", ...headers },
-  });
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+const URL_ = "http://docs.team-a/mcp";
 
 const kind = (p: Promise<unknown>) =>
   p.then(
@@ -67,61 +66,66 @@ describe("discoverTools", () => {
     vi.stubGlobal("fetch", fetch);
   });
 
-  it("calls tools/list through the gateway with the person's OBO token and the session id", async () => {
-    fetch
-      .mockResolvedValueOnce(json({ protocolVersion: "2025-06-18" }, { "mcp-session-id": "s1" }))
-      .mockResolvedValueOnce(new Response(null, { status: 202 }))
-      .mockResolvedValueOnce(
-        new Response('event: message\ndata: {"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"a"}]}}\n\n', {
-          headers: { "content-type": "text/event-stream" },
-        })
-      );
-    await expect(discoverTools("user-token", "team-a", "docs")).resolves.toEqual([
-      { name: "a", suggestedRisk: "write", destructive: true },
+  it("calls the probe with the person's OBO token, the team and the address", async () => {
+    fetch.mockResolvedValueOnce(json({ tools: [{ name: "a", title: "A", annotations: { readOnlyHint: true } }] }));
+    await expect(discoverTools("user-token", "team-a", URL_)).resolves.toEqual([
+      { name: "a", suggestedRisk: "read", destructive: false },
     ]);
     expect(exchange).toHaveBeenCalledWith("user-token", "fleet-gateway");
-    const [url, init] = fetch.mock.calls[2];
-    expect(url).toBe("https://gw/mcp/team-a/docs");
+    const [url, init] = fetch.mock.calls[0];
+    expect(url).toBe("https://gw/probe/v1/tools");
+    expect(init.method).toBe("POST");
     expect(init.headers.Authorization).toBe("Bearer obo-token");
-    expect(init.headers["Mcp-Session-Id"]).toBe("s1");
-    expect(JSON.parse(init.body).method).toBe("tools/list");
+    expect(JSON.parse(init.body)).toEqual({ team: "team-a", upstream_url: URL_ });
   });
+
+  it.each(["unavailable", "auth", "access", "noroute", "toolarge", "invalid"])(
+    "passes the probe's error kind %s through",
+    async (k) => {
+      fetch.mockResolvedValueOnce(json({ error: k }, k === "unavailable" ? 503 : 502));
+      expect(await kind(discoverTools("t", "team-a", URL_))).toBe(k);
+    }
+  );
 
   it.each([
-    [403, "access"],
-    [502, "access"],
-    [503, "access"],
-    [401, "auth"],
-    [404, "noroute"],
-    [400, "invalid"],
-  ])("answers %i as %s", async (status, want) => {
-    fetch.mockResolvedValueOnce(new Response("{}", { status }));
-    expect(await kind(discoverTools("t", "team-a", "docs"))).toBe(want);
+    ["404, the probe is off", new Response("404 page not found", { status: 404 }), "off"],
+    ["429, rate limited", json({ error: "unavailable" }, 429), "unavailable"],
+    ["403, not on the team", json({ error: "access" }, 403), "member"],
+    ["422, address outside the team", json({ error: "invalid" }, 422), "target"],
+    ["an unknown kind", json({ error: "secret detail" }, 502), "unavailable"],
+    ["a non-JSON error", new Response("oops", { status: 500 }), "unavailable"],
+    ["a 200 without JSON", new Response("oops"), "invalid"],
+    ["a 200 with bad tools", json({ tools: [{ name: "a/b" }] }), "invalid"],
+  ])("answers %s", async (_, res, want) => {
+    fetch.mockResolvedValueOnce(res);
+    expect(await kind(discoverTools("t", "team-a", URL_))).toBe(want);
   });
 
-  it("treats a connection error as the accessPolicy check", async () => {
+  it("treats a connection error as unavailable", async () => {
     fetch.mockRejectedValueOnce(new TypeError("fetch failed"));
-    expect(await kind(discoverTools("t", "team-a", "docs"))).toBe("access");
+    expect(await kind(discoverTools("t", "team-a", URL_))).toBe("unavailable");
   });
 
   it("caps the response size, by header and by body", async () => {
     fetch.mockResolvedValueOnce(new Response("{}", { headers: { "content-length": String(MAX_BODY_BYTES + 1) } }));
-    expect(await kind(discoverTools("t", "team-a", "docs"))).toBe("toolarge");
+    expect(await kind(discoverTools("t", "team-a", URL_))).toBe("toolarge");
     fetch.mockResolvedValueOnce(new Response("x".repeat(MAX_BODY_BYTES + 1)));
-    expect(await kind(discoverTools("t", "team-a", "docs"))).toBe("toolarge");
+    expect(await kind(discoverTools("t", "team-a", URL_))).toBe("toolarge");
   });
 
-  it("is unavailable without FLEET_GATEWAY_URL, and refuses bad names, before any call", async () => {
-    expect(await kind(discoverTools("t", "../x", "docs"))).toBe("invalid");
+  it("is off without FLEET_GATEWAY_URL, and refuses bad input, before any call", async () => {
+    expect(await kind(discoverTools("t", "../x", URL_))).toBe("invalid");
+    expect(await kind(discoverTools("t", "team-a", "not a url"))).toBe("invalid");
+    expect(await kind(discoverTools("t", "team-a", "http://x/" + "a".repeat(2048)))).toBe("invalid");
     vi.stubEnv("FLEET_GATEWAY_URL", "");
-    expect(await kind(discoverTools("t", "team-a", "docs"))).toBe("unavailable");
+    expect(await kind(discoverTools("t", "team-a", URL_))).toBe("off");
     expect(fetch).not.toHaveBeenCalled();
     expect(exchange).not.toHaveBeenCalled();
   });
 
   it("fails when the token exchange fails", async () => {
     exchange.mockRejectedValueOnce(new Error("no"));
-    expect(await kind(discoverTools("t", "team-a", "docs"))).toBe("auth");
+    expect(await kind(discoverTools("t", "team-a", URL_))).toBe("auth");
     expect(fetch).not.toHaveBeenCalled();
   });
 });

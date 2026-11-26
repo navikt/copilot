@@ -5,13 +5,11 @@ import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import {
   Alert,
-  BodyLong,
   BodyShort,
   Box,
   Button,
   Checkbox,
   CheckboxGroup,
-  CopyButton,
   ExpansionCard,
   FormProgress,
   Heading,
@@ -41,7 +39,7 @@ import {
   type WizardState,
   type WizardTool,
 } from "@/lib/fleet-wizard";
-import { FleetTable } from "../fleet-ui";
+import { FleetTable, ToolDiscovery, pathOf } from "../fleet-ui";
 import { DATA_HREF, EFFECT, LEVELS_HREF } from "@/lib/mcp-labels";
 import { linkClass } from "@/components/nav-pilot/doc-page";
 
@@ -50,13 +48,6 @@ const RISK_HELP: Record<Risk, string> = {
   propose: EFFECT.propose.text,
   write: EFFECT.acts.text,
 };
-
-const FLEET_GATEWAY_POLICY = `spec:
-  accessPolicy:
-    inbound:
-      rules:
-        - application: fleet-gateway
-          namespace: copilot`;
 
 /** Which step a field from /api/fleet belongs to, so a refused submit opens that step. */
 const FIELD_STEP: Record<string, number> = {
@@ -69,12 +60,6 @@ const FIELD_STEP: Record<string, number> = {
   dataCategory: 5,
   readme: 5,
 };
-
-type Discovery =
-  | { state: "idle" }
-  | { state: "busy" }
-  | { state: "ok"; count: number }
-  | { state: "error"; kind: string; message: string };
 
 type Props = {
   teams: string[];
@@ -91,7 +76,6 @@ export function RegisterWizard({ teams, team, apps, requireRos, discoveryEnabled
   const [step, setStep] = useState(1);
   const [reached, setReached] = useState(1);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [discovery, setDiscovery] = useState<Discovery>({ state: "idle" });
   const [newTool, setNewTool] = useState("");
   const [submit, setSubmit] = useState<{ busy?: boolean; error?: string; detail?: string }>({});
   const opts = { requireRos };
@@ -120,48 +104,6 @@ export function RegisterWizard({ teams, team, apps, requireRos, discoveryEnabled
         apps.reduce<Record<string, string[]>>((m, a) => ({ ...m, [a.name]: [...(m[a.name] ?? []), a.environment] }), {})
       )
     : null;
-
-  async function discover() {
-    setDiscovery({ state: "busy" });
-    try {
-      const res = await fetch("/api/fleet/tools", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ namespace: s.team, name: s.name }),
-      });
-      const out = (await res.json().catch(() => ({}))) as {
-        tools?: { name: string; description?: string; suggestedRisk: Risk; destructive: boolean }[];
-        error?: string;
-        kind?: string;
-      };
-      if (!res.ok || !out.tools) {
-        setDiscovery({
-          state: "error",
-          kind: out.kind ?? "access",
-          message: out.error ?? "Vi får ikke kontakt med Fleet akkurat nå. Prøv igjen om litt.",
-        });
-        return;
-      }
-      // The team ticks; destructive tools start unticked. Annotations never decide access.
-      set({
-        tools: out.tools.map((t) => ({
-          name: t.name,
-          description: t.description,
-          allowed: !t.destructive,
-          risk: "",
-          suggested: t.suggestedRisk,
-          destructive: t.destructive,
-        })),
-      });
-      setDiscovery({ state: "ok", count: out.tools.length });
-    } catch {
-      setDiscovery({
-        state: "error",
-        kind: "access",
-        message: "Vi får ikke kontakt med Fleet akkurat nå. Prøv igjen om litt.",
-      });
-    }
-  }
 
   function addTool() {
     const name = newTool.trim();
@@ -329,16 +271,26 @@ export function RegisterWizard({ teams, team, apps, requireRos, discoveryEnabled
                 autoComplete="off"
               />
               {discoveryEnabled && (
-                <VStack gap="space-12" align="start">
-                  <Button variant="secondary" loading={discovery.state === "busy"} onClick={discover} type="button">
-                    Hent verktøy
-                  </Button>
-                  <BodyShort size="small">
-                    Vi kaller <code>tools/list</code> gjennom fleet-gateway som deg. Svaret fyller bare ut neste steg.
-                  </BodyShort>
-                </VStack>
+                <ToolDiscovery
+                  namespace={s.team}
+                  app={s.app}
+                  path={pathOf(s.url.trim())}
+                  // The team ticks; destructive tools start unticked. Annotations never decide access.
+                  onTools={(tools) =>
+                    set({
+                      tools: tools.map((t) => ({
+                        name: t.name,
+                        description: t.description,
+                        allowed: !t.destructive,
+                        risk: "",
+                        suggested: t.suggestedRisk,
+                        destructive: t.destructive,
+                      })),
+                    })
+                  }
+                  onManual={next}
+                />
               )}
-              <DiscoveryResult discovery={discovery} app={s.app} />
             </>
           )}
 
@@ -574,40 +526,5 @@ export function RegisterWizard({ teams, team, apps, requireRos, discoveryEnabled
         </VStack>
       </Box>
     </VStack>
-  );
-}
-
-function DiscoveryResult({ discovery: d, app }: { discovery: Discovery; app: string }) {
-  if (d.state === "ok")
-    return (
-      <Alert variant="success" size="small" role="status">
-        Vi fikk kontakt og fant {d.count} verktøy. Velg hvilke som skal være med i neste steg.
-      </Alert>
-    );
-  if (d.state !== "error") return null;
-  if (d.kind !== "access")
-    return (
-      <Alert variant="warning" size="small">
-        {d.message}
-      </Alert>
-    );
-  return (
-    <Alert variant="error" size="small">
-      <VStack gap="space-12">
-        <BodyLong>{d.message}</BodyLong>
-        <BodyLong>
-          Legg dette til i <code>nais.yaml</code> for {app ? <code>{app}</code> : "appen"}, deploy på nytt og prøv
-          igjen:
-        </BodyLong>
-        <Box background="neutral-soft" padding="space-12" borderRadius="8">
-          <HStack gap="space-8" justify="space-between" align="start" wrap={false}>
-            <pre className="overflow-x-auto">
-              <code>{FLEET_GATEWAY_POLICY}</code>
-            </pre>
-            <CopyButton copyText={FLEET_GATEWAY_POLICY} text="Kopier" activeText="Kopiert" />
-          </HStack>
-        </Box>
-      </VStack>
-    </Alert>
   );
 }
