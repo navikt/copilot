@@ -12,5 +12,5 @@ innblikk_website_id: "993a4ccf-b469-49ff-8994-f340588086ce"
 memory_request: 256Mi
 # /fleet in prod for the closed fleet-control pilot (copilot#2754). No menu link.
 fleet_control_url: http://fleet-control
-# Empty until the probe is on in prod (#3078).
-fleet_gateway_url: ""
+# «Hent verktøy» through fleet-gateway's probe (#3078).
+fleet_gateway_url: http://fleet-gateway
