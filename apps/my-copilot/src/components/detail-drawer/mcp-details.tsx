@@ -15,41 +15,33 @@ import {
   NAV_PILOT_MCP_TOOLS_MIN_VERSION,
 } from "@/lib/install-commands";
 import { CommandBlock } from "./shared";
-import { isFleetGatewayMcp, isGatewayUrl, riskOf } from "./mcp-meta";
+import { isFleetGatewayMcp, isGatewayUrl, isLocalMcp, riskOf } from "./mcp-meta";
+import { EFFECT, LEVELS_HREF, effectOf, type Effect } from "@/lib/mcp-labels";
 import { enableCommand } from "@/components/mcp/servers";
 
-const RISK_GROUPS: {
-  risk: McpToolRisk;
-  heading: string;
-  text: string;
-  tag: "neutral" | "info" | "warning" | "error";
-}[] = [
-  { risk: "read", heading: "Leser", text: "Henter informasjon. På som standard.", tag: "neutral" },
-  {
-    risk: "write",
-    heading: "Endrer prosjektet",
-    text: "Endrer filer eller data i prosjektet. På som standard.",
-    tag: "info",
-  },
-  {
-    risk: "external",
-    heading: "Gjør noe i et annet system",
-    text: "Gir et synlig resultat utenfor maskinen din, for eksempel en ny issue eller en fil i Figma. Av som standard.",
-    tag: "warning",
-  },
-  {
-    risk: "host-exec",
-    heading: "Kjører utenfor sandkassen",
-    text: "Kjører på maskinen din med dine rettigheter, utenfor cplt-sandkassen. Agenten kan da gjøre alt du kan. Av som standard.",
-    tag: "error",
-  },
-];
+// nav-pilot mcp enable turns on registry risk read and write (the API value, not the label); the rest stay off until the user picks them.
+const ON_BY_DEFAULT = ["read", "write"];
+const onByDefault = (risk: string) => ON_BY_DEFAULT.includes(risk);
+const ORDER: Effect[] = ["read", "propose", "files", "acts", "unsandboxed"];
 
-function McpToolList({ tools, toolRisk }: { tools: string[]; toolRisk?: Record<string, McpToolRisk> }) {
-  const groups = RISK_GROUPS.map((group) => ({
-    ...group,
-    count: tools.filter((tool) => riskOf(toolRisk, tool) === group.risk).length,
-  })).filter((group) => group.count > 0);
+function McpToolList({
+  tools,
+  toolRisk,
+  local,
+}: {
+  tools: string[];
+  toolRisk?: Record<string, McpToolRisk>;
+  local: boolean;
+}) {
+  const effect = (tool: string) => effectOf(riskOf(toolRisk, tool), local);
+  const groups = ORDER.map((e) => {
+    const inGroup = tools.filter((tool) => effect(tool) === e);
+    return {
+      effect: e,
+      count: inGroup.length,
+      on: inGroup.filter((tool) => onByDefault(riskOf(toolRisk, tool))).length,
+    };
+  }).filter((group) => group.count > 0);
   return (
     <VStack gap="space-8">
       <Heading size="xsmall" level="4">
@@ -57,12 +49,12 @@ function McpToolList({ tools, toolRisk }: { tools: string[]; toolRisk?: Record<s
       </Heading>
       <ul className="mcp-tool-list">
         {tools.map((tool) => {
-          const group = RISK_GROUPS.find((g) => g.risk === riskOf(toolRisk, tool))!;
+          const e = EFFECT[effect(tool)];
           return (
             <li key={tool}>
               <code className="verktoy-code-inline">{tool}</code>
-              <Tag size="xsmall" variant={group.tag}>
-                {group.heading}
+              <Tag size="xsmall" variant={e.tag}>
+                {e.label}
               </Tag>
             </li>
           );
@@ -70,13 +62,19 @@ function McpToolList({ tools, toolRisk }: { tools: string[]; toolRisk?: Record<s
       </ul>
       <VStack gap="space-4">
         {groups.map((group) => (
-          <BodyShort key={group.risk} size="small" className="verktoy-subtle">
+          <BodyShort key={group.effect} size="small" className="verktoy-subtle">
             <strong>
-              {group.heading} ({group.count})
+              {EFFECT[group.effect].label} ({group.count})
             </strong>
-            : {group.text}
+            : {EFFECT[group.effect].text}{" "}
+            {group.on === group.count ? "På som standard." : group.on ? "Delvis på som standard." : "Av som standard."}
           </BodyShort>
         ))}
+        <BodyShort size="small" className="verktoy-subtle">
+          <NextLink href={LEVELS_HREF} className={linkClass}>
+            Om verktøynivåene
+          </NextLink>
+        </BodyShort>
       </VStack>
     </VStack>
   );
@@ -175,7 +173,7 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
                   </BodyShort>
                   {offByDefault.length > 0 && (
                     <BodyShort size="small">
-                      Den slår bare på verktøy som leser eller endrer prosjektet. Vil du også ha{" "}
+                      Den slår bare på verktøy som leser eller endrer filer. Vil du også ha{" "}
                       {offByDefault.length === 1 ? "verktøyet" : "verktøyene"} som er av, kjører du kommandoen i en
                       terminal og velger dem, eller legger til <code className="verktoy-code-inline">--tools</code> med
                       alle verktøyene du vil ha på, skilt med komma:{" "}
@@ -377,7 +375,7 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
         </VStack>
       )}
 
-      {tools.length > 0 && <McpToolList tools={tools} toolRisk={item.toolRisk} />}
+      {tools.length > 0 && <McpToolList tools={tools} toolRisk={item.toolRisk} local={isLocalMcp(item)} />}
 
       {item.tags && item.tags.length > 0 && (
         <VStack gap="space-8">

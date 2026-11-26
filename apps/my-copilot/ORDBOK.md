@@ -94,6 +94,23 @@ Fastsatt av eier 23. november 2026, se [#2748](https://github.com/navikt/copilot
 | agentprofil | Bestemmer hvilken app som får bruke hvilke verktøy på hvilke MCP-servere, på vegne av en innlogget bruker |
 | gi tilgang  | Eierteamet gir en konsument tilgang til MCP-serveren. «Tilgang gitt», ikke «rute godkjent»                |
 
+## Verktøynivåer og datakategorier
+
+Fastsatt av eier 26. november 2026, se [#3081](https://github.com/navikt/copilot/issues/3081). Forklart for brukere på `/mcp/referanse`. Verdiene i API-et er uendret.
+
+| Begrep          | Betydning                                                                                                   |
+| --------------- | ----------------------------------------------------------------------------------------------------------- |
+| Leser           | Verktøyet henter eller søker i data og endrer ingenting. Grå. API: `read`                                   |
+| Foreslår        | Verktøyet lager et forslag eller utkast som et menneske må godta. Blå. API: `propose`                       |
+| Endrer filer    | Verktøyet endrer filer i repoet på maskinen din. Blå. Bare lokale servere. API: `write`                     |
+| Utfører         | Verktøyet endrer noe i et annet system. Oransje. API: `external`, og `write` på servere som kjører eksternt |
+| Fri tilgang     | Merke: kjører kommandoer på maskinen utenfor cplt-sandkassen. Rødt. Bare lokale servere. API: `host-exec`   |
+| lokal / ekstern | Står som vanlig tekst ved serveren («Kjører lokalt», «Kjører eksternt»), ikke som nivå                      |
+| Åpne data       | Datakategori `Aapen`. Kan deles med alle                                                                    |
+| Interne data    | Datakategori `Intern`. For ansatte i Nav, ikke personopplysninger                                           |
+| Fortrolige data | Datakategori `Fortrolig`. Kan skade personer eller Nav på avveie                                            |
+| team copilot    | Plattformteamet. Godkjenner endringer i fleet som gir mer tilgang. Ikke «en annen på teamet»                |
+
 ## Verktøykatalog
 
 | Engelsk    | Norsk           | Eksempel i UI               |

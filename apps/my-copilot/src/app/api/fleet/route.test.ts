@@ -210,7 +210,13 @@ describe("POST /api/fleet", () => {
     fetch.mockResolvedValueOnce(status(403, "ApproverNoOid", "reworded"));
     await expect((await post(approve)).json()).resolves.toMatchObject({ error: expect.stringMatching(/Logg ut/) });
     fetch.mockResolvedValueOnce(status(403, "NotPlatformTeam", "the approver has no object id"));
-    await expect((await post(approve)).json()).resolves.toMatchObject({ error: expect.stringMatching(/Nais Console/) });
+    await expect((await post(approve)).json()).resolves.toMatchObject({
+      error: "Team copilot godkjenner MCP-servere. Versjon 3 venter på dem.",
+    });
+    fetch.mockResolvedValueOnce(status(403, "Forbidden", "only the platform team approves MCP server versions"));
+    await expect((await post(approve)).json()).resolves.toMatchObject({
+      error: expect.stringMatching(/^Team copilot/),
+    });
     fetch.mockResolvedValueOnce(status(403, "Forbidden", "not a member"));
     await expect((await post(approve)).json()).resolves.toMatchObject({ error: expect.stringMatching(/Nais Console/) });
   });

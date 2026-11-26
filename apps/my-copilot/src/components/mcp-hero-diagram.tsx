@@ -607,8 +607,8 @@ function Stage({
           <div key={s.route} className={"mh-abs mh-srv" + (hit ? " mh-srv-hit" : "")} style={box(L.sBox(k))}>
             <div className="mh-srv-head">
               <strong>{s.title}</strong>
-              <Tag variant={s.ro ? "info" : "warning"} size="xsmall">
-                {s.ro ? "Leser" : "Skriver"}
+              <Tag variant={s.ro ? "neutral" : "warning"} size="xsmall">
+                {s.ro ? "Leser" : "Utfører"}
               </Tag>
             </div>
             <div className="mh-tools">

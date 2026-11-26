@@ -331,7 +331,40 @@ describe("/fleet", () => {
     expect(screen.getByText(/må sende det inn på nytt/)).toBeInTheDocument();
   });
 
+  it("the overview names «Godkjenn» as the next step only for the platform team", async () => {
+    render(await FleetPage(sp()));
+    expect(screen.queryAllByText("Godkjenn versjon 3")).toHaveLength(0);
+    expect(screen.getAllByText("Venter på team copilot").length).toBeGreaterThan(0);
+    cleanup();
+    stub({
+      [`${API}/whoami`]: { name: "A123456", teams: ["team-a", "copilot"] },
+      [`${API}/namespaces/copilot/mcpservers`]: { items: [] },
+      [`${API}/namespaces/copilot/agentprofiles`]: { items: [] },
+    });
+    render(await FleetPage(sp("team-a")));
+    expect(screen.getAllByText("Godkjenn versjon 3").length).toBeGreaterThan(0);
+  });
+
+  it("shows «Godkjenn» to the platform team only, whoever submitted", async () => {
+    // Owner team, not in copilot: no button, the rule instead.
+    render(await ServerPage(params("team-a", "docs")));
+    expect(screen.queryByRole("button", { name: "Godkjenn versjon 3" })).toBeNull();
+    expect(screen.getByText(/^Versjon 3 venter på team copilot\.$/)).toBeInTheDocument();
+    cleanup();
+    // In copilot and the submitter: self-approval is allowed.
+    const own = server();
+    Object.assign(own.status.pending, { submittedBy: { kind: "User", name: "A123456" } });
+    stub({
+      [`${API}/namespaces/team-a/mcpservers/docs`]: own,
+      [`${API}/whoami`]: { name: "A123456", teams: ["team-a", "copilot"] },
+    });
+    render(await ServerPage(params("team-a", "docs")));
+    expect(screen.getByRole("button", { name: "Godkjenn versjon 3" })).toBeInTheDocument();
+  });
+
   it("offers approval with the pending version, and revocation only while not revoked", async () => {
+    // A copilot member on another team's server (#3095 lists these).
+    stub({ [`${API}/whoami`]: { name: "B654321", teams: ["copilot"] } });
     render(await ServerPage(params("team-a", "docs")));
     expect(screen.getByRole("button", { name: "Godkjenn versjon 3" })).toBeInTheDocument();
     expect(document.querySelector('input[name="contentHash"]')).toHaveValue("h3");
@@ -350,7 +383,7 @@ describe("/fleet", () => {
     expect(screen.queryByRole("button", { name: "Godkjenn versjon 3" })).toBeNull();
     expect(
       screen.getByText(
-        /^Du sendte inn versjon 3 selv\. En annen på team-a må godkjenne den, så du får ikke knappen Godkjenn\. Vil du endre noe/
+        "Versjon 3 venter på team copilot. Vil du endre noe før det, bruk «Endre MCP-serveren» nederst på siden. Det blir en ny versjon som erstatter denne."
       )
     ).toBeInTheDocument();
   });

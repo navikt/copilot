@@ -20,6 +20,7 @@ const NO_ACCESS = (team: string) =>
 
 // The 403 reason decides (apps/fleet-control/internal/api/reasons.json); anything else is NO_ACCESS.
 // shortcut: the message match is the fallback for fleet-control without reasons; drop it one release after #3086.
+const NOT_APPROVER = "only the platform team approves MCP server versions";
 const NO_PERSON = "the pending generation has no person as submitter; a person must submit it again";
 const NO_OID = "the approver has no object id";
 const SELF_GRANT = "the submitter cannot grant access to their own profile";
@@ -39,11 +40,11 @@ function fieldMessage(field: string, detail: string, team: string): [string, str
       return ["tools", "Sjekk verktøyene. Skriv minst ett verktøynavn, og hvert navn bare én gang."];
     case "spec.defaultRisk":
     case "spec.toolRisk":
-      return ["defaultRisk", "Velg Leser, Foreslår eller Skriver for verktøyene."];
+      return ["defaultRisk", "Velg Leser, Foreslår eller Utfører for verktøyene."];
     case "spec.rosRef":
       return [
         "rosRef",
-        "Verktøy som skriver krever en ROS i prod. Lim inn lenken, eller sett verktøy som ikke skriver til «Leser» eller «Foreslår».",
+        "Verktøy som utfører krever en ROS i prod. Lim inn lenken, eller sett verktøyene til «Leser» eller «Foreslår».",
       ];
     case "spec.readme":
       return ["readme", "Beskrivelsen kan være høyst 64 KiB."];
@@ -126,6 +127,8 @@ function failure(err: unknown, team: string, name: string, generation: number, w
   if (status === 403) {
     const reason = fce?.reason;
     const legacy = !reason || reason === "Forbidden";
+    if (reason === "NotPlatformTeam" || (legacy && detail === NOT_APPROVER))
+      return fail(`Team copilot godkjenner MCP-servere. Versjon ${generation} venter på dem.`, 403);
     if (reason === "SubmitterNotPerson" || (legacy && detail === NO_PERSON))
       return fail(`Ingen person sendte inn versjon ${generation}. Noen på ${team} må sende den inn på nytt.`, 403);
     if (reason === "SelfApproval" || (legacy && detail === SELF_GRANT))

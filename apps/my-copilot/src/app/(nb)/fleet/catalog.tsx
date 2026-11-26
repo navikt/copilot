@@ -251,7 +251,7 @@ export function NoTeam() {
         </HStack>
         <HStack gap="space-8" wrap>
           <Chip>Fleet: hvilke team får kalle hva</Chip>
-          <Chip>Godkjenning: to personer i eierteamet</Chip>
+          <Chip>Godkjenning: team copilot</Chip>
         </HStack>
         <Heading level="3" size="small">
           Gjør dette

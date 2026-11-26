@@ -9,6 +9,7 @@ import { LinkButton } from "../../../nav";
 import { FleetProblemAlert, ServerDetail, ServerHeader, ServerStatusTag } from "../../../fleet-ui";
 import { EntryHeader, ServerReadOnly } from "../../../catalog";
 import { fleetGrafanaUrl } from "@/lib/fleet-grafana";
+import { PLATFORM_TEAM } from "@/lib/fleet-approval";
 
 export const metadata: Metadata = { title: "MCP-server", robots: fleetRobots };
 
@@ -49,6 +50,7 @@ export default async function ServerPage({ params, searchParams }: Props) {
       teams: me.teams,
       // The platform team also sees the server; only the owner team gets the edit form.
       inTeam: me.teams.includes(namespace),
+      approver: me.teams.includes(PLATFORM_TEAM),
       agents: pending?.items ?? [],
       agentsFailed: pending === null,
     };
@@ -114,6 +116,7 @@ export default async function ServerPage({ params, searchParams }: Props) {
           me={result.data.me}
           myName={fullName(await getUser(false))}
           owner={result.data.inTeam}
+          approver={result.data.approver}
           agents={result.data.agents}
           agentsFailed={result.data.agentsFailed}
           grafanaUrl={

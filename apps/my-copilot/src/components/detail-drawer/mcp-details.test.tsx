@@ -1,7 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { EnrichedCustomization } from "@/lib/enrich-customizations";
 import { McpDetails, repoLink } from "./mcp-details";
-import { riskCounts, serverPagePath } from "./mcp-meta";
+import { isLocalMcp, riskCounts, serverPagePath } from "./mcp-meta";
+import { effectOf } from "@/lib/mcp-labels";
 
 describe("McpDetails", () => {
   it("renders setup instructions with duplicate titles and commands using safe keys", () => {
@@ -120,6 +121,68 @@ describe("McpDetails", () => {
     expect(screen.getAllByRole("heading")[0]).toHaveTextContent("Koble til");
   });
 
+  it("never shows «Endrer filer» or «Fri tilgang» for a remote server", () => {
+    expect(effectOf("write", false)).toBe("acts");
+    expect(effectOf("host-exec", false)).toBe("acts");
+    expect(effectOf("write", true)).toBe("files");
+    expect(effectOf("host-exec", true)).toBe("unsandboxed");
+    expect(effectOf("unknown", true)).toBe("unsandboxed");
+    expect(effectOf("unknown", false)).toBe("acts");
+    expect(effectOf("external", true)).toBe("acts");
+    expect(effectOf("external", false)).toBe("acts");
+  });
+
+  it("counts a server with a package as local, whatever remote it also lists", () => {
+    const base = {
+      type: "mcp",
+      remotes: [{ type: "sse", url: "https://example.com/sse" }],
+    } as unknown as EnrichedCustomization;
+    expect(isLocalMcp(base)).toBe(false);
+    expect(
+      isLocalMcp({
+        ...base,
+        packages: [{ registryType: "npm", identifier: "x", transport: { type: "stdio" } }],
+      } as EnrichedCustomization)
+    ).toBe(true);
+  });
+
+  it("says «på som standard» by the registry risk, not the label: a remote write is on, external is off", () => {
+    const item = {
+      id: "mcp-x",
+      name: "x",
+      description: "X.",
+      type: "mcp",
+      serverId: "x/x",
+      remotes: [{ type: "sse", url: "https://example.com/sse" }],
+      tools: ["a", "b"],
+      toolRisk: { a: "write", b: "external" },
+      usedBy: [],
+    } as unknown as EnrichedCustomization;
+    render(<McpDetails item={item} />);
+    expect(screen.getByText(/Delvis på som standard/)).toBeInTheDocument();
+  });
+
+  it.each(["playwright-mcp", "chrome-devtools-mcp"])(
+    "%s: local external tools show «Utfører», never «Fri tilgang»",
+    (name) => {
+      const item = {
+        id: `mcp-${name}`,
+        name,
+        description: "Browser.",
+        type: "mcp",
+        serverId: `x/${name}`,
+        packages: [{ registryType: "npm", identifier: name, transport: { type: "stdio" } }],
+        remotes: [],
+        tools: ["click", "navigate"],
+        toolRisk: { click: "external", navigate: "external" },
+        usedBy: [],
+      } as unknown as EnrichedCustomization;
+      render(<McpDetails item={item} />);
+      expect(screen.getAllByText("Utfører").length).toBeGreaterThan(0);
+      expect(screen.queryByText("Fri tilgang")).not.toBeInTheDocument();
+    }
+  );
+
   it("groups tools by risk and says which are off and how to turn them on", () => {
     const item: EnrichedCustomization = {
       id: "mcp-com.jetbrains/intellij",
@@ -144,9 +207,9 @@ describe("McpDetails", () => {
     render(<McpDetails item={item} />);
 
     expect(screen.getByText("Leser (1)")).toBeInTheDocument();
-    expect(screen.getByText("Endrer prosjektet (1)")).toBeInTheDocument();
-    expect(screen.getByText("Kjører utenfor sandkassen (1)")).toBeInTheDocument();
-    expect(screen.queryByText(/Gjør noe i et annet system/)).not.toBeInTheDocument();
+    expect(screen.getByText("Endrer filer (1)")).toBeInTheDocument();
+    expect(screen.getByText("Fri tilgang (1)")).toBeInTheDocument();
+    expect(screen.queryByText(/Utfører/)).not.toBeInTheDocument();
     expect(screen.getByText("--allow-host-exec")).toBeInTheDocument();
     fireEvent.mouseDown(screen.getByRole("tab", { name: "VS Code" }));
     fireEvent.click(screen.getByRole("tab", { name: "VS Code" }));

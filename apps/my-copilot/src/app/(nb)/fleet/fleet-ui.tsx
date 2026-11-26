@@ -38,6 +38,7 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { hasCondition, refKey } from "@/lib/fleet-names";
 import type { AgentProfile, AuditEvent, FleetProblem, MCPServer, MCPServerSpec, ServerRef } from "@/lib/fleet-control";
+import { APPROVAL_RULE, APPROVER, CHANGE_RULE, ownVersionText, waitingText } from "@/lib/fleet-approval";
 
 const linkClass = "text-blue-600 hover:underline";
 
@@ -185,8 +186,7 @@ export function EmptyTeam({ team }: { team: string }) {
           {team} har ingen MCP-servere ennå
         </Heading>
         <BodyLong>
-          Registrer en MCP-server som teamet allerede kjører i Nais. En annen i teamet godkjenner før den blir
-          publisert.
+          Registrer en MCP-server som teamet allerede kjører i Nais. Team copilot godkjenner før den blir publisert.
         </BodyLong>
         <HStack gap="space-16" align="center">
           <Button as={NextLink} href={`/fleet/registrer?team=${team}`}>
@@ -201,7 +201,7 @@ export function EmptyTeam({ team }: { team: string }) {
   );
 }
 
-/** After register or edit: the version waits for someone else on the team. */
+/** After register or edit: the version waits for team copilot unless it gives no more access. */
 export function SubmittedAlert({ server }: { server: MCPServer }) {
   const path = server.status.route?.path ?? `/mcp/${server.metadata.namespace}/${server.metadata.name}`;
   return (
@@ -210,7 +210,8 @@ export function SubmittedAlert({ server }: { server: MCPServer }) {
         {server.metadata.name} er sendt til godkjenning
       </Heading>
       <BodyLong>
-        Adressen <code>{path}</code> blir publisert når en annen på {server.metadata.namespace} godkjenner.
+        Adressen <code>{path}</code> blir publisert når team copilot har godkjent den. Endringer som ikke gir mer
+        tilgang, gjelder med en gang.
       </BodyLong>
     </Alert>
   );
@@ -278,7 +279,17 @@ export function TeamStats({ servers, me }: { servers: MCPServer[]; me?: string }
 }
 
 /** MCP server versions that wait for someone on the team: approve, or wait for the others. */
-export function ServerInbox({ servers, me, myName }: { servers: MCPServer[]; me?: string; myName?: string }) {
+export function ServerInbox({
+  servers,
+  me,
+  myName,
+  approver,
+}: {
+  servers: MCPServer[];
+  me?: string;
+  myName?: string;
+  approver?: boolean;
+}) {
   const waiting = servers.filter((s) => s.status.pending);
   if (!waiting.length) return null;
   return (
@@ -324,15 +335,14 @@ export function ServerInbox({ servers, me, myName }: { servers: MCPServer[]; me?
                     </BodyShort>
                   </HStack>
                   <BodyShort size="small">
-                    <strong>{mine ? "Venter på en annen i teamet:" : "Hvem kan godkjenne:"}</strong>{" "}
-                    {mine ? `alle andre i ${s.metadata.namespace}` : `du og de andre i ${s.metadata.namespace}`}
+                    <strong>{mine ? "Venter på:" : "Hvem kan godkjenne:"}</strong> {APPROVER}
                   </BodyShort>
                 </VStack>
                 <div className="w-full shrink-0 md:w-auto">
                   <Button
                     as={NextLink}
                     href={href}
-                    variant={mine ? "secondary" : "primary"}
+                    variant={mine || !approver ? "secondary" : "primary"}
                     className="w-full md:w-auto"
                   >
                     Se endringen
@@ -371,17 +381,16 @@ function Initials({ name }: { name?: string }) {
 }
 
 /** One short next step per MCP server for the overview table. */
-export function serverShortNext(s: MCPServer, me?: string): string {
+export function serverShortNext(s: MCPServer, approver = false): string {
   const p = s.status.pending;
-  if (p)
-    return !!me && p.submittedBy?.name === me ? "En annen i teamet godkjenner" : "Godkjenn versjon " + p.generation;
+  if (p) return approver ? "Godkjenn versjon " + p.generation : "Venter på " + APPROVER;
   if (hasCondition(s, "Revoked")) return "Send inn en ny versjon";
   return "Ingen";
 }
 
 export type TeamData = { team: string; servers: MCPServer[]; agents: AgentProfile[] };
 
-export function TeamSections({ teams, me }: { teams: TeamData[]; me?: string }) {
+export function TeamSections({ teams, approver }: { teams: TeamData[]; approver?: boolean }) {
   return (
     <VStack gap="space-32">
       {teams.map((t) => (
@@ -419,7 +428,7 @@ export function TeamSections({ teams, me }: { teams: TeamData[]; me?: string }) 
                                   {s.status.route.path}
                                 </Detail>
                               )}
-                              <Detail>{serverShortNext(s, me)}</Detail>
+                              <Detail>{serverShortNext(s, approver)}</Detail>
                             </VStack>
                           </Box>
                         ))}
@@ -460,7 +469,7 @@ export function TeamSections({ teams, me }: { teams: TeamData[]; me?: string }) 
                             <Table.DataCell>
                               <StatusTag s={serverStatus(s)} />
                             </Table.DataCell>
-                            <Table.DataCell>{serverShortNext(s, me)}</Table.DataCell>
+                            <Table.DataCell>{serverShortNext(s, approver)}</Table.DataCell>
                             <Table.DataCell>{s.status.publishedGeneration ?? "–"}</Table.DataCell>
                           </Table.Row>
                         ))}
@@ -840,11 +849,10 @@ export function serverNextStep(s: MCPServer): string {
   const published = s.status.publishedGeneration;
   if (hasCondition(s, "Revoked"))
     return pending
-      ? `En annen person på teamet må godkjenne versjon ${pending} før MCP-serveren blir publisert igjen.`
-      : "Endre MCP-serveren og send inn en ny versjon. Når en annen på teamet har godkjent den, blir MCP-serveren publisert igjen.";
-  if (!hasCondition(s, "Published"))
-    return "En annen person på teamet må godkjenne utkastet før MCP-serveren blir publisert.";
-  if (pending) return `En annen person på teamet må godkjenne versjon ${pending}. Til da gjelder versjon ${published}.`;
+      ? `Team copilot må godkjenne versjon ${pending} før MCP-serveren blir publisert igjen.`
+      : "Endre MCP-serveren og send inn en ny versjon. Når team copilot har godkjent den, blir MCP-serveren publisert igjen.";
+  if (!hasCondition(s, "Published")) return "Team copilot må godkjenne utkastet før MCP-serveren blir publisert.";
+  if (pending) return `Team copilot må godkjenne versjon ${pending}. Til da gjelder versjon ${published}.`;
   return `Ingen. Versjon ${published} er publisert.`;
 }
 
@@ -854,6 +862,7 @@ export function ServerDetail({
   me,
   myName,
   owner = false,
+  approver = false,
   agents = [],
   agentsFailed = false,
   grafanaUrl,
@@ -869,6 +878,8 @@ export function ServerDetail({
   myName?: string;
   // In the owner team: only then the edit form shows. fleet-control checks it again.
   owner?: boolean;
+  // In the platform team: only then «Godkjenn» shows. fleet-control checks it again.
+  approver?: boolean;
   agents?: AgentProfile[];
   agentsFailed?: boolean;
   grafanaUrl?: string;
@@ -877,7 +888,7 @@ export function ServerDetail({
     <VStack gap="space-24">
       {submitted && server.status.pending && <SubmittedAlert server={server} />}
       <BodyLong>Neste steg: {serverNextStep(server)}</BodyLong>
-      <ServerActions server={server} me={me} myName={myName} owner={owner} part="approve" />
+      <ServerActions server={server} me={me} myName={myName} owner={owner} approver={approver} part="approve" />
       {server.status.pending?.spec && (
         <VStack gap="space-8">
           <HStack justify="space-between" align="end" gap="space-8">
@@ -1380,12 +1391,14 @@ function ServerActions({
   me,
   myName,
   owner,
+  approver = false,
   part,
 }: {
   server: MCPServer;
   me?: string;
   myName?: string;
   owner: boolean;
+  approver?: boolean;
   part: "approve" | "rest" | "edit";
 }) {
   const approve = useFleetPost("approve");
@@ -1393,7 +1406,6 @@ function ServerActions({
   const live = hasCondition(server, "Published") && !hasCondition(server, "Revoked");
   const { namespace, name } = server.metadata;
   const pending = server.status.pending;
-  // Hides the button only; fleet-control enforces the two-person rule on approval.
   const ownVersion = !!me && pending?.submittedBy?.name === me;
   const ids = (
     <>
@@ -1408,7 +1420,7 @@ function ServerActions({
           <Heading level="2" size="medium">
             Versjon {pending.generation} venter
           </Heading>
-          <BodyShort size="small">To personer i eierteamet: én sender inn, en annen godkjenner.</BodyShort>
+          <BodyShort size="small">{APPROVAL_RULE}</BodyShort>
           <Stack direction={{ xs: "column", md: "row" }} gap="space-16 space-40">
             <HStack gap="space-8" align="center">
               <Initials name={ownVersion ? myName : undefined} />
@@ -1421,15 +1433,12 @@ function ServerActions({
             </HStack>
             <VStack>
               <Detail>Krever godkjenning fra</Detail>
-              <BodyShort weight="semibold">en annen i {namespace}</BodyShort>
+              <BodyShort weight="semibold">{APPROVER}</BodyShort>
             </VStack>
           </Stack>
-          {ownVersion ? (
-            <BodyShort>
-              Du sendte inn versjon {pending.generation} selv. En annen på {namespace} må godkjenne den, så du får ikke
-              knappen Godkjenn. Vil du endre noe før det, bruk «Endre MCP-serveren» nederst på siden. Det blir en ny
-              versjon som erstatter denne.
-            </BodyShort>
+          {/* The UI only hides the button; fleet-control still decides, and a 403 is shown via route.ts. */}
+          {!approver ? (
+            <BodyShort>{ownVersion ? ownVersionText(pending.generation) : waitingText(pending.generation)}</BodyShort>
           ) : (
             <form onSubmit={approve.onSubmit}>
               <VStack gap="space-8" align={{ xs: "stretch", md: "start" }}>
@@ -1467,7 +1476,7 @@ function ServerActions({
               </Heading>
               {/* shortcut: fleet-control has no rollback yet; the column keeps the sketch's layout. */}
               <BodyShort>
-                Kommer i Fleet.
+                Eierteamet kan rulle tilbake til en tidligere publisert versjon. Kommer i Fleet.
                 {owner &&
                   " Til da: Er feil i oppsettet, endre MCP-serveren og send inn en ny versjon. Er feilen i koden til appen, ruller dere tilbake appen i Nais. Haster det for alle, kan plattformteamet bruke nødstopp i fleet-gateway."}
               </BodyShort>
@@ -1475,7 +1484,7 @@ function ServerActions({
             <ConfirmForm
               onSubmit={revoke.onSubmit}
               heading={`Trekk tilbake ${name}?`}
-              question="Ingen kan bruke MCP-serveren etterpå, og agentene mister tilgangen. For å publisere den igjen må dere sende inn en ny versjon som en annen på teamet godkjenner."
+              question="Ingen kan bruke MCP-serveren etterpå, og agentene mister tilgangen. For å publisere den igjen må dere sende inn en ny versjon som team copilot godkjenner."
               confirm="Trekk tilbake"
               busy={revoke.busy}
               fields={(formId) => (
@@ -1510,9 +1519,7 @@ function ServerActions({
             <ExpansionCard.Title as="h2" size="small">
               Endre MCP-serveren
             </ExpansionCard.Title>
-            <ExpansionCard.Description>
-              Endringen blir en ny versjon. En annen på {server.metadata.namespace} må godkjenne den før den gjelder.
-            </ExpansionCard.Description>
+            <ExpansionCard.Description>Endringen blir en ny versjon. {CHANGE_RULE}</ExpansionCard.Description>
           </ExpansionCard.Header>
           <ExpansionCard.Content>
             <ServerForm server={server} />

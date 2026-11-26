@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import NextLink from "next/link";
 import { notFound } from "next/navigation";
 import { BodyShort, HStack, Tag, VStack } from "@navikt/ds-react";
+import { runsWhere } from "@/lib/mcp-labels";
 import { McpDetails } from "@/components/detail-drawer/mcp-details";
-import { isFleetGatewayMcp, riskCounts, serverPagePath } from "@/components/detail-drawer/mcp-meta";
+import { isFleetGatewayMcp, isLocalMcp, riskCounts, serverPagePath } from "@/components/detail-drawer/mcp-meta";
 import { DocPage, linkClass } from "@/components/nav-pilot/doc-page";
 import { enrichWithUsage } from "@/lib/enrich-customizations";
 import { getMcpServers } from "@/lib/mcp-registry";
@@ -46,6 +47,7 @@ export default async function McpServerPage({ params }: Props) {
           <Tag size="small" variant="info">
             Nav-innlogging
           </Tag>
+          <BodyShort size="small">{runsWhere(isLocalMcp(server))}</BodyShort>
         </HStack>
       }
     >
