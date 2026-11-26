@@ -29,7 +29,7 @@ Not covered, so keep these in your own tests:
 
 Requests send `Accept: application/json, text/event-stream`; the tool reads a JSON or SSE response.
 
-The tool prints a PASS/FAIL/WARN/SKIP table and exits 1 if any check fails.
+The tool prints a PASS/FAIL/WARN/SKIP table. It exits 0 when no check fails, and 1 if any check fails or `server/discover` does not answer 200. A usage error exits 2: a missing `-url`, an unknown flag, or `-max-bytes` not greater than 0. `-h` prints the usage text and also exits 2.
 
 Tokens are read from environment variables, never flags, so they stay out of process lists and shell history. The tool never prints them.
 
@@ -66,7 +66,7 @@ mcp-compliance -url http://localhost:8080/mcp
 
 Kotlin (Ktor or Spring) and TypeScript servers are tested the same way: the tool only speaks HTTP. Start the server with `./gradlew run` or `npm start`, and point `-url` at its MCP endpoint.
 
-`-tool` names a tool that can be called with empty arguments. Without it the tool takes the first entry from `tools/list`. Use `-legacy` while your server still serves the old protocol (`MCP_LEGACY_PROTOCOL_UNTIL`).
+`-tool` names a tool that can be called with empty arguments. Without it the tool takes the first entry from `tools/list`. Use `-legacy` while your server still serves the old protocol (`MCP_LEGACY_PROTOCOL_UNTIL`). `-version` prints the version and exits.
 
 ## Test tokens
 

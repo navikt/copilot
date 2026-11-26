@@ -182,7 +182,7 @@ export function FleetGatewayTeamDiagram() {
     >
       <Defs id={m} />
       <Box x={10} y={60} w={170} h={100} title="Klienten" sub={["Copilot CLI,", "OpenCode"]} />
-      <Box x={260} y={60} w={210} h={100} title="fleet-gateway" sub={["innlogging, ruter", "og tilgang"]} />
+      <Box x={260} y={60} w={210} h={100} title="fleet-gateway" sub={["innlogging og ruter"]} />
       <Box x={260} y={200} w={210} h={90} title="Texas" sub={["OBO-veksling"]} />
 
       <rect x={560} y={20} width={400} height={270} rx="14" className="fg-host" />

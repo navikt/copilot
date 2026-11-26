@@ -111,7 +111,7 @@ export default function McpReferansePage() {
         <BodyLong>
           Samsvarstesten sjekker en MCP-server bak <code className={code}>fleet-gateway</code> mot MCP 2026-07-28 og
           autentiseringsreglene Navs MCP-servere deler. Den snakker bare HTTP, så serveren kan være skrevet i alle
-          språk. Kilden er
+          språk. Kilden er{" "}
           <a href="https://github.com/navikt/copilot/tree/main/cli/mcp-compliance" className={linkClass}>
             README for mcp-compliance
           </a>
@@ -131,15 +131,15 @@ export default function McpReferansePage() {
             </TableHeader>
             <TableBody>
               <TableRow>
-                <TableDataCell>
+                <TableDataCell className="whitespace-nowrap">
                   <code className={code}>-url string</code>
                 </TableDataCell>
                 <TableDataCell>
-                  MCP-endepunktet, for eksempel <code className={code}>http://localhost:8080/mcp</code>. Påkrevd.
+                  MCP-endpointet, for eksempel <code className={code}>http://localhost:8080/mcp</code>. Påkrevd.
                 </TableDataCell>
               </TableRow>
               <TableRow>
-                <TableDataCell>
+                <TableDataCell className="whitespace-nowrap">
                   <code className={code}>-tool string</code>
                 </TableDataCell>
                 <TableDataCell>
@@ -149,7 +149,7 @@ export default function McpReferansePage() {
                 </TableDataCell>
               </TableRow>
               <TableRow>
-                <TableDataCell>
+                <TableDataCell className="whitespace-nowrap">
                   <code className={code}>-legacy</code>
                 </TableDataCell>
                 <TableDataCell>
@@ -158,7 +158,7 @@ export default function McpReferansePage() {
                 </TableDataCell>
               </TableRow>
               <TableRow>
-                <TableDataCell>
+                <TableDataCell className="whitespace-nowrap">
                   <code className={code}>-max-bytes int</code>
                 </TableDataCell>
                 <TableDataCell>
@@ -167,13 +167,13 @@ export default function McpReferansePage() {
                 </TableDataCell>
               </TableRow>
               <TableRow>
-                <TableDataCell>
+                <TableDataCell className="whitespace-nowrap">
                   <code className={code}>-version</code>
                 </TableDataCell>
                 <TableDataCell>Skriver ut versjonen og avslutter.</TableDataCell>
               </TableRow>
               <TableRow>
-                <TableDataCell>
+                <TableDataCell className="whitespace-nowrap">
                   <code className={code}>MCP_COMPLIANCE_TOKEN</code>
                 </TableDataCell>
                 <TableDataCell>
@@ -182,7 +182,7 @@ export default function McpReferansePage() {
                 </TableDataCell>
               </TableRow>
               <TableRow>
-                <TableDataCell>
+                <TableDataCell className="whitespace-nowrap">
                   <code className={code}>MCP_COMPLIANCE_APP_TOKEN</code>
                 </TableDataCell>
                 <TableDataCell>
@@ -315,11 +315,11 @@ export default function McpReferansePage() {
         </div>
         <BodyLong>
           Beskrivelsessjekkene dekker <code className={code}>description</code> for hvert verktøy, hver{" "}
-          <code className={code}>description</code> i<code className={code}>inputSchema</code>, og{" "}
+          <code className={code}>description</code> i <code className={code}>inputSchema</code>, og{" "}
           <code className={code}>title</code> og <code className={code}>annotations.title</code>. FAIL-mønstre (uten
           skille på store og små bokstaver):{" "}
           <code className={code}>ignore (all|any|the) previous|prior (instructions)</code>,{" "}
-          <code className={code}>system prompt</code>,<code className={code}>do not tell the user</code> (også{" "}
+          <code className={code}>system prompt</code>, <code className={code}>do not tell the user</code> (også{" "}
           <code className={code}>{"don't"}</code>) og taggene <code className={code}>{"<system>"}</code> og{" "}
           <code className={code}>{"<instructions>"}</code>. U+061C gir også FAIL; myk bindestrek, U+034F, U+180E og
           variasjonsvelgere gir WARN. Testen skriver bare ut fragmentet som traff, sladdet og kuttet ved 200 tegn.
@@ -334,12 +334,24 @@ export default function McpReferansePage() {
           Resultat og avslutningskode
         </Heading>
         <BodyLong>
-          Testen skriver én rad per sjekk med PASS, FAIL, WARN eller SKIP, og en oppsummeringslinje. Den avslutter med
-          kode 1 hvis en sjekk gir FAIL. WARN og SKIP feiler ikke kjøringen.
+          Testen skriver én rad per sjekk med PASS, FAIL, WARN eller SKIP, og en oppsummeringslinje. WARN og SKIP feiler
+          ikke kjøringen.
         </BodyLong>
+        <Bullets>
+          <li>Kode 0: ingen sjekk ga FAIL.</li>
+          <li>
+            Kode 1: minst én sjekk ga FAIL, eller <code className={code}>server/discover</code> svarte ikke 200.
+          </li>
+          <li>
+            Kode 2: feil bruk. <code className={code}>-url</code> mangler, flagget er ukjent, eller{" "}
+            <code className={code}>-max-bytes</code> er ikke større enn 0. <code className={code}>-h</code> skriver
+            hjelpeteksten og gir også kode 2.
+          </li>
+        </Bullets>
         <Heading size="small" level="3">
-          Dette dekker ikke testen
+          Testen dekker ikke dette
         </Heading>
+        <BodyLong>Behold disse sjekkene i egne tester:</BodyLong>
         <Bullets>
           <li>
             <code className={code}>-32602</code> for manglende eller ugyldig <code className={code}>_meta</code>
@@ -362,12 +374,11 @@ export default function McpReferansePage() {
         </CodeBlock>
         <BodyLong>
           <code className={code}>go install</code> krever Go 1.26 eller nyere. Hver endring i{" "}
-          <code className={code}>cli/mcp-compliance</code> som merges til
-          <code className={code}>main</code>, slippes automatisk med taggen{" "}
-          <code className={code}>cli/mcp-compliance/vX.Y.Z</code>. <code className={code}>@latest</code> tar nyeste
-          tagg, og Homebrew-formelen følger etter innen en time. Bruk <code className={code}>@vX.Y.Z</code> for å låse
-          en versjon. Binærfiler for macOS og Linux (amd64, arm64) og en <code className={code}>SHA256SUMS</code>-fil
-          ligger på hver
+          <code className={code}>cli/mcp-compliance</code> som merges til <code className={code}>main</code>, blir
+          automatisk en release med taggen <code className={code}>cli/mcp-compliance/vX.Y.Z</code>.{" "}
+          <code className={code}>@latest</code> tar nyeste tagg, og Homebrew-formelen følger etter innen en time. Bruk{" "}
+          <code className={code}>@vX.Y.Z</code> for å låse en versjon. Binærfiler for macOS og Linux (amd64, arm64) og
+          en <code className={code}>SHA256SUMS</code>-fil ligger på hver{" "}
           <a href="https://github.com/navikt/copilot/releases?q=mcp-compliance" className={linkClass}>
             release
           </a>
@@ -380,12 +391,12 @@ export default function McpReferansePage() {
         </CodeBlock>
         <BodyLong>
           GitHub Action-en (
-          <code className={code}>uses: navikt/copilot/cli/mcp-compliance@cli/mcp-compliance/v0.2.2</code>) tar inputene
+          <code className={code}>uses: navikt/copilot/cli/mcp-compliance@cli/mcp-compliance/v0.2.2</code>) tar inputene{" "}
           <code className={code}>url</code> (påkrevd), <code className={code}>version</code>,{" "}
           <code className={code}>token</code>, <code className={code}>app-token</code>,{" "}
-          <code className={code}>tool</code>, <code className={code}>args</code> og
+          <code className={code}>tool</code>, <code className={code}>args</code> og{" "}
           <code className={code}>github-token</code> (standard <code className={code}>github.token</code>). Tom{" "}
-          <code className={code}>version</code> bruker releasen Action-en er låst til;
+          <code className={code}>version</code> bruker releasen Action-en er låst til;{" "}
           <code className={code}>latest</code> tar nyeste release, og brukes også, med en melding, når Action-referansen
           er en gren, en SHA eller en lokal sti.
         </BodyLong>

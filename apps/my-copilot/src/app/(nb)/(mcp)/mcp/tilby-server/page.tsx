@@ -312,7 +312,7 @@ export default function FleetGatewayForTeamPage() {
           Hvem får bruke serveren
         </LinkableHeading>
         <BodyLong>
-          Gatewayen sjekker ikke hvem som får bruke serveren, så det må dere gjøre selv. Før opp teamets gruppe i
+          Gatewayen sjekker ikke hvem som får bruke serveren, så det må dere gjøre selv. Før opp teamets gruppe i{" "}
           <code className={code}>claims.groups</code>, og svar 403 når gruppen mangler i tokenet.
         </BodyLong>
         <ReadMore header="Les mer om tilgangsstyring" size="small">
@@ -529,8 +529,8 @@ export default function FleetGatewayForTeamPage() {
           Vanlige feil
         </LinkableHeading>
         <BodyLong>
-          De fleste feil skyldes at fleet-gateway mangler i inbound-regelen (502), eller at tokensjekken i appen feiler
-          (401 eller 403).
+          <code className={code}>upstream_access_missing</code> (502) betyr at fleet-gateway mangler i inbound-regelen.
+          401 og 403 kommer fra tokensjekken i appen deres.
         </BodyLong>
         <ReadMore header="Se feilkodene og årsakene" size="small">
           <VStack gap="space-12">
@@ -580,7 +580,7 @@ export default function FleetGatewayForTeamPage() {
           Ikke logg tokenet, ikke godta det uten å sjekke det med Texas, og ikke send det videre. Slipp bare inn
           fleet-gateway.
         </BodyLong>
-        <ReadMore header="Se hele listen" size="small">
+        <ReadMore header="Se alt dere ikke må gjøre" size="small">
           <VStack gap="space-12">
             <Bullets>
               <li>Logge tokenet, helt eller delvis.</li>
