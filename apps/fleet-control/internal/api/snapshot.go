@@ -149,35 +149,49 @@ var maxTeamRoutesBytes = 64 << 10
 // routesFit refuses servers whose routes snapshot fleet-gateway would reject,
 // or whose routes in namespace ns exceed the team budget. Only the writing
 // team's budget is checked, so a team over budget cannot block other teams.
+// A write that does not grow the total or the team share always passes, so a
+// rollback can repair a snapshot that is already over a limit (#2735).
 // Writes that can grow the snapshot call it before they commit, so the
 // published snapshot never reaches a size that stops all later updates.
-func routesFit(servers []model.Server, ns string) error {
-	snap, err := buildSnapshot("routes", servers, nil)
-	if errors.Is(err, errEmptySnapshot) {
-		return nil
-	}
+func routesFit(before, servers []model.Server, ns string) error {
+	total, team, err := routesSize(servers, ns)
 	if err != nil {
 		return refuse(http.StatusConflict, "routes snapshot would be invalid: %v", err)
 	}
-	if len(snap.Items) > maxRoutesSnapshotBytes {
-		return refuse(http.StatusConflict, "routes snapshot would be %d bytes, over the limit of %d", len(snap.Items), maxRoutesSnapshotBytes)
+	oldTotal, oldTeam, err := routesSize(before, ns)
+	if err != nil {
+		oldTotal, oldTeam = 0, 0 // an invalid current state gives no allowance
+	}
+	if total > maxRoutesSnapshotBytes && total > oldTotal {
+		return refuse(http.StatusConflict, "routes snapshot would be %d bytes, over the limit of %d", total, maxRoutesSnapshotBytes)
+	}
+	if team > maxTeamRoutesBytes && team > oldTeam {
+		return refuse(http.StatusConflict, "routes of team %s would be %d bytes, over the team limit of %d", ns, team, maxTeamRoutesBytes)
+	}
+	return nil
+}
+
+// routesSize gives the size of the routes snapshot and of namespace ns's share.
+func routesSize(servers []model.Server, ns string) (total, team int, err error) {
+	snap, err := buildSnapshot("routes", servers, nil)
+	if errors.Is(err, errEmptySnapshot) {
+		return 0, 0, nil
+	}
+	if err != nil {
+		return 0, 0, err
 	}
 	items, _, _ := snapshotItems("routes", servers) // buildSnapshot succeeded, so this does
-	team := 0
 	for _, it := range items {
 		if it.body.(routeItem).Namespace != ns {
 			continue
 		}
 		b, err := json.Marshal(it.body)
 		if err != nil {
-			return err
+			return 0, 0, err
 		}
 		team += len(b) + 1 // the comma in the array
 	}
-	if team > maxTeamRoutesBytes {
-		return refuse(http.StatusConflict, "routes of team %s would be %d bytes, over the team limit of %d", ns, team, maxTeamRoutesBytes)
-	}
-	return nil
+	return len(snap.Items), team, nil
 }
 
 // snapshotKeys reads the keys back from a stored snapshot.

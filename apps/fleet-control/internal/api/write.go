@@ -97,13 +97,21 @@ func refuse(code int, format string, args ...any) error {
 	return &apiError{code, fmt.Sprintf(format, args...)}
 }
 
-// checkRoutesFit runs routesFit on what tx would publish. The routes snapshot
-// lock serialises it with concurrent approvals and rollbacks, so two writes
-// that each fit cannot together exceed the limit.
-func checkRoutesFit(ctx context.Context, tx pgx.Tx, ns string) error {
+// lockRoutes takes the routes snapshot lock and returns the servers as they
+// are before the write. The lock serialises approvals and rollbacks, so two
+// writes that each fit cannot together exceed the limit.
+// The lock is only correct under READ COMMITTED: each statement after it must
+// see rows that writers holding the lock before us have committed.
+func lockRoutes(ctx context.Context, tx pgx.Tx) ([]model.Server, error) {
 	if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", store.SnapshotLockKey("routes")); err != nil {
-		return err
+		return nil, err
 	}
+	return store.QueryServers(ctx, tx)
+}
+
+// checkRoutesFit runs routesFit on what tx would publish, against before
+// from lockRoutes.
+func checkRoutesFit(ctx context.Context, tx pgx.Tx, ns string, before []model.Server) error {
 	servers, err := store.QueryServers(ctx, tx)
 	if err != nil {
 		return err
@@ -111,7 +119,7 @@ func checkRoutesFit(ctx context.Context, tx pgx.Tx, ns string) error {
 	if routesFitPause != nil {
 		routesFitPause()
 	}
-	return routesFit(servers, ns)
+	return routesFit(before, servers, ns)
 }
 
 // routesFitPause lets a test widen the window between read and commit.
