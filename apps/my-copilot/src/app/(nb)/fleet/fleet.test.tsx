@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { vi } from "vitest";
 
 const cookieJar = new Map<string, string>();
@@ -710,6 +710,59 @@ describe("/fleet", () => {
   });
 });
 
+describe("/fleet/godkjenning", () => {
+  const page = async (team?: string) => render(await (await import("./godkjenning/page")).default(sp(team)));
+  beforeEach(() => {
+    nav.path = "/fleet/godkjenning";
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("FLEET_CONTROL_URL", "http://fc");
+    cookieJar.clear();
+    stub();
+  });
+
+  it("lists what waits on the team: the pending MCP server and the waiting agent profiles", async () => {
+    await page("team-a");
+    expect(screen.getByRole("heading", { name: "Til godkjenning", level: 1 })).toBeInTheDocument();
+    expect(screen.getByText(/docs/)).toBeInTheDocument();
+    expect(screen.getByText(/1 agentprofil venter/)).toBeInTheDocument();
+    expect(screen.queryByText(/Ingenting venter/)).toBeNull();
+  });
+
+  it("says «Ingenting venter» when nothing waits", async () => {
+    const quiet = server();
+    delete (quiet.status as { pending?: unknown }).pending;
+    stub({
+      [`${API}/namespaces/team-a/mcpservers`]: { items: [quiet] },
+      [`${API}/agentprofiles?awaitingApprovalBy=me`]: { items: [] },
+    });
+    await page("team-a");
+    expect(screen.getByText("Ingenting venter på team-a nå.")).toBeInTheDocument();
+  });
+
+  it("tells a person with no team to join one in Nais", async () => {
+    stub({ [`${API}/whoami`]: { name: "A123456", teams: [] } });
+    await page();
+    expect(screen.getByText("Du må være med i et team i Nais for å godkjenne endringer.")).toBeInTheDocument();
+    expect(screen.queryByText(/Ingenting venter/)).toBeNull();
+  });
+
+  it("shows a problem alert when fleet-control fails", async () => {
+    stub({}, { [`${API}/whoami`]: 503 });
+    await page("team-a");
+    expect(screen.getByRole("button", { name: "Prøv igjen" })).toBeInTheDocument();
+    expect(screen.queryByText(/Ingenting venter/)).toBeNull();
+  });
+
+  it("marks «Til godkjenning» as current in the side menu, and only it", async () => {
+    const { container } = await page("team-a");
+    const current = [...container.querySelectorAll('nav[aria-label="Fleet"] [aria-current="page"]')];
+    expect(current.length).toBeGreaterThan(0);
+    for (const e of current) expect(e.textContent).toContain("Til godkjenning");
+  });
+});
+
 describe("ServerInbox avatars", () => {
   const by = (who: string) => {
     const s = server() as unknown as MCPServer;
@@ -731,5 +784,36 @@ describe("ServerInbox avatars", () => {
     const avatar = container.querySelector("[aria-hidden]")!;
     expect(avatar.querySelector("svg")).not.toBeNull();
     expect(avatar.textContent).toBe("");
+  });
+  const initials = (myName?: string) =>
+    render(<ServerInbox servers={[by("Z990001")]} me="Z990001" myName={myName} />).container.querySelector(
+      "[aria-hidden]"
+    )!;
+  it("shows one initial for a one-word name", () => {
+    expect(initials("Madonna").textContent).toBe("M");
+  });
+  it("upper-cases æøå initials", () => {
+    expect(initials("åse østby ærlig").textContent).toBe("ÅØÆ");
+  });
+  it("shows a person icon, not an empty circle, when the name is empty or missing", () => {
+    for (const name of ["", "   ", undefined]) {
+      const avatar = initials(name);
+      expect(avatar.textContent).toBe("");
+      expect(avatar.querySelector("svg")).not.toBeNull();
+      cleanup();
+    }
+  });
+  it("writes «deg» alone without a name, and «Navn (deg)» on the server page with one", async () => {
+    const own = server();
+    Object.assign(own.status.pending, { submittedBy: { kind: "User", name: "A123456" } });
+    const { ServerDetail } = await import("./fleet-ui");
+    const detail = (myName?: string) =>
+      render(<ServerDetail server={own as unknown as MCPServer} events={[]} me="A123456" myName={myName} owner />);
+    detail("Kari Nordmann");
+    expect(screen.getByText("Kari Nordmann (deg)")).toBeInTheDocument();
+    cleanup();
+    detail(undefined);
+    expect(screen.getByText("deg")).toBeInTheDocument();
+    expect(screen.queryByText(/\(deg\)/)).toBeNull();
   });
 });
