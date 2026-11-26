@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"encoding/json"
+	"fmt"
 	"net/url"
 	"os"
 	"sort"
