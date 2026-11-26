@@ -4,8 +4,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"os"
-	"regexp"
 	"testing"
+
+	"go.yaml.in/yaml/v3"
 )
 
 // Once prod reads routes from fleet-control (#2760), pilot-routes.prod.yaml is
@@ -20,7 +21,11 @@ func TestProdRoutesFileFrozenAfterSwitch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !regexp.MustCompile(`(?m)^routes_source:\s*"?fleet-control"?\s*$`).Match(manifest) {
+	var cfg map[string]any
+	if err = yaml.Unmarshal(manifest, &cfg); err != nil {
+		t.Fatal(err)
+	}
+	if cfg["routes_source"] != "fleet-control" {
 		t.Skip("prod still reads routes from the Git file")
 	}
 	raw, err := os.ReadFile("pilot-routes.prod.yaml")

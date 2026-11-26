@@ -227,12 +227,12 @@ Evidence for the switch PR. CI cannot reach prod, so the proof is in Mimir and t
 
 ```promql
 # 0 on every pod for the whole watch window; any other value or a gap resets the clock
-max_over_time(fleet_gateway_routes_shadow_diff{namespace="copilot", k8s_cluster_name="prod-gcp"}[24h])
+max_over_time(fleet_gateway_routes_shadow_diff{namespace="copilot", k8s_cluster_name="prod"}[24h])
 # must be 0: a failed or rejected shadow fetch compares nothing
-increase(fleet_gateway_routes_shadow_failures_total{namespace="copilot", k8s_cluster_name="prod-gcp"}[24h])
+increase(fleet_gateway_routes_shadow_failures_total{namespace="copilot", k8s_cluster_name="prod"}[24h])
 ```
 
-Log line: `fleet-control shadow diff` with `differing_routes=0` and the `generation`. It is written at the first snapshot and whenever the set changes, so one line per pod after the last deploy means no change since. A line naming routes lists `<route>: only in snapshot` for a route fleet-control would serve that the file lacks; that is a stop, not a detail.
+Log line: `fleet-control shadow diff` with `differing_routes=0` and the `generation`. It is written at the first snapshot and whenever the set changes, so one line per pod after the last deploy means no change since. The line carries `differing_routes` (count), `routes` (the sorted differing route paths, one entry per route; a diff does not say which side has it) and `generation`. A non-empty `routes` is a stop, not a detail.
 
 Enable it with `routes_shadow_source: fleet-control`, and `fleet_control_audience` in the environment file. The values must not be combined with `routes_source: fleet-control`; the gateway refuses to start.
 
@@ -266,7 +266,7 @@ From `fleet_control.go` and `main.go`; tests in `fleet_control_test.go` and `rou
 
 ### Close one route after the switch
 
-The per-route kill switch above edits `pilot-routes.prod.yaml`, which no longer affects prod. Until fleet-control has a per-route disable path, use the global switch (`GATEWAY_DISABLED`) for an urgent stop.
+Use `GATEWAY_DISABLED_ROUTES` (see "Close one route" above): it stops a single route whatever the route source, so it works with `ROUTES_SOURCE=fleet-control` and holds across snapshot updates. Break-glass: `nais app set env fleet-gateway GATEWAY_DISABLED_ROUTES=/mcp/<namespace>/<name> -t copilot -e prod-gcp`. To keep it across deploys, set `disabled_routes` in `.nais/prod-gcp.yaml`. `GATEWAY_DISABLED=true` stays the stop-everything option. Editing `pilot-routes.prod.yaml` no longer affects prod.
 
 ### Roll back to the Git file (under 5 min)
 
