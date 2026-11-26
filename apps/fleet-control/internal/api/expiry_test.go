@@ -24,18 +24,18 @@ func expiredAudits(t *testing.T, e *apisEnv, name string) int {
 	return n
 }
 
-// A pending server generation is approvable for 14 days, then refused with
+// A pending server generation is approvable for 30 days, then refused with
 // 410 Expired and an audit row; the same content can be submitted again (#2731).
 func TestRealPostgresServerPendingExpires(t *testing.T) {
 	e := newApisEnv(t)
 	base := nsBase + "team-a/mcpservers"
 	m := decodeServer(t, e.want(201, "POST", base, person("A111111"), serverJSON("team-a", "old", "", "t")))
-	if p := m.Status.Pending; p == nil || p.ExpiresAt == nil || time.Until(*p.ExpiresAt) < 13*24*time.Hour {
-		t.Fatalf("pending must carry expiresAt about 14 days ahead: %+v", m.Status.Pending)
+	if p := m.Status.Pending; p == nil || p.ExpiresAt == nil || time.Until(*p.ExpiresAt) < 29*24*time.Hour {
+		t.Fatalf("pending must carry expiresAt about 30 days ahead: %+v", m.Status.Pending)
 	}
 	n := decodeServer(t, e.want(201, "POST", base, person("A111111"), serverJSON("team-a", "fresh", "", "t")))
-	age(t, e, "server_versions", "old", 15*24*time.Hour)
-	age(t, e, "server_versions", "fresh", 13*24*time.Hour)
+	age(t, e, "server_versions", "old", 31*24*time.Hour)
+	age(t, e, "server_versions", "fresh", 29*24*time.Hour)
 
 	code, out := e.do("POST", base+"/old/approval", person("A222222"), approval(1, m.Status.Pending.ContentHash))
 	if code != 410 || !strings.Contains(out, `"reason":"Expired"`) {
@@ -76,8 +76,8 @@ func TestRealPostgresProfilePartialGrantExpires(t *testing.T) {
 	other := decodeProfile(t, e.want(201, "POST", base, person("A111111"), profileJSON("aksel-studio", "other", "", "copilot/dolly=hent", "team-b/kodeverk=lookup")))
 	h, ho := hashes(old), hashes(other)
 	e.want(200, "POST", base+"/old/approval", person(owner["team-b/kodeverk"]), grantBody(1, "team-b/kodeverk", h["team-b/kodeverk"]))
-	age(t, e, "agent_profile_generations", "old", 15*24*time.Hour)
-	age(t, e, "agent_profile_generations", "other", 13*24*time.Hour)
+	age(t, e, "agent_profile_generations", "old", 31*24*time.Hour)
+	age(t, e, "agent_profile_generations", "other", 29*24*time.Hour)
 
 	code, out := e.do("POST", base+"/old/approval", person(owner["copilot/dolly"]), grantBody(1, "copilot/dolly", h["copilot/dolly"]))
 	if code != 410 || !strings.Contains(out, `"reason":"Expired"`) {
