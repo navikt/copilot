@@ -27,8 +27,15 @@ func TestValidateRoute(t *testing.T) {
 		"empty host":           {func(r *Route) { r.UpstreamURL = "http:///x" }, "invalid host"},
 		"ip":                   {func(r *Route) { r.UpstreamURL = "http://10.0.0.1/" }, "IP addresses"},
 		"short ip":             {func(r *Route) { r.UpstreamURL = "http://127.1/" }, "IP addresses"},
-		"punycode":             {func(r *Route) { r.UpstreamURL = "http://xn--nv-fia.team-a/" }, "punycode"},
-		"other namespace":      {func(r *Route) { r.UpstreamURL = "http://app.team-b/" }, "host must be"},
+		"kelvin sign":          {func(r *Route) { r.UpstreamURL = "http://app.team-a.\u212A/" }, "must be ASCII"},
+		"kelvin in app": {func(r *Route) {
+			r.Target = "dev-gcp:team-a:app"
+			r.UpstreamURL = "http://app.team-a.svc.cluster.local\u212A/"
+		}, "must be ASCII"},
+		"non-ascii letter": {func(r *Route) { r.UpstreamURL = "http://app.team-\u00e5/" }, "must be ASCII"},
+		"ascii uppercase":  {func(r *Route) { r.UpstreamURL = "http://APP.Team-A/" }, ""},
+		"punycode":         {func(r *Route) { r.UpstreamURL = "http://xn--nv-fia.team-a/" }, "punycode"},
+		"other namespace":  {func(r *Route) { r.UpstreamURL = "http://app.team-b/" }, "host must be"},
 		// Former differences: the seed accepted another app's service DNS and
 		// Nav ingress hosts over https, and query strings and fragments.
 		"other app":   {func(r *Route) { r.UpstreamURL = "http://other.team-a/" }, "host must be"},

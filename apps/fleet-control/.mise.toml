@@ -18,7 +18,7 @@ run = ["go get -u ./...", "go mod tidy"]
 description = "Build the Go application"
 run = "go build -o bin/fleet-control ."
 
-# -p 1: package main and internal/store reset the same test database and cluster roles.
+# -p 1: internal/api and internal/store reset the same test database and cluster roles.
 [tasks.test]
 description = "Run all tests with verbose output"
 run = "go test -p 1 -v ./..."
