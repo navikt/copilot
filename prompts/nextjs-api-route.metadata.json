@@ -1,7 +1,0 @@
-{
-  "domain": "frontend",
-  "tags": ["nextjs", "api-route", "app-router", "scaffold"],
-  "examples": [
-    "#api-route Lag en API-route for å hente brukerdata fra BigQuery"
-  ]
-}

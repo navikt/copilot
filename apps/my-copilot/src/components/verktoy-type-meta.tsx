@@ -5,7 +5,7 @@ import { Tag } from "@navikt/ds-react";
 import type { CustomizationType } from "@/lib/customization-types";
 import { TYPE_LABELS } from "@/lib/customization-types";
 
-export const TYPE_ORDER: CustomizationType[] = ["agent", "instruction", "skill", "mcp", "prompt"];
+export const TYPE_ORDER: CustomizationType[] = ["agent", "instruction", "skill", "mcp"];
 
 export function typeClassName(type: CustomizationType): string {
   return `verktoy-type-${type}`;

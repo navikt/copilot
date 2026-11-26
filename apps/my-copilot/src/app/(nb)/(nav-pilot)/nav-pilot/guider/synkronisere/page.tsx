@@ -113,9 +113,6 @@ nav-pilot sync --json     # resultatet som JSON`}
               <code className={code}>.github/instructions/*.instructions.md</code>
             </li>
             <li>
-              <code className={code}>.github/prompts/*.prompt.md</code>
-            </li>
-            <li>
               <code className={code}>.github/skills/*/</code> (hele mapper)
             </li>
           </Bullets>
@@ -140,8 +137,7 @@ nav-pilot sync --json     # resultatet som JSON`}
             {`{
   "overrides": [
     ".github/instructions/nextjs-aksel.instructions.md",
-    ".github/instructions/performance.instructions.md",
-    ".github/prompts/nextjs-api-route.prompt.md"
+    ".github/instructions/performance.instructions.md"
   ]
 }`}
           </CodeBlock>

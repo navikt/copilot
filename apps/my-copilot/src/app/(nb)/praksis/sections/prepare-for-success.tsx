@@ -112,9 +112,7 @@ export default function PrepareForSuccess() {
         <HGrid columns={{ xs: 1, md: 2, lg: 4 }} gap="space-20">
           <VStack gap="space-8">
             <Label size="small" className="text-blue-700">
-              <NextLink href="/verktoy?type=prompt" className="hover:underline">
-                Prompts
-              </NextLink>
+              Prompts
             </Label>
             <VStack gap="space-4">
               <BodyShort size="small" className="text-gray-600">

@@ -9,14 +9,14 @@ pre-commit:
     # a contentHash of each file, so an edit that isn't regenerated fails the
     # `generate:check` and `Docs in sync` CI jobs. Keeps them in sync at commit.
     generated-files:
-      glob: "{agents,collections,instructions,prompts,skills}/**"
+      glob: "{agents,collections,instructions,skills}/**"
       run: |
         mise run generate
         git add \
           apps/my-copilot/src/lib/copilot-manifest.json \
           apps/mcp-onboarding/internal/discovery/copilot-manifest.json \
           docs/README.agents.md docs/README.instructions.md \
-          docs/README.prompts.md docs/README.skills.md README.md
+          docs/README.skills.md README.md
 
     gofmt:
       glob: "**/*.go"

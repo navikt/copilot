@@ -69,7 +69,6 @@ const PAKKE = {
     { label: "agenter", value: ofType("agent").length, color: "#60a5fa" },
     { label: "skills", value: ofType("skill").length, color: "#a78bfa" },
     { label: "instruksjoner", value: ofType("instruction").length, color: "#34d399" },
-    { label: "prompts", value: ofType("prompt").length, color: "#fbbf24" },
   ],
   highlights: ["Kotlin og Spring", "Next.js og Aksel", "Nais og sikkerhet"],
   Icon: BranchingIcon,

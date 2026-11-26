@@ -14,7 +14,7 @@ Brukerdokumentasjonen ligger på nettstedet, ikke her:
 
 ## Innhold i repoet
 
-- `agents/`, `instructions/`, `prompts/`, `skills/`: innholdet nav-pilot installerer ([oversikt](docs/README.skills.md))
+- `agents/`, `instructions/`, `skills/`: innholdet nav-pilot installerer ([oversikt](docs/README.skills.md))
 - [`cli/nav-pilot`](cli/nav-pilot): CLI-et for utviklere
 - [`cli/mcp-compliance`](cli/mcp-compliance): sjekker MCP-servere bak fleet-gateway
 - [`apps/my-copilot`](apps/my-copilot): nettstedet ki-utvikling.nav.no (Next.js)
@@ -39,7 +39,7 @@ mise check
 mise test
 ```
 
-[CONTRIBUTING.md](CONTRIBUTING.md) beskriver CI, hemmeligheter og lokalt oppsett. [AGENTS.md](AGENTS.md) har konvensjonene, og [SECURITY.md](SECURITY.md) har sikkerhetsmodellen. Endrer du `agents/`, `instructions/`, `prompts/` eller `skills/`, kjør `mise run generate` først.
+[CONTRIBUTING.md](CONTRIBUTING.md) beskriver CI, hemmeligheter og lokalt oppsett. [AGENTS.md](AGENTS.md) har konvensjonene, og [SECURITY.md](SECURITY.md) har sikkerhetsmodellen. Endrer du `agents/`, `instructions/` eller `skills/`, kjør `mise run generate` først.
 
 ## Lisens
 

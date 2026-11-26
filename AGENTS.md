@@ -67,7 +67,7 @@ After editing an app, run `mise check` in that app's directory. Run `mise all` w
   and nais/pilot#3, where a denial message an engineer meets mid-task had to
   be cut down to what is wrong and what to run.
 
-- Editing `agents/`, `prompts/`, `skills/`, or `instructions/` requires running
+- Editing `agents/`, `skills/`, or `instructions/` requires running
   `mise run generate` so `copilot-manifest.json` and `docs/README.*.md` stay in
   sync, and verifying with `mise check` rather than only `nav-pilot:check` (#769).
 - User-facing pages and docs are written for human readability: summary first,
