@@ -543,4 +543,23 @@ describe("/fleet", () => {
     const { container } = render(await ServerPage(params("team-a", "docs")));
     expect(container.querySelector('[aria-label="Endre MCP-serveren"]')).toBeNull();
   });
+
+  it("states: 503 says the MCP servers still work, an empty team gets next steps, loading has a skeleton", async () => {
+    stub({}, { [`${API}/whoami`]: 503 });
+    render(await FleetPage(sp()));
+    expect(screen.getByRole("heading", { name: "Vi får ikke kontakt med Fleet akkurat nå" })).toBeInTheDocument();
+    expect(screen.getByText(/MCP-serverne virker som før/)).toBeInTheDocument();
+    stub({ [`${API}/namespaces/team-a/mcpservers`]: { items: [] } });
+    const { container: container0 } = render(await FleetPage(sp()));
+    expect(screen.getByRole("heading", { name: "team-a har ingen MCP-servere ennå" })).toBeInTheDocument();
+    expect(container0.querySelector('a[href="/fleet/registrer?team=team-a"]')).not.toBeNull();
+    const { default: Loading } = await import("./loading");
+    const { container } = render(<Loading />);
+    expect(container.querySelector("[aria-busy=true]")).not.toBeNull();
+  });
+
+  it("states: after sending in, the MCP server page shows the receipt", async () => {
+    render(await ServerPage({ ...params("team-a", "docs"), searchParams: Promise.resolve({ sendt: "1" }) }));
+    expect(screen.getByRole("heading", { name: "docs er sendt til godkjenning" })).toBeInTheDocument();
+  });
 });

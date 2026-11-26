@@ -253,5 +253,6 @@ export async function POST(request: Request) {
   } catch (err) {
     return failure(err, ns, name, Number(b.generation));
   }
-  return NextResponse.json({ href });
+  // ?sendt=1 shows the «sendt til godkjenning» receipt on the MCP server page.
+  return NextResponse.json({ href: b.action === "register" || b.action === "edit" ? `${href}?sendt=1` : href });
 }

@@ -107,7 +107,10 @@ export function FleetProblemAlert({ problem }: { problem: FleetProblem }) {
   return (
     <Alert variant="error">
       <VStack gap="space-8" align="start">
-        <BodyShort>Vi får ikke kontakt med Fleet akkurat nå. Prøv igjen om litt.</BodyShort>
+        <Heading level="2" size="small">
+          Vi får ikke kontakt med Fleet akkurat nå
+        </Heading>
+        <BodyShort>MCP-serverne virker som før. Bare denne siden er nede. Prøv igjen om litt.</BodyShort>
         <Button variant="secondary" onClick={() => router.refresh()}>
           Prøv igjen
         </Button>
@@ -140,6 +143,46 @@ export function KortFortalt({ children }: { children: ReactNode }) {
   );
 }
 
+/** A team without MCP servers: what to do first. */
+export function EmptyTeam({ team }: { team: string }) {
+  return (
+    <Box background="default" borderWidth="1" borderColor="neutral-subtle" borderRadius="12" padding="space-24">
+      <VStack gap="space-12" align="start">
+        <Heading level="3" size="medium">
+          {team} har ingen MCP-servere ennå
+        </Heading>
+        <BodyLong>
+          Registrer en MCP-server som teamet allerede kjører i Nais. En annen i teamet godkjenner før den blir
+          publisert.
+        </BodyLong>
+        <HStack gap="space-16" align="center">
+          <Button as={NextLink} href={`/fleet/registrer?team=${team}`}>
+            Registrer MCP-server
+          </Button>
+          <Link as={NextLink} href="/fleet/katalog">
+            Se katalogen
+          </Link>
+        </HStack>
+      </VStack>
+    </Box>
+  );
+}
+
+/** After register or edit: the version waits for someone else on the team. */
+export function SubmittedAlert({ server }: { server: MCPServer }) {
+  const path = server.status.route?.path ?? `/mcp/${server.metadata.namespace}/${server.metadata.name}`;
+  return (
+    <Alert variant="success">
+      <Heading level="2" size="small">
+        {server.metadata.name} er sendt til godkjenning
+      </Heading>
+      <BodyLong>
+        Adressen <code>{path}</code> blir publisert når en annen på {server.metadata.namespace} godkjenner.
+      </BodyLong>
+    </Alert>
+  );
+}
+
 export type TeamData = { team: string; servers: MCPServer[]; agents: AgentProfile[] };
 
 export function TeamSections({ teams }: { teams: TeamData[] }) {
@@ -153,7 +196,7 @@ export function TeamSections({ teams }: { teams: TeamData[] }) {
                 MCP-servere
               </Heading>
               {t.servers.length === 0 ? (
-                <BodyShort>{t.team} har ingen MCP-servere ennå.</BodyShort>
+                <EmptyTeam team={t.team} />
               ) : (
                 <FleetTable aria-label={`MCP-serverne til ${t.team}`}>
                   <Table.Header>
@@ -458,9 +501,11 @@ export function ServerDetail({
   agents = [],
   agentsFailed = false,
   grafanaUrl,
+  submitted = false,
 }: {
   server: MCPServer;
   events: AuditEvent[];
+  submitted?: boolean;
   me?: string;
   // In the owner team: only then the edit form shows. fleet-control checks it again.
   owner?: boolean;
@@ -470,6 +515,7 @@ export function ServerDetail({
 }) {
   return (
     <VStack gap="space-16">
+      {submitted && server.status.pending && <SubmittedAlert server={server} />}
       <KortFortalt>
         <div>
           <StatusTag s={serverStatus(server)} />

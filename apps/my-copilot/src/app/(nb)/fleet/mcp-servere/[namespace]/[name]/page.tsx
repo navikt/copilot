@@ -9,11 +9,15 @@ import { fleetGrafanaUrl } from "@/lib/fleet-grafana";
 
 export const metadata: Metadata = { title: "MCP-server", robots: fleetRobots };
 
-type Props = { params: Promise<{ namespace: string; name: string }> };
+type Props = {
+  params: Promise<{ namespace: string; name: string }>;
+  searchParams?: Promise<{ sendt?: string }>;
+};
 
-export default async function ServerPage({ params }: Props) {
+export default async function ServerPage({ params, searchParams }: Props) {
   requireFleet();
   const { namespace, name } = await params;
+  const submitted = (await searchParams)?.sendt === "1";
   if (!isName(namespace) || !isName(name)) notFound();
   // The server and its history are for the owner team only. Anyone else gets 404
   // and sees the catalogue entry; an unpublished server stays «Fant ikke siden».
@@ -57,6 +61,7 @@ export default async function ServerPage({ params }: Props) {
         />
       ) : (
         <ServerDetail
+          submitted={submitted}
           server={result.data.server}
           events={result.data.events}
           me={result.data.me}

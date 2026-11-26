@@ -246,7 +246,7 @@ describe("POST /api/fleet", () => {
 
   it("edits with PUT and the resourceVersion, which makes a new version", async () => {
     const res = await post({ ...editForm, resourceVersion: "7", tools: "search read" });
-    await expect(res.json()).resolves.toEqual({ href: "/fleet/mcp-servere/team-a/docs" });
+    await expect(res.json()).resolves.toEqual({ href: "/fleet/mcp-servere/team-a/docs?sendt=1" });
     const [url, init] = fetch.mock.calls[0];
     expect(url).toBe("http://fc/apis/fleet.nav.no/v1alpha1/namespaces/team-a/mcpservers/docs");
     expect(init.method).toBe("PUT");
