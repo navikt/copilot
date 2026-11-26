@@ -12,6 +12,8 @@ import (
 	"testing"
 
 	"cloud.google.com/go/bigquery"
+
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 )
 
 // Set USAGE_QUALITY_INLINE_SQL to generate a read-only query from the production SQL.
@@ -81,7 +83,7 @@ func TestUsageQualityDecodeNullableSQLRow(t *testing.T) {
 	}
 	for _, value := range []bigquery.Value{nil, int64(0), int64(72)} {
 		var day UsageQualityDay
-		if err := decodeBQRow(schema, []bigquery.Value{"2026-11-03", value, nil}, &day); err != nil {
+		if err := bqstore.DecodeRow(schema, []bigquery.Value{"2026-11-03", value, nil}, &day); err != nil {
 			t.Fatal(err)
 		}
 		if day.BelowUsageMetricsMinimum != nil {

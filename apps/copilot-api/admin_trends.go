@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"slices"
 	"time"
+
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 )
 
 // Cost trends for the admin cost page (F3 and F8 in the cost insight PRD).
@@ -64,7 +66,7 @@ ORDER BY month`, bq.billingUserLatest(), bq.tableRef(bq.metricsDataset, "billing
 	if err != nil {
 		return nil, fmt.Errorf("read active users: %w", err)
 	}
-	return readAllRows[ActiveUsersMonth](it)
+	return bqstore.ReadAllRows[ActiveUsersMonth](it)
 }
 
 func (c *CachedBigQueryClient) GetActiveUsersMonthly(ctx context.Context) ([]ActiveUsersMonth, error) {
@@ -254,7 +256,7 @@ SELECT CAST(day AS STRING) day, share, source FROM budget_share
 WHERE share IS NOT NULL AND day = (SELECT MAX(day) FROM budget_share) AND day >= DATE_TRUNC(CURRENT_DATE(), MONTH)`).Read(ctx)
 	var shares []budgetShareRow
 	if err == nil {
-		shares, err = readAllRows[budgetShareRow](it)
+		shares, err = bqstore.ReadAllRows[budgetShareRow](it)
 	}
 	if err != nil {
 		// The billed months still stand without the month to date.
@@ -285,7 +287,7 @@ GROUP BY month,user_id`).Read(ctx)
 		UserID string  `bigquery:"user_id"`
 		Share  float64 `bigquery:"share"`
 	}
-	rows, err := readAllRows[peakRow](it)
+	rows, err := bqstore.ReadAllRows[peakRow](it)
 	if err != nil {
 		return nil, err
 	}

@@ -13,6 +13,8 @@ import (
 	"cloud.google.com/go/bigquery"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
+
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 )
 
 // TeamSpend is a display-ready team row. Amounts are rounded to cents, and only
@@ -216,7 +218,7 @@ WHERE c.loaded_at IS NOT NULL ORDER BY t.team_slug`,
 	if err != nil {
 		return nil, fmt.Errorf("read team net usage: %w", err)
 	}
-	rows, err := readAllRows[teamNetRow](it)
+	rows, err := bqstore.ReadAllRows[teamNetRow](it)
 	if err != nil {
 		return nil, err
 	}
@@ -519,7 +521,7 @@ LEFT JOIN team_counts c ON c.users >= @minUsers ORDER BY c.team_slug`)
 	if err != nil {
 		return nil, fmt.Errorf("read team gross usage: %w", err)
 	}
-	rows, err := readAllRows[teamGrossRow](it)
+	rows, err := bqstore.ReadAllRows[teamGrossRow](it)
 	if err != nil {
 		return nil, err
 	}
@@ -581,7 +583,7 @@ WHERE m.date=(SELECT MAX(date) FROM %s) AND m.team_slug!='nav-it-github-users' O
 	if err != nil {
 		return nil, fmt.Errorf("read github teams: %w", err)
 	}
-	return readAllRows[GitHubTeam](it)
+	return bqstore.ReadAllRows[GitHubTeam](it)
 }
 
 func (c *CachedBigQueryClient) GetGitHubTeams(ctx context.Context) ([]GitHubTeam, error) {

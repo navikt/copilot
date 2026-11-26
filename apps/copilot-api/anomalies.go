@@ -11,6 +11,8 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"google.golang.org/api/googleapi"
+
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 )
 
 // Start thresholds from PRD 4.3 (decision S10). The owner tunes them after
@@ -153,7 +155,7 @@ WHERE LOWER(scope_id)='nav' AND product='Copilot' AND gross_quantity>0 AND day>=
 	if err != nil {
 		return nil, fmt.Errorf("read daily gross: %w", err)
 	}
-	if in.Days, err = readAllRows[anomalyDay](it); err != nil {
+	if in.Days, err = bqstore.ReadAllRows[anomalyDay](it); err != nil {
 		return nil, err
 	}
 
@@ -165,7 +167,7 @@ FROM m WHERE gross>@minUSD GROUP BY model HAVING MIN(day)>=DATE(@from)`, daily))
 	if it, err = q.Read(ctx); err != nil {
 		return nil, fmt.Errorf("read new models: %w", err)
 	}
-	if in.NewModels, err = readAllRows[anomalyModel](it); err != nil {
+	if in.NewModels, err = bqstore.ReadAllRows[anomalyModel](it); err != nil {
 		return nil, err
 	}
 
@@ -190,7 +192,7 @@ FROM m WHERE gross>@minUSD GROUP BY model HAVING MIN(day)>=DATE(@from)`, daily))
 	if it, err = q.Read(ctx); err != nil {
 		return nil, fmt.Errorf("read billing coverage: %w", err)
 	}
-	rows, err := readAllRows[meta](it)
+	rows, err := bqstore.ReadAllRows[meta](it)
 	if err != nil {
 		return nil, err
 	}

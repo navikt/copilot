@@ -14,6 +14,7 @@ import (
 	"google.golang.org/api/option"
 
 	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 )
 
 func f(v float64) *float64 { return &v }
@@ -268,7 +269,7 @@ func TestAdminMonthlySyntheticQuery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("execute synthetic query: %v", err)
 	}
-	rows, err := readAllRows[adminMonthRow](it)
+	rows, err := bqstore.ReadAllRows[adminMonthRow](it)
 	if err != nil {
 		t.Fatalf("read synthetic rows: %v", err)
 	}
@@ -347,7 +348,7 @@ func TestAdminMonthlyReconcilesBigQuery(t *testing.T) {
 		Month string  `bigquery:"month"`
 		Net   float64 `bigquery:"net"`
 	}
-	rows, err := readAllRows[usage](it)
+	rows, err := bqstore.ReadAllRows[usage](it)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -6,12 +6,14 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"cloud.google.com/go/civil"
+
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 )
 
 func TestRepositoryUsageOldViewRemainsAvailable(t *testing.T) {
 	schema := bigquery.Schema{field("repo_name", bigquery.StringFieldType), field("pr_total_created", bigquery.IntegerFieldType)}
 	var got RepositoryUsage
-	if err := decodeBQRow(schema, []bigquery.Value{"existing-repo", int64(7)}, &got); err != nil {
+	if err := bqstore.DecodeRow(schema, []bigquery.Value{"existing-repo", int64(7)}, &got); err != nil {
 		t.Fatal(err)
 	}
 	if got.RepoName != "existing-repo" || got.PRTotalCreated != 7 || got.ReviewCommentsEvaluated != nil || got.ReviewOutcomeDays != 0 {
@@ -48,7 +50,7 @@ func TestDecodeBQRow_NullsBecomeZero(t *testing.T) {
 	row := []bigquery.Value{nil, nil, nil, nil}
 
 	var got LanguageAdoption
-	if err := decodeBQRow(schema, row, &got); err != nil {
+	if err := bqstore.DecodeRow(schema, row, &got); err != nil {
 		t.Fatalf("decodeBQRow returned error on NULLs: %v", err)
 	}
 	if got.AdoptionRate != 0 || got.AdoptionRateActiveOnly != 0 {
@@ -76,7 +78,7 @@ func TestDecodeBQRow_FloatIntoInt(t *testing.T) {
 	row := []bigquery.Value{float64(1234), float64(1000), 42.5, "2026-06"}
 
 	var got MonthlyBillingUsage
-	if err := decodeBQRow(schema, row, &got); err != nil {
+	if err := bqstore.DecodeRow(schema, row, &got); err != nil {
 		t.Fatalf("decodeBQRow returned error: %v", err)
 	}
 	if got.GrossRequests != 1234 {
@@ -100,7 +102,7 @@ func TestDecodeBQRow_IntIntoFloat(t *testing.T) {
 	row := []bigquery.Value{int64(7)}
 
 	var got AdoptionCohortDay
-	if err := decodeBQRow(schema, row, &got); err != nil {
+	if err := bqstore.DecodeRow(schema, row, &got); err != nil {
 		t.Fatalf("decodeBQRow returned error: %v", err)
 	}
 	if got.AvgGenerations != 7 {
@@ -119,7 +121,7 @@ func TestDecodeBQRow_DateAndScalars(t *testing.T) {
 	row := []bigquery.Value{date, int64(3), "v2", int64(50)}
 
 	var got AdoptionCohortDay
-	if err := decodeBQRow(schema, row, &got); err != nil {
+	if err := bqstore.DecodeRow(schema, row, &got); err != nil {
 		t.Fatalf("decodeBQRow returned error: %v", err)
 	}
 	if got.Day != date {
@@ -155,7 +157,7 @@ func TestDecodeBQRow_RepeatedRecord(t *testing.T) {
 		TeamSlug  string              `bigquery:"team_slug"`
 		TopModels []ModelInteractions `bigquery:"top_models"`
 	}
-	if err := decodeBQRow(schema, row, &got); err != nil {
+	if err := bqstore.DecodeRow(schema, row, &got); err != nil {
 		t.Fatalf("decodeBQRow returned error: %v", err)
 	}
 	if got.TeamSlug != "team-a" {
@@ -178,7 +180,7 @@ func TestDecodeBQRow_RepeatedString(t *testing.T) {
 	row := []bigquery.Value{"octocat", []bigquery.Value{"team-a", "team-b"}}
 
 	var got UserMetricsSummary
-	if err := decodeBQRow(schema, row, &got); err != nil {
+	if err := bqstore.DecodeRow(schema, row, &got); err != nil {
 		t.Fatalf("decodeBQRow returned error: %v", err)
 	}
 	if len(got.Teams) != 2 || got.Teams[0] != "team-a" || got.Teams[1] != "team-b" {
@@ -192,7 +194,7 @@ func TestDecodeBQRow_NullRepeatedIsEmpty(t *testing.T) {
 	row := []bigquery.Value{nil}
 
 	var got UserMetricsSummary
-	if err := decodeBQRow(schema, row, &got); err != nil {
+	if err := bqstore.DecodeRow(schema, row, &got); err != nil {
 		t.Fatalf("decodeBQRow returned error: %v", err)
 	}
 	if got.Teams != nil {
@@ -210,7 +212,7 @@ func TestDecodeBQRow_SchemaDrift(t *testing.T) {
 	row := []bigquery.Value{"go", int64(99)}
 
 	var got LanguageAdoption
-	if err := decodeBQRow(schema, row, &got); err != nil {
+	if err := bqstore.DecodeRow(schema, row, &got); err != nil {
 		t.Fatalf("decodeBQRow returned error on unknown column: %v", err)
 	}
 	if got.Language != "go" {
@@ -225,7 +227,7 @@ func TestDecodeBQRow_TypeMismatchErrors(t *testing.T) {
 	row := []bigquery.Value{"not-a-number"}
 
 	var got LanguageAdoption
-	if err := decodeBQRow(schema, row, &got); err == nil {
+	if err := bqstore.DecodeRow(schema, row, &got); err == nil {
 		t.Fatal("expected an error for string-into-float, got nil")
 	}
 }
@@ -234,7 +236,7 @@ func TestDecodeBQRow_RejectsNonPointer(t *testing.T) {
 	schema := bigquery.Schema{field("language", bigquery.StringFieldType)}
 	row := []bigquery.Value{"go"}
 
-	if err := decodeBQRow(schema, row, LanguageAdoption{}); err == nil {
+	if err := bqstore.DecodeRow(schema, row, LanguageAdoption{}); err == nil {
 		t.Fatal("expected an error when target is not a pointer")
 	}
 }

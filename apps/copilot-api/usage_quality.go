@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 )
 
 // UsageQualityDay contains independent daily counts, not unique users over a period.
@@ -49,7 +51,7 @@ func (bq *BigQueryClient) GetUsageQuality(ctx context.Context) ([]UsageQualityDa
 	if err != nil {
 		return nil, fmt.Errorf("read usage quality: %w", err)
 	}
-	return readAllRows[UsageQualityDay](it)
+	return bqstore.ReadAllRows[UsageQualityDay](it)
 }
 
 func (c *CachedBigQueryClient) GetUsageQuality(ctx context.Context) ([]UsageQualityDay, error) {

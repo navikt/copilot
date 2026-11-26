@@ -6,6 +6,8 @@ import (
 	"sort"
 
 	"cloud.google.com/go/bigquery"
+
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 )
 
 type TeamUsageComposition struct {
@@ -53,7 +55,7 @@ SELECT team_id,dimension,IFNULL(label,'unknown') label,activity FROM ranked WHER
 	if err != nil {
 		return nil, fmt.Errorf("read team usage composition: %w", err)
 	}
-	rows, err := readAllRows[teamCompositionRow](it)
+	rows, err := bqstore.ReadAllRows[teamCompositionRow](it)
 	if err != nil {
 		return nil, err
 	}
