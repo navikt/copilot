@@ -237,9 +237,10 @@ func expireLeases(ctx context.Context, tx pgx.Tx) (int, error) {
 	}
 	for _, e := range all {
 		var team, state string
-		if err := tx.QueryRow(ctx, `UPDATE runtime_jobs SET updated_at = now(), state = CASE
+		if err := tx.QueryRow(ctx, `UPDATE runtime_jobs j SET updated_at = now(), state = CASE
 				WHEN command = 'kill' THEN 'killed'
 				WHEN command = 'cancel' THEN 'cancelled'
+				WHEN NOT EXISTS (`+jobProfileLive+`) THEN 'cancelled'
 				WHEN on_expiry = 'requeue' AND attempts < max_attempts THEN 'queued'
 				ELSE 'failed' END
 			WHERE id = $1 RETURNING team, state`, e.job).Scan(&team, &state); err != nil {
@@ -299,9 +300,18 @@ func sweepIntervalFromEnv() (time.Duration, error) {
 }
 
 // jobProfileLive is true when the agent profile named in job j's spec is
-// still published, approved, unrevoked and unexpired. A job without a
-// profile (rows from before v1alpha1) is never live.
-const jobProfileLive = liveProfileSQL + `r.namespace = j.submitted_spec->'agentProfile'->>'namespace' AND r.name = j.submitted_spec->'agentProfile'->>'name'`
+// still published at the generation the job was bound to, approved,
+// unrevoked and unexpired. A job without a profile or a bound generation
+// (rows from before v1alpha1) is never live.
+const jobProfileLive = liveProfileSQL + `r.namespace = j.submitted_spec->'agentProfile'->>'namespace' AND r.name = j.submitted_spec->'agentProfile'->>'name'
+	AND g.generation = j.agent_profile_generation`
+
+// jobLive reports whether job id's profile is live (jobProfileLive).
+func jobLive(ctx context.Context, tx pgx.Tx, id int64) (bool, error) {
+	var live bool
+	err := tx.QueryRow(ctx, `SELECT EXISTS (`+jobProfileLive+`) FROM runtime_jobs j WHERE j.id = $1`, id).Scan(&live)
+	return live, err
+}
 
 // errNoJob means nothing was claimable.
 var errNoJob = errors.New("no job")
@@ -423,8 +433,8 @@ func (d *DB) Heartbeat(ctx context.Context, runtime, leaseID string, ttl time.Du
 			cmd = cmdKill
 		}
 		if cmd == cmdContinue {
-			var live bool
-			if err := tx.QueryRow(ctx, `SELECT EXISTS (`+jobProfileLive+`) FROM runtime_jobs j WHERE j.id = $1`, job).Scan(&live); err != nil {
+			live, err := jobLive(ctx, tx, job)
+			if err != nil {
 				return err
 			}
 			if !live {
@@ -482,11 +492,15 @@ func (d *DB) Finish(ctx context.Context, runtime, leaseID string, ok bool, code,
 		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM runtime_kill_switches WHERE scope IN ('global', 'team:' || $1))`, team).Scan(&switched); err != nil {
 			return err
 		}
+		live, liveErr := jobLive(ctx, tx, job)
+		if liveErr != nil {
+			return liveErr
+		}
 		state := "failed"
 		switch {
 		case cmd == cmdKill || switched:
 			state = "killed"
-		case cmd == cmdCancel:
+		case cmd == cmdCancel || !live:
 			state = "cancelled"
 		case ok:
 			state = "succeeded"
