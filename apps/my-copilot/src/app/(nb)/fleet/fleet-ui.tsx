@@ -931,25 +931,56 @@ function Versjoner({ server, next }: { server: MCPServer; next: MCPServerSpec })
       ? null
       : "Ikke publisert ennå";
   const now = specRows(none ? undefined : server.spec).map(([k, v]): [string, string] => [k, none ?? v]);
+  const changed = specRows(next).filter(([, v], i) => v !== now[i][1]);
   return (
-    <FleetTable aria-label="Versjonen som gjelder, og versjonen som venter">
-      <Table.Header>
-        <Table.Row>
-          <Table.HeaderCell scope="col">Felt</Table.HeaderCell>
-          <Table.HeaderCell scope="col">Gjelder nå</Table.HeaderCell>
-          <Table.HeaderCell scope="col">Venter på godkjenning</Table.HeaderCell>
-        </Table.Row>
-      </Table.Header>
-      <Table.Body>
-        {specRows(next).map(([k, v], i) => (
-          <Table.Row key={k}>
-            <Table.HeaderCell scope="row">{k}</Table.HeaderCell>
-            <Table.DataCell>{now[i][1]}</Table.DataCell>
-            <Table.DataCell>{v === now[i][1] ? v : <strong>{v}</strong>}</Table.DataCell>
-          </Table.Row>
-        ))}
-      </Table.Body>
-    </FleetTable>
+    <>
+      <Show below="md">
+        <Box background="default" borderWidth="1" borderColor="neutral-subtle" borderRadius="12" padding="space-16">
+          <VStack as="dl" gap="space-12">
+            {changed.map(([k, v]) => (
+              <div key={k}>
+                <BodyShort as="dt" size="small">
+                  {k}
+                </BodyShort>
+                <BodyShort as="dd" weight="semibold" className="[overflow-wrap:anywhere]">
+                  {v}
+                </BodyShort>
+              </div>
+            ))}
+            {changed.length < specRows(next).length && (
+              <BodyShort size="small">
+                Uendret:{" "}
+                {specRows(next)
+                  .filter(([, v], i) => v === now[i][1])
+                  .map(([k]) => k.toLowerCase())
+                  .join(", ")}
+                .
+              </BodyShort>
+            )}
+          </VStack>
+        </Box>
+      </Show>
+      <Hide below="md">
+        <FleetTable aria-label="Versjonen som gjelder, og versjonen som venter">
+          <Table.Header>
+            <Table.Row>
+              <Table.HeaderCell scope="col">Felt</Table.HeaderCell>
+              <Table.HeaderCell scope="col">Gjelder nå</Table.HeaderCell>
+              <Table.HeaderCell scope="col">Venter på godkjenning</Table.HeaderCell>
+            </Table.Row>
+          </Table.Header>
+          <Table.Body>
+            {specRows(next).map(([k, v], i) => (
+              <Table.Row key={k}>
+                <Table.HeaderCell scope="row">{k}</Table.HeaderCell>
+                <Table.DataCell>{now[i][1]}</Table.DataCell>
+                <Table.DataCell>{v === now[i][1] ? v : <strong>{v}</strong>}</Table.DataCell>
+              </Table.Row>
+            ))}
+          </Table.Body>
+        </FleetTable>
+      </Hide>
+    </>
   );
 }
 

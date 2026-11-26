@@ -355,8 +355,9 @@ describe("/fleet", () => {
     stub({ [`${API}/namespaces/team-a/mcpservers/docs`]: draft });
     render(await ServerPage(params("team-a", "docs")));
     expect(screen.getAllByText("Ikke publisert ennå").length).toBeGreaterThan(0);
-    expect(screen.getByText("1.2.0")).toBeInTheDocument();
-    expect(screen.getByText("streamable-http https://x")).toBeInTheDocument();
+    // Table on a wide screen, changed fields as a list on a phone.
+    expect(screen.getAllByText("1.2.0")).toHaveLength(2);
+    expect(screen.getAllByText("streamable-http https://x")).toHaveLength(2);
     expect(screen.queryByRole("button", { name: "Trekk tilbake" })).toBeNull();
   });
 
