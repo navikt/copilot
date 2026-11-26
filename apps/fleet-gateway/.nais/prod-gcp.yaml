@@ -5,6 +5,8 @@ cpu_request: 50m
 memory_request: 128Mi
 memory_limit: 384Mi
 gomemlimit: 320MiB
+# Per-route kill switch, e.g. "/mcp/copilot/kodeverk" (runbook, Close one route).
+disabled_routes: ""
 log_level: "INFO"
 base_url: "https://fleet-gateway.intern.nav.no"
 allowed_client_ids: "https://ki-utvikling.nav.no/cplt/oauth-client.json,https://github.com/copilot/cli/client-metadata.json,https://opencode.ai/oauth/opencode/client.json"

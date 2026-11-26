@@ -98,6 +98,7 @@ const (
 type Config struct {
 	BaseURL              string
 	GatewayDisabled      bool
+	DisabledRoutes       map[string]bool
 	RiskEnforcement      string
 	HTTPClient           *http.Client
 	ProxyHeaderTimeout   time.Duration
@@ -218,6 +219,20 @@ func (g *Handler) MCP(route routing.Route) http.HandlerFunc {
 			outcome = "disabled"
 			httpx.MarkShed(w, "disabled")
 			slog.Warn("route disabled by kill switch", "route", route.Route, "global", g.Cfg.GatewayDisabled)
+			w.Header().Set("Retry-After", "300")
+			httpx.WriteJSON(w, http.StatusServiceUnavailable, map[string]string{
+				"error":   "temporarily_unavailable",
+				"message": "this route is temporarily disabled by the gateway operator",
+			})
+			return
+		}
+
+		// Per-route kill switch: keyed on the path, so it holds whichever source
+		// (file or fleet-control snapshot) supplied the route.
+		if g.Cfg.DisabledRoutes[route.Route] {
+			outcome = "route_disabled"
+			httpx.MarkShed(w, "route_disabled")
+			slog.Warn("route disabled by GATEWAY_DISABLED_ROUTES", "route", route.Route)
 			w.Header().Set("Retry-After", "300")
 			httpx.WriteJSON(w, http.StatusServiceUnavailable, map[string]string{
 				"error":   "temporarily_unavailable",

@@ -271,6 +271,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 		Cfg: proxy.Config{
 			BaseURL:              g.cfg.BaseURL,
 			GatewayDisabled:      g.cfg.GatewayDisabled,
+			DisabledRoutes:       g.cfg.DisabledRoutes,
 			RiskEnforcement:      g.cfg.RiskEnforcement,
 			HTTPClient:           g.cfg.HTTPClient,
 			ProxyHeaderTimeout:   g.cfg.ProxyHeaderTimeout,

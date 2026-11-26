@@ -78,6 +78,9 @@ spec:
       value: "{{allowed_client_ids}}"
     - name: ALLOWED_REDIRECT_URIS
       value: "{{allowed_redirect_uris}}"
+    # Per-route kill switch: comma-separated /mcp/<namespace>/<name> (runbook, Close one route).
+    - name: GATEWAY_DISABLED_ROUTES
+      value: "{{disabled_routes}}"
 {{#if dcr_enabled}}
     - name: DCR_ENABLED
       value: "{{dcr_enabled}}"
