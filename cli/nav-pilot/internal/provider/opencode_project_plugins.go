@@ -349,9 +349,6 @@ func applyOpenCodeProjectPlugins(env []string, projectDir string) []string {
 	env = slices.DeleteFunc(slices.Clone(env), func(e string) bool {
 		return strings.HasPrefix(e, openCodeDropRepoGatesEnv+"=")
 	})
-	if openCodeMajor() < 2 {
-		return env
-	}
 	set := openCodeProjectPlugins(projectDir, env)
 	if set.sum == "" {
 		return env

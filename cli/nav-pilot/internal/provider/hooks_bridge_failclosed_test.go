@@ -10,7 +10,7 @@ import (
 )
 
 // A pre hook that cannot answer in time denies the call when it is marked
-// failClosed, and allows it otherwise, in both bridges. The hook sleeps past
+// failClosed, and allows it otherwise. The hook sleeps past
 // its one-second timeout, so the bridge's own timer fires and run() returns
 // null.
 func TestBridgePreHookFailClosed(t *testing.T) {
@@ -20,9 +20,6 @@ func TestBridgePreHookFailClosed(t *testing.T) {
 	}
 	// Each case prints the error the hook threw, or "allowed".
 	drivers := map[string]string{
-		"hooks-bridge.js": `import { NavPilotHooks } from "./bridge.mjs"
-const h = await NavPilotHooks({ directory: process.cwd(), worktree: process.cwd() })
-try { await h["tool.execute.before"]({ tool: "shell", sessionID: "s" }, { args: { command: "x" } }); console.log("allowed") } catch (e) { console.log(e.message) }`,
 		"hooks-bridge-v2.js": `import plugin from "./bridge.mjs"
 const hooks = {}
 await plugin.setup({ location: { directory: process.cwd() }, session: { hook: async () => {} }, tool: { hook: async (n, f) => (hooks[n] = f) } })

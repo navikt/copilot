@@ -69,7 +69,8 @@ Har du ingen av klientene, tilbyr nav-pilot å installere opencode 2: med Homebr
 bytter senere. Har du verken Homebrew eller Node.js, installerer nav-pilot ingenting, men sier
 hva du må installere først og hvilken kommando du kjører etterpå. Mangler Copilot CLI også, viser
 den installasjonskommandoen for begge. opencode 2 krever cplt 2026.10.22-172931 eller nyere.
-Bruker du opencode 1, varsler nav-pilot om at støtten slutter etter 19. november 2026.
+opencode 1 er ikke lenger støttet: nav-pilot starter den ikke, men viser
+kommandoen som oppgraderer til opencode 2.
 Se [Klienter](#klienter).
 
 En ny installasjon havner i `~/.copilot` med hele pakka. Repoet brukes bare når det har
@@ -320,7 +321,7 @@ med feil type, for eksempel `guards = "false"` med anførselstegn, blir hoppet
 over, så standardverdien gjelder, og hooken sier fra om det på stderr.
 `nav-pilot doctor` sier fra om fila, og `nav-pilot` starter ikke før den er rettet. Hookene kjører også i en
 OpenCode-sesjon som nav-pilot starter, via hook-broen ([opencode-hooks.md](../cli/nav-pilot/docs/opencode-hooks.md)).
-Der holder nav-pilot resultatet tilbake hvis maskeringen feiler. Starter du `opencode` selv, eller med `--pure`, kjører de ikke.
+Der holder nav-pilot resultatet tilbake hvis maskeringen feiler. Starter du `opencode` selv, kjører de ikke.
 
 ### Hub-repo
 
