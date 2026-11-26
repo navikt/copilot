@@ -1,8 +1,7 @@
-package main
+package public
 
 import (
 	"fmt"
-	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 	"hash/fnv"
 	"log/slog"
 	"math"
@@ -10,6 +9,10 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/api/httpx"
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
+	"github.com/navikt/copilot/apps/copilot-api/internal/problem"
 )
 
 // The front page's «Dagens innsikt»: one sentence a day, built from Nav-wide
@@ -176,11 +179,11 @@ func pickFact(day time.Time, a *bqstore.FactAggregates) (*Fact, string) {
 	return nil, ""
 }
 
-func (h *BigQueryHandlers) handlePublicFact(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) HandlePublicFact(w http.ResponseWriter, r *http.Request) {
 	agg, err := h.bqClient.GetFactAggregates(r.Context())
 	if err != nil {
 		slog.Error("Failed to fetch fact aggregates", "error", err)
-		respondError(w, "internal_error", "Failed to fetch fact", http.StatusInternalServerError)
+		problem.Respond(w, "internal_error", "Failed to fetch fact", http.StatusInternalServerError)
 		return
 	}
 	fact, id := pickFact(time.Now().In(bqstore.Oslo), agg)
@@ -189,6 +192,6 @@ func (h *BigQueryHandlers) handlePublicFact(w http.ResponseWriter, r *http.Reque
 			fact.WeekUsers = n
 		}
 	}
-	cacheControl(w, 3600, true)
-	respondJSON(w, fact, http.StatusOK) // null when no template has enough data
+	httpx.CacheControl(w, 3600, true)
+	httpx.RespondJSON(w, fact, http.StatusOK) // null when no template has enough data
 }

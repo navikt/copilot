@@ -1,4 +1,4 @@
-package main
+package copilot
 
 import (
 	"context"
@@ -10,123 +10,23 @@ import (
 
 	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 
-	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
 	"github.com/navikt/copilot/apps/copilot-api/internal/budget"
 )
 
-// mockBudgetGetter implements globalBudgetGetter for testing resolveBudgetCredits.
+// mockBudgetGetter implements budget.GlobalBudgetGetter for testing resolveBudgetCredits.
 type mockBudgetGetter struct {
 	budget *budget.GlobalBudget
 	err    error
 }
 
-// cliApp is copilot-cli's M2M token as copilot-api sees it.
-var cliApp = &auth.User{AZP: "copilot-cli-client-id", Idtyp: "app"}
-
 func (m *mockBudgetGetter) GetGlobalBudget(_ context.Context) (*budget.GlobalBudget, error) {
 	return m.budget, m.err
-}
-
-// TestRequireOwnershipIntegration exercises the full IdentityMiddleware +
-// requireOwnership path used by handleUserMetrics/handleUserWeeklyTrends/
-// handleUserDailyCredits (Phase 3 of the auth architecture migration — see
-// identity.go, identity_middleware.go). Unit-level coverage of the
-// individual resolvers and requireOwnership itself lives in identity_test.go;
-// this test verifies they compose correctly through the middleware chain.
-func TestRequireOwnershipIntegration(t *testing.T) {
-	newRequest := func(user *auth.User, onBehalfOf string) *http.Request {
-		req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/user/hans", nil)
-		req.Pattern = "GET /api/v1/copilot/usage/user/{username}"
-		if user != nil {
-			req = req.WithContext(context.WithValue(req.Context(), auth.UserContextKey, user))
-		}
-		if onBehalfOf != "" {
-			req.Header.Set("X-On-Behalf-Of", onBehalfOf)
-		}
-		return req
-	}
-
-	handler := func(w http.ResponseWriter, r *http.Request) {
-		if auth.RequireOwnership(w, r, "hans") {
-			w.WriteHeader(http.StatusOK)
-		}
-	}
-
-	t.Run("copilot-cli azp with matching X-On-Behalf-Of succeeds", func(t *testing.T) {
-		chain := auth.NewIdentityResolverChain(auth.NewOnBehalfOfIdentityResolver(map[string]bool{"copilot-cli-client-id": true}))
-		mw := auth.IdentityMiddleware(chain, true)
-
-		rec := httptest.NewRecorder()
-		mw(http.HandlerFunc(handler)).ServeHTTP(rec, newRequest(cliApp, "hans"))
-
-		if rec.Code != http.StatusOK {
-			t.Fatalf("status: got %d, want %d, body: %s", rec.Code, http.StatusOK, rec.Body.String())
-		}
-	})
-
-	t.Run("copilot-cli azp with mismatched X-On-Behalf-Of is denied", func(t *testing.T) {
-		chain := auth.NewIdentityResolverChain(auth.NewOnBehalfOfIdentityResolver(map[string]bool{"copilot-cli-client-id": true}))
-		mw := auth.IdentityMiddleware(chain, true)
-
-		rec := httptest.NewRecorder()
-		mw(http.HandlerFunc(handler)).ServeHTTP(rec, newRequest(cliApp, "someone-else"))
-
-		if rec.Code != http.StatusForbidden {
-			t.Errorf("status: got %d, want %d", rec.Code, http.StatusForbidden)
-		}
-	})
-
-	t.Run("copilot-cli azp with missing X-On-Behalf-Of is rejected", func(t *testing.T) {
-		chain := auth.NewIdentityResolverChain(auth.NewOnBehalfOfIdentityResolver(map[string]bool{"copilot-cli-client-id": true}))
-		mw := auth.IdentityMiddleware(chain, true)
-
-		rec := httptest.NewRecorder()
-		mw(http.HandlerFunc(handler)).ServeHTTP(rec, newRequest(cliApp, ""))
-
-		if rec.Code != http.StatusUnauthorized {
-			t.Errorf("status: got %d, want %d", rec.Code, http.StatusUnauthorized)
-		}
-	})
-
-	// A user token that carries X-On-Behalf-Of is refused, not resolved
-	// through SAML with the header ignored. A user never asserts someone else.
-	t.Run("user token with X-On-Behalf-Of is refused", func(t *testing.T) {
-		chain := auth.NewIdentityResolverChain(
-			auth.NewOnBehalfOfIdentityResolver(map[string]bool{"copilot-cli-client-id": true}),
-			auth.NewSAMLIdentityResolver(&mockGitHubClient{samlUsername: "hans"}),
-		)
-		mw := auth.IdentityMiddleware(chain, true)
-
-		req := newRequest(&auth.User{AZP: "my-copilot-client-id", Email: "hans@nav.no"}, "attacker")
-		rec := httptest.NewRecorder()
-		mw(http.HandlerFunc(handler)).ServeHTTP(rec, req)
-
-		if rec.Code != http.StatusUnauthorized {
-			t.Fatalf("status: got %d, want %d, body: %s", rec.Code, http.StatusUnauthorized, rec.Body.String())
-		}
-	})
-
-	t.Run("non-copilot-cli azp falls back to SAML lookup", func(t *testing.T) {
-		chain := auth.NewIdentityResolverChain(
-			auth.NewOnBehalfOfIdentityResolver(map[string]bool{"copilot-cli-client-id": true}),
-			auth.NewSAMLIdentityResolver(&mockGitHubClient{samlUsername: "hans"}),
-		)
-		mw := auth.IdentityMiddleware(chain, true)
-
-		req := newRequest(&auth.User{AZP: "my-copilot-client-id", Email: "hans@nav.no"}, "")
-		rec := httptest.NewRecorder()
-		mw(http.HandlerFunc(handler)).ServeHTTP(rec, req)
-
-		if rec.Code != http.StatusOK {
-			t.Fatalf("status: got %d, want %d, body: %s", rec.Code, http.StatusOK, rec.Body.String())
-		}
-	})
 }
 
 func TestResolveBudgetCredits(t *testing.T) {
 	tests := []struct {
 		name         string
-		budgetClient globalBudgetGetter
+		budgetClient budget.GlobalBudgetGetter
 		want         float64
 	}{
 		{
@@ -163,7 +63,7 @@ func TestResolveBudgetCredits(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			h := &BigQueryHandlers{budgetClient: tc.budgetClient}
+			h := &Handlers{budgetClient: tc.budgetClient}
 			got := h.resolveBudgetCredits(context.Background())
 			if got != tc.want {
 				t.Errorf("resolveBudgetCredits() = %v, want %v", got, tc.want)
@@ -213,7 +113,7 @@ func TestHandleUsageDistribution(t *testing.T) {
 			h := newBigQueryHandlers(tc.mock)
 			req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/distribution"+tc.query, nil)
 			rec := httptest.NewRecorder()
-			h.handleUsageDistribution(rec, req)
+			h.HandleUsageDistribution(rec, req)
 			if rec.Code != tc.wantStatus {
 				t.Errorf("status: got %d, want %d; body=%s", rec.Code, tc.wantStatus, rec.Body.String())
 			}
@@ -238,7 +138,7 @@ func TestHandleUsageDistributionDoesNotMutateCachedResponse(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/distribution", nil)
 	rec := httptest.NewRecorder()
-	h.handleUsageDistribution(rec, req)
+	h.HandleUsageDistribution(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status: got %d, body=%s", rec.Code, rec.Body.String())
@@ -264,11 +164,11 @@ func TestHandleUsageDistributionSeatsGetterDefaultsToNil(t *testing.T) {
 	mock := &mockBigQueryClient{
 		usageDistribution: &bqstore.UsageDistribution{Month: "2026-06", NumUsers: 10},
 	}
-	h := &BigQueryHandlers{bqClient: mock}
+	h := &Handlers{bqClient: mock}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/distribution", nil)
 	rec := httptest.NewRecorder()
-	h.handleUsageDistribution(rec, req)
+	h.HandleUsageDistribution(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status: got %d, body=%s", rec.Code, rec.Body.String())

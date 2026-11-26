@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 	"github.com/navikt/copilot/apps/copilot-api/internal/config"
 )
 
@@ -16,7 +17,7 @@ import (
 func TestAdminRoutesGuarded(t *testing.T) {
 	const group = "11111111-2222-3333-4444-555555555555"
 	// nil BigQuery handlers: an admin who gets through sees the 503 stub.
-	router := makeAPIRouter(&config.Config{}, nil, nil, nil, nil, nil)
+	router := makeAPIRouter(&config.Config{}, nil, nil, nil, nil, nil, nil)
 	cases := []struct {
 		name string
 		env  string
@@ -84,7 +85,7 @@ func TestRequireAdmin(t *testing.T) {
 func TestOldAdminPathsGone(t *testing.T) {
 	const group = "11111111-2222-3333-4444-555555555555"
 	t.Setenv(auth.AdminGroupEnv, group)
-	router := makeAPIRouter(&config.Config{}, nil, nil, nil, nil, nil)
+	router := makeAPIRouter(&config.Config{}, nil, nil, nil, nil, nil, nil)
 	for _, p := range []string{
 		"/api/v1/copilot/billing/admin-monthly",
 		"/api/v1/copilot/billing/admin-active-users",
@@ -101,4 +102,31 @@ func TestOldAdminPathsGone(t *testing.T) {
 			t.Errorf("%s: got %d, want 404", p, rec.Code)
 		}
 	}
+}
+
+// adminQuerier answers the queries behind the admin routes these router
+// tests call; any other query panics on the nil embedded interface.
+type adminQuerier struct {
+	bqstore.BigQueryQuerier
+	anomalies []bqstore.Anomaly
+}
+
+func (m *adminQuerier) GetAdminMonthlyOverview(_ context.Context, year int) (*bqstore.AdminMonthlyOverview, error) {
+	return &bqstore.AdminMonthlyOverview{Year: year}, nil
+}
+
+func (m *adminQuerier) GetCostAnomalies(_ context.Context) ([]bqstore.Anomaly, error) {
+	return m.anomalies, nil
+}
+
+func (m *adminQuerier) GetActiveUsersMonthly(_ context.Context) ([]bqstore.ActiveUsersMonth, error) {
+	return []bqstore.ActiveUsersMonth{{Month: "2026-09", ActiveUsers: 719}}, nil
+}
+
+func (m *adminQuerier) GetBudgetDays(_ context.Context) ([]bqstore.BudgetDay, error) {
+	return []bqstore.BudgetDay{}, nil
+}
+
+func (m *adminQuerier) GetHighConsumers(_ context.Context) ([]bqstore.HighConsumerMonth, error) {
+	return []bqstore.HighConsumerMonth{}, nil
 }

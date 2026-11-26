@@ -1,23 +1,18 @@
-package main
+package copilot
 
 import (
-	"context"
-	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 	"log/slog"
 	"math"
 	"net/http"
 	"sort"
 	"strconv"
 
+	"github.com/navikt/copilot/apps/copilot-api/internal/api/httpx"
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
+	"github.com/navikt/copilot/apps/copilot-api/internal/problem"
+
 	"github.com/navikt/copilot/apps/copilot-api/internal/budget"
 )
-
-// globalBudgetGetter abstracts the enterprise-wide credit budget lookup.
-// Used by usage-distribution histograms to scale credit buckets to the
-// actual per-user $ budget rather than a hardcoded ceiling.
-type globalBudgetGetter interface {
-	GetGlobalBudget(ctx context.Context) (*budget.GlobalBudget, error)
-}
 
 // usdPerAICredit is GitHub Copilot's billing conversion rate: 1 AI credit = $0.01 USD.
 // Source: apps/my-copilot/src/lib/model-pricing.ts (auto-generated from GitHub docs).
@@ -29,52 +24,40 @@ const usdPerAICredit = 0.01
 // enterprise default (400 / 0.01 = 40,000 credits).
 const defaultPerUserBudgetCredits = 40000
 
-// BigQueryHandlers wraps handlers that use BigQuery
-type BigQueryHandlers struct {
-	bqClient     BigQueryQuerier
-	budgetClient globalBudgetGetter
+// Handlers serves the BigQuery-backed /api/v1/copilot/ endpoints.
+type Handlers struct {
+	bqClient     bqstore.BigQueryQuerier
+	budgetClient budget.GlobalBudgetGetter
 	seatsGetter  func() int64
 }
 
-func newBigQueryHandlers(bqClient BigQueryQuerier) *BigQueryHandlers {
-	return &BigQueryHandlers{
-		bqClient: bqClient,
-		// Defaults to the real MetricsCollector singleton; tests can override
-		// this via setSeatsGetter to avoid depending on global state.
-		seatsGetter: func() int64 {
-			metricsCollector.mu.RLock()
-			defer metricsCollector.mu.RUnlock()
-			return metricsCollector.githubSeatsTotal
-		},
-	}
+// Deps are the dependencies of Handlers. Budget and Seats are optional:
+// leave Budget a nil interface (never a typed nil) when there is no budget
+// client.
+type Deps struct {
+	BQ     bqstore.BigQueryQuerier
+	Budget budget.GlobalBudgetGetter
+	// Seats resolves the current GitHub Copilot seat count for
+	// HandleUsageDistribution.
+	Seats func() int64
 }
 
-// setBudgetClient wires in the enterprise budget lookup so usage-distribution
-// histograms can scale to the actual per-user $ budget instead of a hardcoded
-// credit ceiling. Optional — call sites may leave this unset.
-func (h *BigQueryHandlers) setBudgetClient(budgetClient globalBudgetGetter) {
-	h.budgetClient = budgetClient
+// New returns the handlers for the given dependencies.
+func New(d Deps) *Handlers {
+	return &Handlers{bqClient: d.BQ, budgetClient: d.Budget, seatsGetter: d.Seats}
 }
 
 // setSeatsGetter overrides how handleUsageDistribution resolves the
 // current GitHub Copilot seat count. Primarily used by tests to avoid
 // depending on the metricsCollector global singleton.
-func (h *BigQueryHandlers) setSeatsGetter(getter func() int64) {
+func (h *Handlers) setSeatsGetter(getter func() int64) {
 	h.seatsGetter = getter
 }
 
-func requireMethod(w http.ResponseWriter, r *http.Request, method string) bool {
-	if r.Method == method {
-		return true
-	}
-	respondError(w, "method_not_allowed", "Only GET is allowed", http.StatusMethodNotAllowed)
-	return false
-}
-
-// handleDailyMetrics handles GET /api/v1/copilot/usage/metrics?days=N
+// HandleDailyMetrics handles GET /api/v1/copilot/usage/metrics?days=N
 // Cache: 1 hour (metrics are aggregated daily)
-func (h *BigQueryHandlers) handleDailyMetrics(w http.ResponseWriter, r *http.Request) {
-	if !requireMethod(w, r, http.MethodGet) {
+func (h *Handlers) HandleDailyMetrics(w http.ResponseWriter, r *http.Request) {
+	if !httpx.RequireMethod(w, r, http.MethodGet) {
 		return
 	}
 
@@ -82,7 +65,7 @@ func (h *BigQueryHandlers) handleDailyMetrics(w http.ResponseWriter, r *http.Req
 	if daysParam := r.URL.Query().Get("days"); daysParam != "" {
 		d, err := strconv.Atoi(daysParam)
 		if err != nil || d < 1 || d > 365 {
-			respondError(w, "invalid_parameter", "days must be between 1 and 365", http.StatusBadRequest)
+			problem.Respond(w, "invalid_parameter", "days must be between 1 and 365", http.StatusBadRequest)
 			return
 		}
 		days = &d
@@ -91,54 +74,54 @@ func (h *BigQueryHandlers) handleDailyMetrics(w http.ResponseWriter, r *http.Req
 	metrics, err := h.bqClient.GetDailyMetrics(r.Context(), days)
 	if err != nil {
 		slog.Error("Failed to fetch daily metrics", "error", err)
-		respondError(w, "internal_error", "Failed to fetch daily metrics", http.StatusInternalServerError)
+		problem.Respond(w, "internal_error", "Failed to fetch daily metrics", http.StatusInternalServerError)
 		return
 	}
 
-	cacheControl(w, 3600, false) // 1 hour, public
-	respondJSON(w, metrics, http.StatusOK)
+	httpx.CacheControl(w, 3600, false) // 1 hour, public
+	httpx.RespondJSON(w, metrics, http.StatusOK)
 }
 
-// handleAdoptionSummary handles GET /api/v1/copilot/adoption/summary
+// HandleAdoptionSummary handles GET /api/v1/copilot/adoption/summary
 // Cache: 1 hour (aggregated metrics)
-func (h *BigQueryHandlers) handleAdoptionSummary(w http.ResponseWriter, r *http.Request) {
-	if !requireMethod(w, r, http.MethodGet) {
+func (h *Handlers) HandleAdoptionSummary(w http.ResponseWriter, r *http.Request) {
+	if !httpx.RequireMethod(w, r, http.MethodGet) {
 		return
 	}
 
 	summary, err := h.bqClient.GetAdoptionSummary(r.Context())
 	if err != nil {
 		slog.Error("Failed to fetch adoption summary", "error", err)
-		respondError(w, "internal_error", "Failed to fetch adoption summary", http.StatusInternalServerError)
+		problem.Respond(w, "internal_error", "Failed to fetch adoption summary", http.StatusInternalServerError)
 		return
 	}
 
 	if summary == nil {
-		cacheControl(w, 3600, false)
-		respondJSON(w, map[string]interface{}{}, http.StatusOK)
+		httpx.CacheControl(w, 3600, false)
+		httpx.RespondJSON(w, map[string]interface{}{}, http.StatusOK)
 		return
 	}
 
-	cacheControl(w, 3600, false)
-	respondJSON(w, summary, http.StatusOK)
+	httpx.CacheControl(w, 3600, false)
+	httpx.RespondJSON(w, summary, http.StatusOK)
 }
 
-// handleTeamAdoption handles GET /api/v1/copilot/adoption/teams
+// HandleTeamAdoption handles GET /api/v1/copilot/adoption/teams
 // Cache: 1 hour (aggregated team metrics)
-func (h *BigQueryHandlers) handleTeamAdoption(w http.ResponseWriter, r *http.Request) {
-	if !requireMethod(w, r, http.MethodGet) {
+func (h *Handlers) HandleTeamAdoption(w http.ResponseWriter, r *http.Request) {
+	if !httpx.RequireMethod(w, r, http.MethodGet) {
 		return
 	}
 
 	teams, err := h.bqClient.GetTeamAdoption(r.Context())
 	if err != nil {
 		slog.Error("Failed to fetch team adoption", "error", err)
-		respondError(w, "internal_error", "Failed to fetch team adoption", http.StatusInternalServerError)
+		problem.Respond(w, "internal_error", "Failed to fetch team adoption", http.StatusInternalServerError)
 		return
 	}
 
-	cacheControl(w, 3600, false)
-	respondJSON(w, teamAdoptionOverview(teams), http.StatusOK)
+	httpx.CacheControl(w, 3600, false)
+	httpx.RespondJSON(w, teamAdoptionOverview(teams), http.StatusOK)
 }
 
 // TeamAdoptionRow is a display-ready team row with rates as whole percent.
@@ -214,71 +197,71 @@ func teamAdoptionOverview(teams []bqstore.TeamAdoption) TeamAdoptionOverview {
 	return out
 }
 
-// handleCustomizationDetails handles GET /api/v1/copilot/customizations/details
+// HandleCustomizationDetails handles GET /api/v1/copilot/customizations/details
 // Cache: 1 hour (aggregated customization data)
-func (h *BigQueryHandlers) handleCustomizationDetails(w http.ResponseWriter, r *http.Request) {
-	if !requireMethod(w, r, http.MethodGet) {
+func (h *Handlers) HandleCustomizationDetails(w http.ResponseWriter, r *http.Request) {
+	if !httpx.RequireMethod(w, r, http.MethodGet) {
 		return
 	}
 
 	details, err := h.bqClient.GetCustomizationDetails(r.Context())
 	if err != nil {
 		slog.Error("Failed to fetch customization details", "error", err)
-		respondError(w, "internal_error", "Failed to fetch customization details", http.StatusInternalServerError)
+		problem.Respond(w, "internal_error", "Failed to fetch customization details", http.StatusInternalServerError)
 		return
 	}
 
-	cacheControl(w, 3600, false)
-	respondJSON(w, details, http.StatusOK)
+	httpx.CacheControl(w, 3600, false)
+	httpx.RespondJSON(w, details, http.StatusOK)
 }
 
-// handleCustomizationUsage handles GET /api/v1/copilot/customizations/usage
+// HandleCustomizationUsage handles GET /api/v1/copilot/customizations/usage
 // Cache: 1 hour (aggregated customization usage)
-func (h *BigQueryHandlers) handleCustomizationUsage(w http.ResponseWriter, r *http.Request) {
-	if !requireMethod(w, r, http.MethodGet) {
+func (h *Handlers) HandleCustomizationUsage(w http.ResponseWriter, r *http.Request) {
+	if !httpx.RequireMethod(w, r, http.MethodGet) {
 		return
 	}
 
 	usage, err := h.bqClient.GetCustomizationUsage(r.Context())
 	if err != nil {
 		slog.Error("Failed to fetch customization usage", "error", err)
-		respondError(w, "internal_error", "Failed to fetch customization usage", http.StatusInternalServerError)
+		problem.Respond(w, "internal_error", "Failed to fetch customization usage", http.StatusInternalServerError)
 		return
 	}
 
-	cacheControl(w, 3600, false)
-	respondJSON(w, usage, http.StatusOK)
+	httpx.CacheControl(w, 3600, false)
+	httpx.RespondJSON(w, usage, http.StatusOK)
 }
 
-// handleLanguageAdoption handles GET /api/v1/copilot/adoption/languages
+// HandleLanguageAdoption handles GET /api/v1/copilot/adoption/languages
 // Cache: 1 hour (language adoption metrics)
-func (h *BigQueryHandlers) handleLanguageAdoption(w http.ResponseWriter, r *http.Request) {
-	if !requireMethod(w, r, http.MethodGet) {
+func (h *Handlers) HandleLanguageAdoption(w http.ResponseWriter, r *http.Request) {
+	if !httpx.RequireMethod(w, r, http.MethodGet) {
 		return
 	}
 
 	langs, err := h.bqClient.GetLanguageAdoption(r.Context())
 	if err != nil {
 		slog.Error("Failed to fetch language adoption", "error", err)
-		respondError(w, "internal_error", "Failed to fetch language adoption", http.StatusInternalServerError)
+		problem.Respond(w, "internal_error", "Failed to fetch language adoption", http.StatusInternalServerError)
 		return
 	}
 
-	cacheControl(w, 3600, false)
-	respondJSON(w, langs, http.StatusOK)
+	httpx.CacheControl(w, 3600, false)
+	httpx.RespondJSON(w, langs, http.StatusOK)
 }
 
-// handleAdoptionStaleness handles GET /api/v1/copilot/adoption/staleness
+// HandleAdoptionStaleness handles GET /api/v1/copilot/adoption/staleness
 // Cache: 1 hour (staleness data updated daily)
-func (h *BigQueryHandlers) handleAdoptionStaleness(w http.ResponseWriter, r *http.Request) {
-	if !requireMethod(w, r, http.MethodGet) {
+func (h *Handlers) HandleAdoptionStaleness(w http.ResponseWriter, r *http.Request) {
+	if !httpx.RequireMethod(w, r, http.MethodGet) {
 		return
 	}
 
 	files, err := h.bqClient.GetStalenessData(r.Context())
 	if err != nil {
 		slog.Error("Failed to fetch staleness data", "error", err)
-		respondError(w, "internal_error", "Failed to fetch staleness data", http.StatusInternalServerError)
+		problem.Respond(w, "internal_error", "Failed to fetch staleness data", http.StatusInternalServerError)
 		return
 	}
 
@@ -303,27 +286,27 @@ func (h *BigQueryHandlers) handleAdoptionStaleness(w http.ResponseWriter, r *htt
 		Files:              files,
 	}
 
-	cacheControl(w, 3600, false)
-	respondJSON(w, summary, http.StatusOK)
+	httpx.CacheControl(w, 3600, false)
+	httpx.RespondJSON(w, summary, http.StatusOK)
 }
 
-// handleNavPilotTelemetry handles GET /api/v1/copilot/mimir/telemetry
+// HandleNavPilotTelemetry handles GET /api/v1/copilot/mimir/telemetry
 // Cache: 1 hour (aggregated daily Mimir telemetry)
-func (h *BigQueryHandlers) handleNavPilotTelemetry(w http.ResponseWriter, r *http.Request) {
-	if !requireMethod(w, r, http.MethodGet) {
+func (h *Handlers) HandleNavPilotTelemetry(w http.ResponseWriter, r *http.Request) {
+	if !httpx.RequireMethod(w, r, http.MethodGet) {
 		return
 	}
 
 	telemetry, err := h.bqClient.GetNavPilotTelemetry(r.Context())
 	if err != nil {
 		slog.Error("Failed to fetch nav-pilot telemetry", "error", err)
-		respondError(w, "internal_error", "Failed to fetch nav-pilot telemetry", http.StatusInternalServerError)
+		problem.Respond(w, "internal_error", "Failed to fetch nav-pilot telemetry", http.StatusInternalServerError)
 		return
 	}
 	if telemetry == nil {
 		telemetry = bqstore.AggregateNavPilotTelemetry(nil)
 	}
 
-	cacheControl(w, 3600, false)
-	respondJSON(w, telemetry, http.StatusOK)
+	httpx.CacheControl(w, 3600, false)
+	httpx.RespondJSON(w, telemetry, http.StatusOK)
 }

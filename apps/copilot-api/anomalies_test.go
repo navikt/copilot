@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/navikt/copilot/apps/copilot-api/internal/api/admin"
 	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 
 	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
@@ -15,8 +16,8 @@ import (
 
 func TestCostAnomaliesAdminOnly(t *testing.T) {
 	t.Setenv(auth.AdminGroupEnv, "admins")
-	h := newBigQueryHandlers(&mockBigQueryClient{anomalies: []bqstore.Anomaly{{Rule: "A1", Date: "2026-09-21"}}})
-	mux := makeAPIRouter(&config.Config{}, h, nil, nil, nil, nil)
+	h := admin.New(admin.Deps{BQ: &adminQuerier{anomalies: []bqstore.Anomaly{{Rule: "A1", Date: "2026-09-21"}}}})
+	mux := makeAPIRouter(&config.Config{}, nil, h, nil, nil, nil, nil)
 	for _, tc := range []struct {
 		groups []string
 		want   int

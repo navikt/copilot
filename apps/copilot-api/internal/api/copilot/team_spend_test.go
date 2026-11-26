@@ -1,4 +1,4 @@
-package main
+package copilot
 
 import (
 	"bytes"
@@ -86,7 +86,7 @@ func TestTeamSpendBigQuery(t *testing.T) {
 	}
 	t.Logf("September composition: %d providers, %d categories, %d features, %d languages; Unclassified in %d provider summaries and %d category summaries", providers, categories, features, languages, unknownProviders, unknownCategories)
 	grossRecorder := httptest.NewRecorder()
-	newBigQueryHandlers(bqstore.NewCachedBigQueryClient(client, time.Minute)).handleTeamGrossOverview(grossRecorder, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/team-gross?month=2026-09", nil).WithContext(ctx))
+	newBigQueryHandlers(bqstore.NewCachedBigQueryClient(client, time.Minute)).HandleTeamGrossOverview(grossRecorder, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/team-gross?month=2026-09", nil).WithContext(ctx))
 	var httpGross bqstore.TeamGrossOverview
 	if err := json.Unmarshal(grossRecorder.Body.Bytes(), &httpGross); err != nil || grossRecorder.Code != http.StatusOK || !reflect.DeepEqual(httpGross.Usage, gross.Usage) {
 		t.Fatalf("HTTP usage lost: %d %v", grossRecorder.Code, err)
@@ -125,7 +125,7 @@ func TestTeamSpendBigQuery(t *testing.T) {
 	}
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/team-net?month=2026-09", nil).WithContext(ctx)
 	recorder := httptest.NewRecorder()
-	newBigQueryHandlers(bqstore.NewCachedBigQueryClient(client, time.Minute)).handleTeamNetOverview(recorder, request)
+	newBigQueryHandlers(bqstore.NewCachedBigQueryClient(client, time.Minute)).HandleTeamNetOverview(recorder, request)
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("net HTTP handler status %d", recorder.Code)
 	}
@@ -143,7 +143,7 @@ func TestTeamGrossHandlerComparesFullMonths(t *testing.T) {
 		netByMonth:   map[string]*bqstore.TeamNetOverview{"2026-09": {Month: "2026-09", Teams: []bqstore.TeamSpend{bqstore.NewTeamSpend("a", "a", 5, 90)}}},
 	})
 	rec := httptest.NewRecorder()
-	h.handleTeamGrossOverview(rec, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/team-gross?month=2026-09", nil))
+	h.HandleTeamGrossOverview(rec, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/team-gross?month=2026-09", nil))
 	var got bqstore.TeamGrossOverview
 	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
 		t.Fatal(err)
@@ -152,7 +152,7 @@ func TestTeamGrossHandlerComparesFullMonths(t *testing.T) {
 		t.Fatalf("gross = %+v", got)
 	}
 	rec = httptest.NewRecorder()
-	h.handleTeamNetOverview(rec, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/team-net?month=2026-09", nil))
+	h.HandleTeamNetOverview(rec, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/team-net?month=2026-09", nil))
 	var net bqstore.TeamNetOverview
 	if err := json.Unmarshal(rec.Body.Bytes(), &net); err != nil {
 		t.Fatal(err)
@@ -212,7 +212,7 @@ func TestTeamGrossOverviewOptionalComposition(t *testing.T) {
 				t.Fatalf("unexpected log: %s", logs.String())
 			}
 			recorder := httptest.NewRecorder()
-			newBigQueryHandlers(&mockBigQueryClient{teamGross: got}).handleTeamGrossOverview(recorder,
+			newBigQueryHandlers(&mockBigQueryClient{teamGross: got}).HandleTeamGrossOverview(recorder,
 				httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/team-gross?month=2026-09", nil))
 			httpExpected := expected
 			httpExpected.DaysWithUsage, httpExpected.DistinctGrossUSD, httpExpected.Comparison = 0, 0, bqstore.ComparisonIncomplete

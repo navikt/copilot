@@ -246,7 +246,7 @@ Inbound is public via ingress, and Wonderwall enforces auth on the protected rou
 | GitHub username (path param) | Regex: `^[a-zA-Z0-9]([a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$` | `github_handlers.go` |
 | SAML identity (path param) | Non-empty, max 254 chars, no `/` | `github_handlers.go` |
 | Request body (POST /seats) | `http.MaxBytesReader` 1KB limit, JSON decode | `github_handlers.go` |
-| BigQuery `days` param | Integer, range 1–365 | `bigquery_handlers.go` |
+| BigQuery `days` param | Integer, range 1–365 | `internal/api/copilot/bigquery_handlers.go` |
 | BigQuery table/view refs | Server-side only (from config, not user input) | `bigquery.go` |
 | BigQuery day filter | Parameterized query (`@days`) | `bigquery.go` |
 
