@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -290,5 +291,54 @@ func TestSyncRefusesASourceThatShipsNothing(t *testing.T) {
 		if _, statErr := os.Stat(filepath.Join(dir, ".github", "agents", name)); statErr != nil {
 			t.Errorf("%s was removed: %v", name, statErr)
 		}
+	}
+}
+
+// TestSyncKeepsAnEditedFileWhenItsCopyCannotBeSaved: the .orig copy is what
+// makes removing an edited file safe. When it cannot be written, here because
+// a directory already sits at the .orig path, sync keeps the file and reports
+// the error instead of deleting the user's only copy.
+func TestSyncKeepsAnEditedFileWhenItsCopyCannotBeSaved(t *testing.T) {
+	dir, scope, _ := deletionScope(t)
+
+	edited := "# Kept, and edited by me\n"
+	kept := filepath.Join(dir, ".github", "agents", "kept.agent.md")
+	mustWrite(t, kept, edited)
+	// A non-empty directory: the copy cannot be written over it, root or not.
+	mustWrite(t, filepath.Join(kept+".orig", "blocker"), "x")
+
+	var err error
+	var out string
+	errOut := captureStderrFor(t, func() {
+		out = captureStdoutFor(t, func() { err = cmdSync(scope, "", "", true, false) })
+	})
+	if err == nil {
+		t.Errorf("sync --apply succeeded although an edited file could not be saved:\n%s", out)
+	}
+	if got, readErr := os.ReadFile(kept); readErr != nil || string(got) != edited {
+		t.Errorf("sync removed an edited file it could not save: %q, %v\n%s%s", got, readErr, out, errOut)
+	}
+	if !strings.Contains(errOut, "Kept .github/agents/kept.agent.md") {
+		t.Errorf("sync did not report the kept file:\n%s", errOut)
+	}
+	if _, statErr := os.Stat(filepath.Join(dir, ".github", "agents", "gone.agent.md")); !os.IsNotExist(statErr) {
+		t.Errorf("one failed save stopped the other deletion: %v", statErr)
+	}
+}
+
+// TestSyncWithoutApplyDeletesNothing: a check-only sync lists what the source
+// dropped and leaves every file, edited or not, where it is.
+func TestSyncWithoutApplyDeletesNothing(t *testing.T) {
+	dir, scope, _ := deletionScope(t)
+	mustWrite(t, filepath.Join(dir, ".github", "agents", "kept.agent.md"), "# Kept, and edited by me\n")
+
+	before := treeSnapshot(t, dir)
+	var err error
+	out := captureStdoutFor(t, func() { err = cmdSync(scope, "", "", false, false) })
+	if !errors.Is(err, errUpdatesAvailable) {
+		t.Fatalf("cmdSync = %v, want errUpdatesAvailable:\n%s", err, out)
+	}
+	if diff := changedPaths(before, treeSnapshot(t, dir)); len(diff) != 0 {
+		t.Errorf("a sync without --apply changed %v:\n%s", diff, out)
 	}
 }
