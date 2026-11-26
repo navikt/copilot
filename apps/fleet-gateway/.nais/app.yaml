@@ -185,22 +185,22 @@ spec:
       rules:
         - record: fleet_gateway:slo_availability_errors:ratio_rate5m
           expr: |
-            (sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity|user_cap|user_sse_cap"}[5m]))
+            (sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity"}[5m]))
               or sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|route_disabled|tool_denied"}[5m])) * 0)
               / sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|route_disabled|tool_denied"}[5m]))
         - record: fleet_gateway:slo_availability_errors:ratio_rate1h
           expr: |
-            (sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity|user_cap|user_sse_cap"}[1h]))
+            (sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity"}[1h]))
               or sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|route_disabled|tool_denied"}[1h])) * 0)
               / sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|route_disabled|tool_denied"}[1h]))
         - record: fleet_gateway:slo_availability_errors:ratio_rate6h
           expr: |
-            (sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity|user_cap|user_sse_cap"}[6h]))
+            (sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity"}[6h]))
               or sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|route_disabled|tool_denied"}[6h])) * 0)
               / sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|route_disabled|tool_denied"}[6h]))
         - record: fleet_gateway:slo_availability_errors:ratio_rate1d
           expr: |
-            (sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity|user_cap|user_sse_cap"}[1d]))
+            (sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity"}[1d]))
               or sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|route_disabled|tool_denied"}[1d])) * 0)
               / sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|route_disabled|tool_denied"}[1d]))
         - record: fleet_gateway:slo_availability_requests:increase6h
@@ -355,6 +355,19 @@ spec:
             consequence: "store_full: new logins and registrations fail. cap: MCP calls get 503 over capacity."
             action: "store_full: count rows per kind in the session store and look for a client registering in a loop. cap: check `fleet_gateway_mcp_requests_total` by route and slow upstreams."
             runbook_url: https://github.com/navikt/copilot/blob/main/apps/fleet-gateway/docs/runbook.md#fleetgatewaysustainedshedding
+        - alert: FleetGatewayUserCapsHit
+          expr: sum by (route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome=~"user_cap|user_sse_cap"}[15m])) > 20
+          labels:
+            namespace: copilot
+            severity: warning
+            alert_type: custom
+            app: fleet-gateway
+          annotations:
+            summary: More than 20 per-user cap answers (429) in 15 minutes on one route; the route label says which
+            description: user_cap and user_sse_cap are left out of the availability SLO. This alert is the only one that sees them.
+            consequence: One or more users get 429 Too Many Requests and their client retries after one second.
+            action: "Break down `fleet_gateway_mcp_requests_total{outcome=~\"user_cap|user_sse_cap\"}` by route, then read the `audit mcp` lines for that route."
+            runbook_url: https://github.com/navikt/copilot/blob/main/apps/fleet-gateway/docs/runbook.md#fleetgatewayusercapshit
         - alert: FleetGatewaySustainedRateLimiting
           expr: sum by (oauth_endpoint) (increase(fleet_gateway_rate_limited_total{namespace="copilot"}[5m])) > 20
           for: 15m
