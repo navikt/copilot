@@ -331,11 +331,25 @@ describe("/fleet", () => {
     expect(screen.getByText(/må sende det inn på nytt/)).toBeInTheDocument();
   });
 
+  it("the overview names «Godkjenn» as the next step only for the platform team", async () => {
+    render(await FleetPage(sp()));
+    expect(screen.queryAllByText("Godkjenn versjon 3")).toHaveLength(0);
+    expect(screen.getAllByText("Venter på team copilot").length).toBeGreaterThan(0);
+    cleanup();
+    stub({
+      [`${API}/whoami`]: { name: "A123456", teams: ["team-a", "copilot"] },
+      [`${API}/namespaces/copilot/mcpservers`]: { items: [] },
+      [`${API}/namespaces/copilot/agentprofiles`]: { items: [] },
+    });
+    render(await FleetPage(sp("team-a")));
+    expect(screen.getAllByText("Godkjenn versjon 3").length).toBeGreaterThan(0);
+  });
+
   it("shows «Godkjenn» to the platform team only, whoever submitted", async () => {
     // Owner team, not in copilot: no button, the rule instead.
     render(await ServerPage(params("team-a", "docs")));
     expect(screen.queryByRole("button", { name: "Godkjenn versjon 3" })).toBeNull();
-    expect(screen.getByText(/^Versjon 3 venter på team copilot\. Gir den ikke mer tilgang/)).toBeInTheDocument();
+    expect(screen.getByText(/^Versjon 3 venter på team copilot\.$/)).toBeInTheDocument();
     cleanup();
     // In copilot and the submitter: self-approval is allowed.
     const own = server();

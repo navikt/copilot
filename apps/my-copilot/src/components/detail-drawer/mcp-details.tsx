@@ -19,8 +19,9 @@ import { isFleetGatewayMcp, isGatewayUrl, isLocalMcp, riskOf } from "./mcp-meta"
 import { EFFECT, LEVELS_HREF, effectOf, type Effect } from "@/lib/mcp-labels";
 import { enableCommand } from "@/components/mcp/servers";
 
-// nav-pilot mcp enable turns these on; the rest stay off until the user picks them.
-const ON_BY_DEFAULT: Effect[] = ["read", "files"];
+// nav-pilot mcp enable turns on registry risk read and write (the API value, not the label); the rest stay off until the user picks them.
+const ON_BY_DEFAULT = ["read", "write"];
+const onByDefault = (risk: string) => ON_BY_DEFAULT.includes(risk);
 const ORDER: Effect[] = ["read", "propose", "files", "acts", "unsandboxed"];
 
 function McpToolList({
@@ -33,9 +34,14 @@ function McpToolList({
   local: boolean;
 }) {
   const effect = (tool: string) => effectOf(riskOf(toolRisk, tool), local);
-  const groups = ORDER.map((e) => ({ effect: e, count: tools.filter((tool) => effect(tool) === e).length })).filter(
-    (group) => group.count > 0
-  );
+  const groups = ORDER.map((e) => {
+    const inGroup = tools.filter((tool) => effect(tool) === e);
+    return {
+      effect: e,
+      count: inGroup.length,
+      on: inGroup.filter((tool) => onByDefault(riskOf(toolRisk, tool))).length,
+    };
+  }).filter((group) => group.count > 0);
   return (
     <VStack gap="space-8">
       <Heading size="xsmall" level="4">
@@ -61,7 +67,7 @@ function McpToolList({
               {EFFECT[group.effect].label} ({group.count})
             </strong>
             : {EFFECT[group.effect].text}{" "}
-            {ON_BY_DEFAULT.includes(group.effect) ? "På som standard." : "Av som standard."}
+            {group.on === group.count ? "På som standard." : group.on ? "Delvis på som standard." : "Av som standard."}
           </BodyShort>
         ))}
         <BodyShort size="small" className="verktoy-subtle">

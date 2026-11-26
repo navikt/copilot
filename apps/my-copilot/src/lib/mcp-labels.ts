@@ -34,7 +34,8 @@ export function effectOf(risk: string, local: boolean): Effect {
   if (risk === "read" || risk === "propose") return risk;
   if (risk === "write") return local ? "files" : "acts";
   if (risk === "host-exec") return local ? "unsandboxed" : "acts";
-  return "acts";
+  // Unknown value: fail closed, the most serious label this server can have.
+  return local ? "unsandboxed" : "acts";
 }
 
 export const runsWhere = (local: boolean) => (local ? "Kjører lokalt" : "Kjører eksternt");

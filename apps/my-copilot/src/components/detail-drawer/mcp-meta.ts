@@ -29,6 +29,8 @@ export function riskOf(toolRisk: Record<string, McpToolRisk> | undefined, tool: 
 // shortcut: the registry has no local/remote field, so a server is local when no remote is off this machine; add a field if a remote on loopback ever means something else.
 export function isLocalMcp(item: EnrichedCustomization): boolean {
   if (item.type !== "mcp") return false;
+  // A package runs on this machine, whatever remote the entry also lists.
+  if (item.packages?.length) return true;
   return !item.remotes.some((r) => {
     try {
       return !["127.0.0.1", "localhost", "[::1]"].includes(new URL(r.url.replace("{{domain_internal}}", "x")).hostname);

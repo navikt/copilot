@@ -279,7 +279,17 @@ export function TeamStats({ servers, me }: { servers: MCPServer[]; me?: string }
 }
 
 /** MCP server versions that wait for someone on the team: approve, or wait for the others. */
-export function ServerInbox({ servers, me, myName }: { servers: MCPServer[]; me?: string; myName?: string }) {
+export function ServerInbox({
+  servers,
+  me,
+  myName,
+  approver,
+}: {
+  servers: MCPServer[];
+  me?: string;
+  myName?: string;
+  approver?: boolean;
+}) {
   const waiting = servers.filter((s) => s.status.pending);
   if (!waiting.length) return null;
   return (
@@ -332,7 +342,7 @@ export function ServerInbox({ servers, me, myName }: { servers: MCPServer[]; me?
                   <Button
                     as={NextLink}
                     href={href}
-                    variant={mine ? "secondary" : "primary"}
+                    variant={mine || !approver ? "secondary" : "primary"}
                     className="w-full md:w-auto"
                   >
                     Se endringen
@@ -371,16 +381,16 @@ function Initials({ name }: { name?: string }) {
 }
 
 /** One short next step per MCP server for the overview table. */
-export function serverShortNext(s: MCPServer, me?: string): string {
+export function serverShortNext(s: MCPServer, approver = false): string {
   const p = s.status.pending;
-  if (p) return !!me && p.submittedBy?.name === me ? "Team copilot godkjenner" : "Godkjenn versjon " + p.generation;
+  if (p) return approver ? "Godkjenn versjon " + p.generation : "Venter på " + APPROVER;
   if (hasCondition(s, "Revoked")) return "Send inn en ny versjon";
   return "Ingen";
 }
 
 export type TeamData = { team: string; servers: MCPServer[]; agents: AgentProfile[] };
 
-export function TeamSections({ teams, me }: { teams: TeamData[]; me?: string }) {
+export function TeamSections({ teams, approver }: { teams: TeamData[]; approver?: boolean }) {
   return (
     <VStack gap="space-32">
       {teams.map((t) => (
@@ -418,7 +428,7 @@ export function TeamSections({ teams, me }: { teams: TeamData[]; me?: string }) 
                                   {s.status.route.path}
                                 </Detail>
                               )}
-                              <Detail>{serverShortNext(s, me)}</Detail>
+                              <Detail>{serverShortNext(s, approver)}</Detail>
                             </VStack>
                           </Box>
                         ))}
@@ -455,7 +465,7 @@ export function TeamSections({ teams, me }: { teams: TeamData[]; me?: string }) 
                             <Table.DataCell>
                               <StatusTag s={serverStatus(s)} />
                             </Table.DataCell>
-                            <Table.DataCell>{serverShortNext(s, me)}</Table.DataCell>
+                            <Table.DataCell>{serverShortNext(s, approver)}</Table.DataCell>
                             <Table.DataCell>{s.status.publishedGeneration ?? "–"}</Table.DataCell>
                           </Table.Row>
                         ))}
@@ -1384,7 +1394,6 @@ function ServerActions({
   const live = hasCondition(server, "Published") && !hasCondition(server, "Revoked");
   const { namespace, name } = server.metadata;
   const pending = server.status.pending;
-  // Hides the button only; fleet-control enforces the two-person rule on approval.
   const ownVersion = !!me && pending?.submittedBy?.name === me;
   const ids = (
     <>
@@ -1455,7 +1464,7 @@ function ServerActions({
               </Heading>
               {/* shortcut: fleet-control has no rollback yet; the column keeps the sketch's layout. */}
               <BodyShort>
-                Eierteamet kan rulle tilbake til en versjon team copilot har godkjent. Kommer i Fleet.
+                Eierteamet kan rulle tilbake til en tidligere publisert versjon. Kommer i Fleet.
                 {owner &&
                   " Til da: Er feil i oppsettet, endre MCP-serveren og send inn en ny versjon. Er feilen i koden til appen, ruller dere tilbake appen i Nais. Haster det for alle, kan plattformteamet bruke nødstopp i fleet-gateway."}
               </BodyShort>

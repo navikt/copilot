@@ -8,5 +8,4 @@ export const APPROVAL_RULE =
 export const CHANGE_RULE = "Gir endringen mer tilgang, må team copilot godkjenne den. Ellers gjelder den med en gang.";
 export const ownVersionText = (generation: number) =>
   `Versjon ${generation} venter på team copilot. Vil du endre noe før det, bruk «Endre MCP-serveren» nederst på siden. Det blir en ny versjon som erstatter denne.`;
-export const waitingText = (generation: number) =>
-  `Versjon ${generation} venter på team copilot. Gir den ikke mer tilgang, blir den publisert uten godkjenning.`;
+export const waitingText = (generation: number) => `Versjon ${generation} venter på team copilot.`;

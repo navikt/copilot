@@ -9,7 +9,7 @@ import { FleetFrame, fleetRobots } from "./frame";
 import { LinkText } from "./nav";
 import { FleetProblemAlert, KortFortalt, RegisterButton, ServerInbox, TeamSections, TeamStats } from "./fleet-ui";
 import { TeamChooser, UnknownTeam } from "./catalog";
-import { APPROVAL_RULE } from "@/lib/fleet-approval";
+import { APPROVAL_RULE, PLATFORM_TEAM } from "@/lib/fleet-approval";
 
 const DNS_LABEL = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
 
@@ -39,7 +39,7 @@ export default async function FleetPage({ searchParams }: Props) {
       ),
       fleetApi.pending(),
     ]);
-    return { teams, pending: pending.items, me: me.name };
+    return { teams, pending: pending.items, me: me.name, approver: me.teams.includes(PLATFORM_TEAM) };
   });
   if ("problem" in result) {
     return (
@@ -48,7 +48,7 @@ export default async function FleetPage({ searchParams }: Props) {
       </FleetFrame>
     );
   }
-  const { teams, pending, me } = result.data;
+  const { teams, pending, me, approver } = result.data;
   const myName = fullName(await getUser(false));
   // No team: the catalogue explains how to start.
   if (teams.length === 0) redirect("/fleet/katalog");
@@ -91,7 +91,7 @@ export default async function FleetPage({ searchParams }: Props) {
                 </Heading>
                 <BodyLong size="small">{APPROVAL_RULE}</BodyLong>
               </HStack>
-              <ServerInbox servers={picked.servers} me={me} myName={myName} />
+              <ServerInbox servers={picked.servers} me={me} myName={myName} approver={approver} />
               {pending.length > 0 && (
                 <BodyLong>
                   {pending.length === 1 ? "1 agentprofil venter" : `${pending.length} agentprofiler venter`} på at dere
@@ -101,7 +101,7 @@ export default async function FleetPage({ searchParams }: Props) {
               )}
             </VStack>
           )}
-          <TeamSections teams={[picked]} me={me} />
+          <TeamSections teams={[picked]} approver={approver} />
           <KortFortalt collapsed>
             <BodyLong>
               Teamet registrerer en <strong>MCP-server</strong>. Team copilot godkjenner. Da får MCP-serveren en{" "}
