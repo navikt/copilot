@@ -366,6 +366,8 @@ describe("/fleet", () => {
     render(await RegisterPage(sp()));
     expect(screen.getByRole("option", { name: "team-a" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Navn" })).toBeInTheDocument();
+    // Registrer: the lead names the team and says nothing is published before approval.
+    expect(screen.getByText(/^For team-a\. Tar rundt fem minutter\./)).toBeInTheDocument();
     vi.stubEnv("FLEET_CONTROL_URL", "");
     await expect(RegisterPage(sp())).rejects.toThrow("NEXT_NOT_FOUND");
   });

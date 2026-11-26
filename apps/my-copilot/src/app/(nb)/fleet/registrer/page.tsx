@@ -4,7 +4,7 @@ import { isLocalDev } from "@/lib/backend-api";
 import { fleetApi, fleetLoad, requireFleet } from "@/lib/fleet-control";
 import { isName } from "@/lib/fleet-names";
 import { FleetFrame, fleetRobots } from "../frame";
-import { FleetProblemAlert, KortFortalt } from "../fleet-ui";
+import { FleetProblemAlert } from "../fleet-ui";
 import { RegisterWizard } from "./wizard";
 
 export const metadata: Metadata = { title: "Registrer MCP-server", robots: fleetRobots };
@@ -27,13 +27,10 @@ export default async function RegisterPage({ searchParams }: Props) {
   // Same rule as fleet-control: outside dev-*, write tools need a ROS. Local dev counts as dev.
   const requireRos = !isLocalDev() && !(process.env.NAIS_CLUSTER_NAME ?? "").startsWith("dev-");
   return (
-    <FleetFrame title="Registrer MCP-server" description="Send inn en MCP-server til godkjenning.">
-      <KortFortalt>
-        <BodyLong>
-          Seks steg, rundt fem minutter. Ingenting publiseres før en annen på teamet har godkjent. Du kan gå tilbake og
-          endre underveis.
-        </BodyLong>
-      </KortFortalt>
+    <FleetFrame
+      title="Registrer MCP-server"
+      description={`${team ? `For ${team}. ` : ""}Tar rundt fem minutter. Ingenting publiseres før en annen i teamet har godkjent.`}
+    >
       {"problem" in result ? (
         <FleetProblemAlert problem={result.problem} />
       ) : !team ? (
