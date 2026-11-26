@@ -154,7 +154,11 @@ export default function FleetGatewayForTeamPage() {
         <NextLink href="/mcp/fleet-gateway#status" className={linkClass}>
           status for piloten
         </NextLink>
-        . Stegene kan endres.
+        . Stegene kan endres. Korte svar på det team ofte lurer på står i{" "}
+        <NextLink href="/mcp/tilby-server/vanlige-sporsmal" className={linkClass}>
+          Fleet: vanlige spørsmål
+        </NextLink>
+        .
       </BodyShort>
 
       <VStack gap="space-12">
