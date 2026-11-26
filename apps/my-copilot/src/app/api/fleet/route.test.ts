@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { vi } from "vitest";
 
 vi.mock("next/headers", () => ({ headers: vi.fn(async () => new Headers()) }));
@@ -200,20 +202,43 @@ describe("POST /api/fleet", () => {
     await expect((await post(approve)).json()).resolves.toMatchObject({ error: expect.stringMatching(/Noen andre/) });
   });
 
-  it("tells an owner that team copilot approves, and others how to get access", async () => {
+  it("maps a 403 by its reason, and others to how to get access", async () => {
+    fetch.mockResolvedValueOnce(status(403, "SubmitterNotPerson", "reworded"));
+    await expect((await post(approve)).json()).resolves.toMatchObject({
+      error: "Ingen person sendte inn versjon 3. Noen på team-a må sende den inn på nytt.",
+    });
+    fetch.mockResolvedValueOnce(status(403, "ApproverNoOid", "reworded"));
+    await expect((await post(approve)).json()).resolves.toMatchObject({ error: expect.stringMatching(/Logg ut/) });
+    fetch.mockResolvedValueOnce(status(403, "NotPlatformTeam", "the approver has no object id"));
+    await expect((await post(approve)).json()).resolves.toMatchObject({
+      error: "Team copilot godkjenner MCP-servere. Versjon 3 venter på dem.",
+    });
     fetch.mockResolvedValueOnce(status(403, "Forbidden", "only the platform team approves MCP server versions"));
     await expect((await post(approve)).json()).resolves.toMatchObject({
-      error: "Bare team copilot kan godkjenne MCP-servere. Versjon 3 venter på dem.",
+      error: expect.stringMatching(/^Team copilot/),
     });
     fetch.mockResolvedValueOnce(status(403, "Forbidden", "not a member"));
     await expect((await post(approve)).json()).resolves.toMatchObject({ error: expect.stringMatching(/Nais Console/) });
   });
 
-  it("tells a team outside the pilot so, not that it lacks access", async () => {
-    fetch.mockResolvedValueOnce(status(403, "Forbidden", "writes are not enabled for this team in this cluster"));
-    await expect((await post(approve)).json()).resolves.toMatchObject({
-      error: "Teamet ditt er ikke med i piloten ennå. Skriv i #ki-produktutvikling-diskusjon hvis dere vil være med.",
-    });
+  it("falls back to the message from a fleet-control without reasons", async () => {
+    fetch.mockResolvedValueOnce(
+      status(403, "Forbidden", "the pending generation has no person as submitter; a person must submit it again")
+    );
+    await expect((await post(approve)).json()).resolves.toMatchObject({ error: expect.stringMatching(/Ingen person/) });
+    fetch.mockResolvedValueOnce(status(403, "Forbidden", "the approver has no object id"));
+    await expect((await post(approve)).json()).resolves.toMatchObject({ error: expect.stringMatching(/Logg ut/) });
+  });
+
+  it("matches only reasons fleet-control defines", () => {
+    const pinned: string[] = JSON.parse(
+      readFileSync(join(__dirname, "../../../../../fleet-control/internal/api/reasons.json"), "utf8")
+    );
+    const used = [...readFileSync(join(__dirname, "route.ts"), "utf8").matchAll(/reason === "(\w+)"/g)].map(
+      (m) => m[1]
+    );
+    expect(used.length).toBeGreaterThan(0);
+    for (const r of used) if (r !== "Forbidden") expect(pinned).toContain(r);
   });
 
   it("marks the field from details.causes, and falls back to the detail for unknown fields", async () => {
@@ -283,9 +308,13 @@ describe("POST /api/fleet", () => {
   });
 
   it("maps grant errors to the MCP server's team", async () => {
-    fetch.mockResolvedValueOnce(status(403, "Forbidden", "the submitter cannot grant access to their own profile"));
+    fetch.mockResolvedValueOnce(status(403, "SelfApproval", "reworded"));
     await expect((await post(grant)).json()).resolves.toMatchObject({
       error: "Du sendte inn agentprofilen selv. En annen på team-a må gi tilgang.",
+    });
+    fetch.mockResolvedValueOnce(status(403, "Forbidden", "the submitter cannot grant access to their own profile"));
+    await expect((await post(grant)).json()).resolves.toMatchObject({
+      error: expect.stringMatching(/agentprofilen selv/),
     });
     fetch.mockResolvedValueOnce(status(403, "Forbidden", "only the owner team of MCP server team-a/docs can act"));
     await expect((await post(grant)).json()).resolves.toMatchObject({ error: expect.stringMatching(/team-a/) });

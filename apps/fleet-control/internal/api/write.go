@@ -86,14 +86,15 @@ func validateDraft(cluster, ns, name string, spec draftSpec) (model.Server, erro
 
 // apiError is a refusal the caller can act on; any other error is a 503.
 type apiError struct {
-	code int
-	msg  string
+	code   int
+	reason string
+	msg    string
 }
 
 func (e *apiError) Error() string { return e.msg }
 
-func refuse(code int, format string, args ...any) error {
-	return &apiError{code, fmt.Sprintf(format, args...)}
+func refuse(code int, reason, format string, args ...any) error {
+	return &apiError{code, reason, fmt.Sprintf(format, args...)}
 }
 
 // lockRoutes takes the routes snapshot lock and returns the servers as they
@@ -167,10 +168,10 @@ func decodeBody(w http.ResponseWriter, r *http.Request, v any) error {
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(v); err != nil {
-		return refuse(http.StatusBadRequest, "invalid body: %v", err)
+		return refuse(http.StatusBadRequest, ReasonBadRequest, "invalid body: %v", err)
 	}
 	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
-		return refuse(http.StatusBadRequest, "invalid body: trailing content")
+		return refuse(http.StatusBadRequest, ReasonBadRequest, "invalid body: trailing content")
 	}
 	return nil
 }

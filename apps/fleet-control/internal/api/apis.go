@@ -91,17 +91,22 @@ func stErr(code int, reason, format string, a ...any) *statusError {
 
 func invalid(field, format string, a ...any) *statusError {
 	msg := fmt.Sprintf(format, a...)
-	return &statusError{code: http.StatusUnprocessableEntity, reason: "Invalid", msg: msg, causes: []Cause{{Field: field, Reason: "FieldValueInvalid", Message: msg}}}
+	return &statusError{code: http.StatusUnprocessableEntity, reason: ReasonInvalid, msg: msg, causes: []Cause{{Field: field, Reason: "FieldValueInvalid", Message: msg}}}
+}
+
+// because gives a 422 from invalid a more specific reason.
+func (e *statusError) because(reason string) *statusError {
+	e.reason = reason
+	return e
 }
 
 func conflict(field, causeReason, format string, a ...any) *statusError {
 	msg := fmt.Sprintf(format, a...)
-	return &statusError{code: http.StatusConflict, reason: "Conflict", msg: msg, causes: []Cause{{Field: field, Reason: causeReason, Message: msg}}}
+	return &statusError{code: http.StatusConflict, reason: causeReason, msg: msg, causes: []Cause{{Field: field, Reason: causeReason, Message: msg}}}
 }
 
 var (
-	errV1NotFound = stErr(http.StatusNotFound, "NotFound", "not found")
-	reasonByCode  = map[int]string{400: "BadRequest", 401: "Unauthorized", 403: "Forbidden", 404: "NotFound", 405: "MethodNotAllowed", 409: "Conflict", 410: "Gone", 422: "Invalid", 503: "ServiceUnavailable"}
+	errV1NotFound = stErr(http.StatusNotFound, ReasonNotFound, "not found")
 )
 
 // writeStatus answers err as metav1.Status. An apiError from shared write
@@ -113,12 +118,12 @@ func writeStatus(w http.ResponseWriter, r *http.Request, kind string, err error)
 	se, ok := errors.AsType[*statusError](err)
 	if !ok {
 		if ae, isAPI := errors.AsType[*apiError](err); isAPI {
-			se = &statusError{code: ae.code, reason: reasonByCode[ae.code], msg: ae.msg}
+			se = &statusError{code: ae.code, reason: ae.reason, msg: ae.msg}
 		} else {
 			// Strip line breaks: path and err carry request-derived text (CodeQL go/log-injection).
 			clean := strings.NewReplacer("\n", " ", "\r", " ")
 			slog.Error("v1alpha1 request failed", "path", clean.Replace(r.URL.Path), "error", clean.Replace(err.Error()))
-			se = stErr(http.StatusServiceUnavailable, "ServiceUnavailable", "database or team lookup unavailable")
+			se = stErr(http.StatusServiceUnavailable, ReasonServiceUnavailable, "database or team lookup unavailable")
 		}
 	}
 	if se.code == http.StatusUnauthorized {
@@ -189,14 +194,14 @@ func (s *server) apis(a *auth.Authz, adminClientID string, teams auth.TeamDirect
 func (s *server) apisFor(a *auth.Authz, adminClientID string, teams auth.TeamDirectory, kind string, delegated bool, h apisHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if ns, name := r.PathValue("namespace"), r.PathValue("name"); (ns != "" && !dnsLabelRegex.MatchString(ns)) || (name != "" && !dnsLabelRegex.MatchString(name)) {
-			writeStatus(w, r, kind, stErr(http.StatusBadRequest, "BadRequest", "namespace and name must be lowercase DNS labels"))
+			writeStatus(w, r, kind, stErr(http.StatusBadRequest, ReasonBadRequest, "namespace and name must be lowercase DNS labels"))
 			return
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()
 		ident, email, oid, azp, err := a.Orderer(ctx, r.Header.Get("Authorization"), adminClientID, delegated)
 		if errors.Is(err, auth.ErrUnauthorized) {
-			writeStatus(w, r, kind, stErr(http.StatusUnauthorized, "Unauthorized", "a person's token with NAVident and oid is required"))
+			writeStatus(w, r, kind, stErr(http.StatusUnauthorized, ReasonPersonTokenRequired, "a person's token with NAVident and oid is required"))
 			return
 		}
 		if err != nil {
@@ -274,7 +279,7 @@ func (s *server) apisRoutes(mux *http.ServeMux, a *auth.Authz, adminClientID str
 }
 
 func methodNotAllowed(_ http.ResponseWriter, _ *http.Request, _ caller, _ *DB) error {
-	return stErr(http.StatusMethodNotAllowed, "MethodNotAllowed", "resources are not deleted in v1alpha1; revoke instead")
+	return stErr(http.StatusMethodNotAllowed, ReasonMethodNotAllowed, "resources are not deleted in v1alpha1; revoke instead")
 }
 
 func discovery(w http.ResponseWriter, _ *http.Request, _ caller, _ *DB) error {
@@ -331,15 +336,15 @@ type resourceIn[S any] struct {
 func decodeResource[S any](w http.ResponseWriter, r *http.Request, kind, ns, name string) (resourceIn[S], error) {
 	var in resourceIn[S]
 	if err := decodeBody(w, r, &in); err != nil {
-		return in, stErr(http.StatusBadRequest, "BadRequest", "%v", err)
+		return in, stErr(http.StatusBadRequest, ReasonBadRequest, "%v", err)
 	}
 	switch {
 	case in.APIVersion != apiGroupVersion || in.Kind != kind:
-		return in, stErr(http.StatusBadRequest, "BadRequest", "apiVersion must be %s and kind %s", apiGroupVersion, kind)
+		return in, stErr(http.StatusBadRequest, ReasonKindMismatch, "apiVersion must be %s and kind %s", apiGroupVersion, kind)
 	case in.Metadata.Namespace != ns:
-		return in, stErr(http.StatusBadRequest, "BadRequest", "metadata.namespace must be %s, as in the path", ns)
+		return in, stErr(http.StatusBadRequest, ReasonNamespaceMismatch, "metadata.namespace must be %s, as in the path", ns)
 	case name != "" && in.Metadata.Name != name:
-		return in, stErr(http.StatusBadRequest, "BadRequest", "metadata.name must be %s, as in the path", name)
+		return in, stErr(http.StatusBadRequest, ReasonNameMismatch, "metadata.name must be %s, as in the path", name)
 	case !dnsLabelRegex.MatchString(in.Metadata.Name):
 		return in, invalid("metadata.name", "must be a lowercase DNS label")
 	}
@@ -383,7 +388,7 @@ func validMetaKey(k string) bool {
 // requireResourceVersion is the optimistic lock on PUT: missing or stale is 409.
 func requireResourceVersion(sent string, current int64) error {
 	if sent == "" || sent != strconv.FormatInt(current, 10) {
-		return conflict("metadata.resourceVersion", "FieldValueInvalid", "the object has been modified; read it again and apply your changes to the latest version")
+		return conflict("metadata.resourceVersion", ReasonStaleResourceVersion, "the object has been modified; read it again and apply your changes to the latest version")
 	}
 	return nil
 }
@@ -437,7 +442,7 @@ func historyOf(kind string, legacyActions []string) apisHandler {
 		if l := r.URL.Query().Get("limit"); l != "" {
 			n, err := strconv.Atoi(l)
 			if err != nil || n < 1 || n > 500 {
-				return stErr(http.StatusBadRequest, "BadRequest", "limit must be 1 to 500")
+				return stErr(http.StatusBadRequest, ReasonBadRequest, "limit must be 1 to 500")
 			}
 			limit = n
 		}
@@ -463,7 +468,7 @@ func listTeamApps(teams auth.TeamDirectory) apisHandler {
 		}
 		l, ok := teams.(auth.AppLister)
 		if !ok {
-			return stErr(http.StatusServiceUnavailable, "ServiceUnavailable", "the Nais application list is not available here")
+			return stErr(http.StatusServiceUnavailable, ReasonConsoleUnavailable, "the Nais application list is not available here")
 		}
 		apps, err := l.Apps(r.Context(), ns)
 		if err != nil {

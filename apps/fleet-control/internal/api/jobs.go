@@ -146,7 +146,7 @@ func (d *DB) SetJobCommand(ctx context.Context, by caller, team string, id int64
 		var state, before string
 		err := tx.QueryRow(ctx, `SELECT state, command FROM runtime_jobs WHERE id = $1 AND team = $2 FOR UPDATE`, id, team).Scan(&state, &before)
 		if errors.Is(err, pgx.ErrNoRows) {
-			return refuse(http.StatusNotFound, "job not found")
+			return refuse(http.StatusNotFound, ReasonNotFound, "job not found")
 		}
 		if err != nil {
 			return err
@@ -157,10 +157,10 @@ func (d *DB) SetJobCommand(ctx context.Context, by caller, team string, id int64
 			next = map[string]string{cmdCancel: "cancelled", cmdKill: "killed"}[cmd]
 		case "leased":
 			if before == cmdKill {
-				return refuse(http.StatusConflict, "job is already being killed")
+				return refuse(http.StatusConflict, ReasonAlreadyKilling, "job is already being killed")
 			}
 		default:
-			return refuse(http.StatusConflict, "job is %s", state)
+			return refuse(http.StatusConflict, ReasonJobNotActive, "job is %s", state)
 		}
 		if _, err := tx.Exec(ctx, `UPDATE runtime_jobs SET command = $2, state = $3, updated_at = now() WHERE id = $1`, id, cmd, next); err != nil {
 			return err
@@ -197,7 +197,7 @@ func (d *DB) SetKillSwitch(ctx context.Context, actor, scope string, on bool, re
 				return err
 			}
 			if operatorSet && !byOperator {
-				return refuse(http.StatusForbidden, "the operator team set this kill switch; only the operator team can turn it off")
+				return refuse(http.StatusForbidden, ReasonNotOperatorTeam, "the operator team set this kill switch; only the operator team can turn it off")
 			}
 			tag, err = tx.Exec(ctx, `DELETE FROM runtime_kill_switches WHERE scope = $1`, scope)
 		}
@@ -373,7 +373,7 @@ func (d *DB) leaseByToken(ctx context.Context, runtime, token string) (*Lease, e
 	}
 	// Expired but not yet swept counts as ended, as in heartbeat and finish.
 	if ended != nil || expired {
-		return nil, refuse(http.StatusGone, "lease has ended; claim with a new token")
+		return nil, refuse(http.StatusGone, ReasonLeaseEnded, "lease has ended; claim with a new token")
 	}
 	l.Params = json.RawMessage(params)
 	return &l, nil
@@ -387,7 +387,7 @@ func lockLease(ctx context.Context, tx pgx.Tx, runtime, leaseID string) (job int
 		FROM runtime_leases l JOIN runtime_jobs j ON j.id = l.job_id
 		WHERE l.id = $1::uuid AND l.runtime = $2 FOR UPDATE OF l, j`, leaseID, runtime).Scan(&job, &ended, &team, &cmd)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return 0, "", "", refuse(http.StatusNotFound, "lease not found")
+		return 0, "", "", refuse(http.StatusNotFound, ReasonNotFound, "lease not found")
 	}
 	// Check expiry after the lock, on the wall clock: now() is fixed at
 	// transaction start and would pass a lease that expired while waiting.
@@ -395,7 +395,7 @@ func lockLease(ctx context.Context, tx pgx.Tx, runtime, leaseID string) (job int
 		err = tx.QueryRow(ctx, `SELECT expires_at <= clock_timestamp() FROM runtime_leases WHERE id = $1::uuid`, leaseID).Scan(&expired)
 	}
 	if err == nil && (ended != nil || expired) {
-		err = refuse(http.StatusGone, "lease is no longer held; stop the job")
+		err = refuse(http.StatusGone, ReasonLeaseEnded, "lease is no longer held; stop the job")
 	}
 	return job, team, cmd, err
 }
@@ -573,7 +573,7 @@ func (ra *runtimeAuth) claim(w http.ResponseWriter, r *http.Request, js jobStore
 		return err
 	}
 	if !claimTokenRegex.MatchString(req.ClaimToken) {
-		return refuse(http.StatusBadRequest, "claim_token must be 16 to 128 characters of [A-Za-z0-9._-]")
+		return refuse(http.StatusBadRequest, ReasonBadRequest, "claim_token must be 16 to 128 characters of [A-Za-z0-9._-]")
 	}
 	deadline := time.Now().Add(ra.wait)
 	for {
@@ -602,7 +602,7 @@ func (ra *runtimeAuth) claim(w http.ResponseWriter, r *http.Request, js jobStore
 
 func validLease(id string) error {
 	if !uuidRegex.MatchString(id) {
-		return refuse(http.StatusBadRequest, "lease_id must be a lowercase UUID")
+		return refuse(http.StatusBadRequest, ReasonBadRequest, "lease_id must be a lowercase UUID")
 	}
 	return nil
 }
@@ -634,7 +634,7 @@ func finish(ok bool) runtimeHandler {
 			return err
 		}
 		if !codeRegex.MatchString(req.Code) || len(req.Message) > 500 {
-			return refuse(http.StatusBadRequest, "code must match [a-z0-9_]{1,64} and message be at most 500 characters")
+			return refuse(http.StatusBadRequest, ReasonBadRequest, "code must match [a-z0-9_]{1,64} and message be at most 500 characters")
 		}
 		ctx, cancel := dbCtx(r)
 		defer cancel()
@@ -659,7 +659,7 @@ func putKillSwitch(operatorTeam string) adminHandler {
 			return err
 		}
 		if req.Reason = strings.TrimSpace(req.Reason); req.On && (req.Reason == "" || len(req.Reason) > 500) {
-			return refuse(http.StatusBadRequest, "reason must be 1 to 500 characters")
+			return refuse(http.StatusBadRequest, ReasonReasonRequired, "reason must be 1 to 500 characters")
 		}
 		byOperator := operatorTeam != "" && team == operatorTeam
 		scope := "team:" + team
@@ -668,16 +668,16 @@ func putKillSwitch(operatorTeam string) adminHandler {
 		case req.Scope == "team":
 		case req.Scope == "global" || named:
 			if !byOperator {
-				return refuse(http.StatusForbidden, "the global kill switch and other teams' switches are for the operator team")
+				return refuse(http.StatusForbidden, ReasonNotOperatorTeam, "the global kill switch and other teams' switches are for the operator team")
 			}
 			if scope = "global"; named {
 				if !dnsLabelRegex.MatchString(other) {
-					return refuse(http.StatusBadRequest, "team:<name> needs a valid team name")
+					return refuse(http.StatusBadRequest, ReasonBadRequest, "team:<name> needs a valid team name")
 				}
 				scope = req.Scope
 			}
 		default:
-			return refuse(http.StatusBadRequest, "scope must be team, team:<name> or global")
+			return refuse(http.StatusBadRequest, ReasonBadRequest, "scope must be team, team:<name> or global")
 		}
 		if err := js.SetKillSwitch(r.Context(), actor, scope, req.On, req.Reason, byOperator); err != nil {
 			return err
