@@ -1,4 +1,4 @@
-package main
+package cost
 
 import (
 	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
@@ -12,8 +12,8 @@ import (
 // Jul and Aug 2026 (Jul→Aug, Jul→Sep, Aug→Sep): mean absolute error 26 %. Few
 // data points; treat them as a starting guess, not a calibration.
 const (
-	// yearFitMonths is how many closed months the log-linear trend is fitted on.
-	yearFitMonths = 4
+	// YearFitMonths is how many closed months the log-linear trend is fitted on.
+	YearFitMonths = 4
 	// yearDamping scales the fitted monthly log growth before it compounds.
 	yearDamping = 0.75
 	// yearMaxPerUserGrowth caps the log growth of fakturert per active user per
@@ -106,7 +106,7 @@ func yearBacktest(closed []bqstore.AdminMonth, au map[string]int64) (float64, in
 }
 
 // yearGrowth fits log(active users) and log(fakturert per active user) on the
-// last yearFitMonths closed months, holiday-adjusted, and returns the damped
+// last YearFitMonths closed months, holiday-adjusted, and returns the damped
 // monthly log growth of fakturert. ok is false with fewer than two months.
 func yearGrowth(months []bqstore.AdminMonth, users map[string]int64) (g float64, ok bool) {
 	var xs, lu, lp []float64
@@ -124,8 +124,8 @@ func yearGrowth(months []bqstore.AdminMonth, users map[string]int64) (g float64,
 		}
 		xs, lu, lp = append(xs, float64(t.Year()*12+int(t.Month()))), append(lu, math.Log(u)), append(lp, math.Log(net/u))
 	}
-	if len(xs) > yearFitMonths {
-		xs, lu, lp = xs[len(xs)-yearFitMonths:], lu[len(lu)-yearFitMonths:], lp[len(lp)-yearFitMonths:]
+	if len(xs) > YearFitMonths {
+		xs, lu, lp = xs[len(xs)-YearFitMonths:], lu[len(lu)-YearFitMonths:], lp[len(lp)-YearFitMonths:]
 	}
 	if len(xs) < 2 {
 		return 0, false
@@ -147,11 +147,11 @@ func slope(xs, ys []float64) float64 {
 	return num / den
 }
 
-// yearForecast builds cumulative fakturert per month to 31 December: closed
+// YearForecast builds cumulative fakturert per month to 31 December: closed
 // months as billed, the current month from cur, then each remaining month low
 // flat at cur's midpoint, mid on the damped trend (never below flat) and high
 // the backtest error (at least yearBandFloorPct) above mid. December gets christmasFactor on mid and high.
-func yearForecast(months []bqstore.AdminMonth, users []bqstore.ActiveUsersMonth, cur ModelForecast, month time.Time) ([]YearForecastPoint, *YearEnd) {
+func YearForecast(months []bqstore.AdminMonth, users []bqstore.ActiveUsersMonth, cur ModelForecast, month time.Time) ([]YearForecastPoint, *YearEnd) {
 	au := map[string]int64{}
 	for _, u := range users {
 		au[u.Month] = u.ActiveUsers

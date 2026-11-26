@@ -1,4 +1,4 @@
-package main
+package cost
 
 import (
 	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"

@@ -1,4 +1,4 @@
-package main
+package cost
 
 import (
 	"math"
@@ -58,7 +58,7 @@ func TestShapeKeepsTrendTotalAndDipsAtWeekends(t *testing.T) {
 	if shaped[3]*5 > shaped[5] {
 		t.Fatalf("weekend %v not well below Monday %v", shaped[3], shaped[5])
 	}
-	f := buildCostForecast(days, nil, oct, 0, budgetMissing)
+	f := BuildCostForecast(days, nil, oct, 0, BudgetMissing)
 	end := f.DailyForecast[len(f.DailyForecast)-1].CumulativeNetUSD
 	_, net, _, _, _, _ := poolNet(days, oct, last, rem)
 	if math.Abs(end-net) > 1e-6 || math.Abs(f.Models[0].NetMidUSD-net) > 1e-6 {
@@ -72,7 +72,7 @@ func TestRangeSwitchesAtDay8(t *testing.T) {
 		pct   float64
 		label string
 	}{{7, earlyRangePct, earlyLabel}, {8, rangeFloorPct, ""}} {
-		f := buildCostForecast(synthDays(c.day, 1000, 1000), nil, oct, 0, budgetMissing)
+		f := BuildCostForecast(synthDays(c.day, 1000, 1000), nil, oct, 0, BudgetMissing)
 		if len(f.Models) == 0 || f.Models[0].RangePct != c.pct || f.UncertaintyLabel != c.label {
 			t.Fatalf("day %d: %+v", c.day, f)
 		}
@@ -80,7 +80,7 @@ func TestRangeSwitchesAtDay8(t *testing.T) {
 }
 
 func TestDailyForecastSeries(t *testing.T) {
-	f := buildCostForecast(synthDays(15, 1000, 1000), nil, oct, 0, budgetMissing)
+	f := BuildCostForecast(synthDays(15, 1000, 1000), nil, oct, 0, BudgetMissing)
 	if len(f.DailyForecast) != 16 {
 		t.Fatalf("points %d", len(f.DailyForecast))
 	}
