@@ -11,7 +11,7 @@ export default function TilgjengelighetPage() {
     <main id="hovedinnhold" tabIndex={-1} className="max-w-3xl mx-auto">
       <Box paddingBlock={{ xs: "space-16", md: "space-24" }} paddingInline={{ xs: "space-16", md: "space-40" }}>
         <VStack gap="space-16">
-          <Heading size="xlarge" level="1">
+          <Heading size="xlarge" level="1" className="break-words">
             Tilgjengelighetserklæring
           </Heading>
 
