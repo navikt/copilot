@@ -74,6 +74,26 @@ function specFrom(b: Body): MCPServerSpec | [string, string] | string {
   return { dataCategory, upstream: { app, url: str(b, "url") }, allowedTools, ...(readme && { readme }) };
 }
 
+/**
+ * The edit form shows only app, url, tools, readme and data category. Start from the spec fleet-control holds (the
+ * pending version, else the published one, as ServerForm shows it) so risk levels, rosRef, tool descriptions and
+ * registry survive; never from the client. A stale resourceVersion still fails the PUT with 409.
+ */
+async function editedSpec(ns: string, name: string, form: MCPServerSpec): Promise<MCPServerSpec | string> {
+  const server = await fleetApi.server(ns, name);
+  const base = server.status.pending?.spec ?? server.spec ?? {};
+  const tools = form.allowedTools ?? [];
+  const merged = parseRegisterSpec({
+    ...base,
+    ...form,
+    readme: form.readme,
+    toolRisk: Object.fromEntries(Object.entries(base.toolRisk ?? {}).filter(([t]) => tools.includes(t))),
+    tools: base.tools?.filter((d) => tools.includes(d.name)),
+  });
+  if (typeof merged === "string") return merged;
+  return { ...merged, ...(base.registry && { registry: base.registry }) };
+}
+
 const reasonOf = (b: Body) => {
   const reason = str(b, "reason");
   return reason && reason.length <= 500 ? reason : null;
@@ -107,7 +127,9 @@ export async function POST(request: Request) {
         if (Array.isArray(spec)) return fail(spec[1], 400, undefined, { [spec[0]]: spec[1] });
         const rv = str(b, "resourceVersion");
         if (!rv) return fail("Noe er galt med skjemaet. Last inn siden på nytt.", 400);
-        await fleetApi.updateServer(ns, name, rv, spec);
+        const merged = await editedSpec(ns, name, spec);
+        if (typeof merged === "string") return fail(merged, 400);
+        await fleetApi.updateServer(ns, name, rv, merged);
         break;
       }
       case "approve": {

@@ -984,6 +984,21 @@ describe("ServerForm discovery (edit)", () => {
     });
   });
 
+  it("asks discovery for the app and path in the fields, not the loaded ones", async () => {
+    const fetch = vi.fn(async () => Response.json({ tools: [] }));
+    vi.stubGlobal("fetch", fetch);
+    render(<ServerForm server={server} discoveryEnabled />);
+    fireEvent.change(screen.getByLabelText("App"), { target: { value: "ny-app" } });
+    fireEvent.change(screen.getByLabelText("Intern adresse"), { target: { value: "http://ny-app.team-a/v2/mcp" } });
+    fireEvent.click(screen.getByRole("button", { name: "Hent verktøy" }));
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
+    expect(JSON.parse((fetch.mock.calls[0] as unknown as [string, RequestInit])[1].body as string)).toEqual({
+      namespace: "team-a",
+      app: "ny-app",
+      path: "/v2/mcp",
+    });
+  });
+
   it("shows the accessPolicy snippet on access", async () => {
     vi.stubGlobal(
       "fetch",

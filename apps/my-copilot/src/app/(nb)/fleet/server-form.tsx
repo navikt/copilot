@@ -189,6 +189,9 @@ export function ServerForm({
   const toolsRef = useRef<HTMLTextAreaElement>(null);
   const [found, setFound] = useState<FoundTool[]>([]);
   const spec = server?.status.pending?.spec ?? server?.spec;
+  // ToolDiscovery asks the app and path in the fields now, not the ones the page loaded with.
+  const [app, setApp] = useState(spec?.upstream?.app ?? "");
+  const [url, setUrl] = useState(spec?.upstream?.url ?? "");
   const err = post.error?.fields;
   return (
     <form onSubmit={post.onSubmit}>
@@ -221,6 +224,7 @@ export function ServerForm({
           label="App"
           name="app"
           defaultValue={spec?.upstream?.app}
+          onChange={(e) => setApp(e.target.value.trim())}
           error={err?.app}
           description="Nais-appen som kjører MCP-serveren."
           required
@@ -229,6 +233,7 @@ export function ServerForm({
           label="Intern adresse"
           name="url"
           defaultValue={spec?.upstream?.url}
+          onChange={(e) => setUrl(e.target.value.trim())}
           error={err?.url}
           description="For eksempel http://min-app.mitt-team/mcp eller http://min-app.mitt-team.svc.cluster.local/mcp"
           required
@@ -236,8 +241,8 @@ export function ServerForm({
         {server && discoveryEnabled && (
           <ToolDiscovery
             namespace={server.metadata.namespace}
-            app={spec?.upstream?.app ?? ""}
-            path={pathOf(spec?.upstream?.url)}
+            app={app}
+            path={pathOf(url)}
             onTools={(tools) => {
               // Destructive tools stay out of the field; the team adds them by hand if they belong.
               if (toolsRef.current)
