@@ -16,9 +16,7 @@ export const metadata: Metadata = {
     "Slik kobler et team en MCP-server på Nais til fleet-gateway: tilgang i accessPolicy, sjekk av tokenet og en rute i fleet-gateway.",
 };
 
-const APPLY_URL = "https://github.com/navikt/copilot/issues/new?template=fleet-gateway-pilot.yml";
 const HELP_URL = "https://nav-it.slack.com/archives/C0ASJSZK8P8";
-const ROUTES_URL = "https://github.com/navikt/copilot/tree/main/apps/fleet-gateway";
 const ECHO_URL = "https://github.com/navikt/copilot/blob/main/apps/fleet-gateway/echo/main.go";
 const ECHO_TREE_URL = "https://github.com/navikt/copilot/tree/main/apps/fleet-gateway/echo";
 const SPEC_URL = "https://modelcontextprotocol.io/specification/2026-07-28";
@@ -92,16 +90,6 @@ const GROUP_CHECK = `// Etter at Texas har godkjent tokenet. groups har gruppe-I
 if !slices.Contains(claims.Groups, teamGroupID) {
     return errForbidden // 403
 }`;
-
-const OUTBOUND_YAML = `outbound_rules:
-  - application: <app>
-    namespace: <namespace>`;
-
-const ROUTE_YAML = `- route: /mcp/<namespace>/<navn>
-  team: <team>
-  target: <cluster>:<namespace>:<app>
-  upstream_url: http://<app>.<namespace>/<sti-til-mcp>
-  tools: [<verktøy>, <verktøy>]`;
 
 const OPENCODE_JSON = `{
   "mcp": {
@@ -179,7 +167,7 @@ export default function FleetGatewayForTeamPage() {
             </li>
             <li>Sjekk tokenet med Texas, og sjekk teamets gruppe i tokenet.</li>
             <li>Kjør samsvarstesten mcp-compliance mot serveren.</li>
-            <li>Be om en rute i dev, og deretter i prod.</li>
+            <li>Registrer serveren i /fleet, i dev og deretter i prod.</li>
             <li>Test fra OpenCode, og gå gjennom sjekklisten.</li>
           </ol>
         </VStack>
@@ -422,12 +410,12 @@ export default function FleetGatewayForTeamPage() {
               ),
             },
             {
-              title: "Test serveren før dere ber om en rute",
+              title: "Test serveren før dere registrerer den",
               content: (
                 <VStack gap="space-8">
                   <BodyLong>
-                    Kjør samsvarstesten mcp-compliance mot serveren lokalt og i CI. Rett alt som gir FAIL før dere ber
-                    om en rute.
+                    Kjør samsvarstesten mcp-compliance mot serveren lokalt og i CI. Rett alt som gir FAIL før dere
+                    registrerer den.
                   </BodyLong>
                   <CodeBlock filename="Terminal">
                     {"brew install navikt/tap/mcp-compliance\nmcp-compliance -url http://localhost:8080/mcp"}
@@ -469,32 +457,23 @@ export default function FleetGatewayForTeamPage() {
               ),
             },
             {
-              title: "Be om en rute",
+              title: "Registrer serveren i /fleet",
               content: (
                 <VStack gap="space-8">
                   <BodyLong>
-                    Lag en PR, eller fyll ut{" "}
-                    <a href={APPLY_URL} className={linkClass}>
-                      skjemaet
-                    </a>{" "}
-                    så lager team copilot den. Ruten står i <code className={code}>pilot-routes.dev.yaml</code> og{" "}
-                    <code className={code}>pilot-routes.prod.yaml</code> i{" "}
-                    <a href={ROUTES_URL} className={linkClass}>
-                      apps/fleet-gateway
-                    </a>
-                    . Appen må også inn i <code className={code}>outbound_rules</code> i{" "}
-                    <code className={code}>.nais/dev-gcp.yaml</code> eller{" "}
-                    <code className={code}>.nais/prod-gcp.yaml</code>, med <code className={code}>namespace</code> når
-                    appen ligger i et annet namespace enn <code className={code}>copilot</code>.{" "}
-                    <code className={code}>upstream_url</code> er den interne adressen med full sti til MCP-endpointet,
-                    i samme namespace som <code className={code}>target</code>. <code className={code}>tools</code> er
-                    listen over verktøy ruten slipper gjennom; andre <code className={code}>tools/call</code> avvises.
+                    Registrer serveren under{" "}
+                    <NextLink href="/fleet/registrer" className={linkClass}>
+                      /fleet
+                    </NextLink>
+                    . Oppgi den interne adressen med full sti til MCP-endpointet, og trykk «Hent verktøy». Fleet henter
+                    verktøylisten fra serveren med din innlogging. Velg verktøyene ruten skal slippe gjennom; andre{" "}
+                    <code className={code}>tools/call</code> avvises.
                   </BodyLong>
-                  <CodeBlock filename="apps/fleet-gateway/pilot-routes.<miljø>.yaml">{ROUTE_YAML}</CodeBlock>
-                  <CodeBlock filename="apps/fleet-gateway/.nais/<cluster>.yaml">{OUTBOUND_YAML}</CodeBlock>
                   <BodyLong>
-                    Team copilot ser på PR-en innen to arbeidsdager. Ta dev først, og prod når dere har testet i dev.
-                    Ruten virker når fleet-gateway er deployet.
+                    Team copilot godkjenner registreringen under «Til godkjenning». Ruten virker i fleet-gateway innen
+                    et minutt etter godkjenningen, uten deploy og uten PR. Gatewayen når apper i alle teamenes navnerom,
+                    så dere trenger ingen endring i nettverksreglene til fleet-gateway. Ta dev først, og prod når dere
+                    har testet i dev.
                   </BodyLong>
                 </VStack>
               ),
@@ -604,8 +583,8 @@ export default function FleetGatewayForTeamPage() {
           Test, drift og avvikling
         </LinkableHeading>
         <BodyLong>
-          Test i prod på samme måte som i dev. Gatewayen har grenser per kall og logger hvert kall. Dere stenger eller
-          fjerner en rute med en PR.
+          Test i prod på samme måte som i dev. Gatewayen har grenser per kall og logger hvert kall. Dere ruller tilbake
+          eller avpubliserer en rute selv i /fleet.
         </BodyLong>
         <ReadMore header="Les om grenser, drift og avvikling" size="small">
           <VStack gap="space-12">
@@ -622,21 +601,25 @@ export default function FleetGatewayForTeamPage() {
                 det ikke går mer enn 60 sekunder mellom hendelsene.
               </li>
               <li>
-                Hver gateway-pod tar 16 vanlige MCP-kall og 64 åpne SSE-strømmer samtidig. Hver bruker kan ha høyst 4
-                samtidige kall per pod. Kall over taket får <code className={code}>503</code> med{" "}
-                <code className={code}>Retry-After</code>.
+                Hver gateway-pod tar 16 vanlige MCP-kall og 64 åpne SSE-strømmer samtidig, og høyst 8 kall per rute.
+                Kall over disse takene får <code className={code}>503</code> med{" "}
+                <code className={code}>Retry-After</code>. Hver bruker kan ha høyst 8 vanlige kall og 4 SSE-strømmer
+                samtidig per pod. Kall over brukertaket får <code className={code}>429</code> med{" "}
+                <code className={code}>Retry-After: 1</code>.
               </li>
               <li>
                 Gatewayen logger hvert kall med NAV-ident, rute og MCP-metode. Tilgang til data styrer dere i appen.
               </li>
               <li>
-                Stenge en rute: PR som setter <code className={code}>enabled: false</code> på ruten. Ruten svarer{" "}
-                <code className={code}>503</code> når endringen er deployet.
+                På serverens side i /fleet kan eierteamet rulle tilbake til en tidligere godkjent versjon. Både
+                eierteamet og team copilot kan avpublisere med «Avpubliser».
               </li>
               <li>
-                Avslutte: PR som fjerner ruten og appen fra <code className={code}>outbound_rules</code>. Fjern deretter
-                inbound-regelen hos dere.
+                Nødstopp: team copilot kan stenge én rute straks med{" "}
+                <code className={code}>GATEWAY_DISABLED_ROUTES</code> i fleet-gateway, også når fleet-control er nede.
+                Ruten svarer da <code className={code}>503</code>.
               </li>
+              <li>Avslutte: avpubliser ruten i /fleet, og fjern deretter inbound-regelen hos dere.</li>
               <li>
                 Spør i{" "}
                 <a href={HELP_URL} className={linkClass}>

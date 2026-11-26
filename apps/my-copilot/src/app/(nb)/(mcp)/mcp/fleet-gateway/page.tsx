@@ -114,12 +114,13 @@ export default function FleetGatewayPage() {
           <li>Gatewayen slipper bare inn brukere som har logget inn med Nav-kontoen, og logger hvert kall.</li>
           <li>Teamet bestemmer selv hvem som får gjøre hva på serveren. Gatewayen sjekker ikke tilgang til data.</li>
           <li>
-            Nettverket er åpnet begge veier i <code className={code}>accessPolicy</code>, og bare for ruter som står i
-            rutefilen.
+            Gatewayen når apper i alle teamenes navnerom, men serveren må selv slippe den inn i{" "}
+            <code className={code}>accessPolicy.inbound</code>. Gatewayen sender bare kall til ruter som er godkjent i
+            /fleet.
           </li>
           <li>
-            Team copilot kan stenge en rute med en PR som setter <code className={code}>enabled: false</code>. Ruten er
-            stengt når endringen er deployet.
+            Eierteamet eller team copilot kan avpublisere en rute i /fleet. Ved nødstopp kan team copilot stenge én rute
+            straks med <code className={code}>GATEWAY_DISABLED_ROUTES</code>.
           </li>
         </Bullets>
         <FleetGatewayAccessDiagram />
@@ -163,11 +164,12 @@ export default function FleetGatewayPage() {
             ).
           </li>
           <li>
-            Ruter legges inn med PR i dag. Deklarativ eller API-styrt konfigurasjon er{" "}
+            Teamene registrerer ruter selv i /fleet, og team copilot godkjenner dem. Fleet-gateway henter rutene fra
+            fleet-control i både dev og prod (
             <a href="https://github.com/navikt/copilot/issues/2342" className={linkClass}>
-              planlagt (#2342)
+              #2342
             </a>
-            .
+            ).
           </li>
           <li>
             Synlighet per team er{" "}
@@ -184,12 +186,12 @@ export default function FleetGatewayPage() {
             .
           </li>
           <li>
-            En SSE-strøm kan vare i 10 minutter, være stille i 60 sekunder og sende 16 MiB. Tidsavbrudd på 60 sekunder
-            mot serveren og tak på samtidige kall kommer (
+            En SSE-strøm kan vare i 10 minutter, være stille i 60 sekunder og sende 16 MiB. Serveren har 60 sekunder på
+            seg til å svare, og gatewayen har tak på samtidige kall (
             <a href="https://github.com/navikt/copilot/pull/2359" className={linkClass}>
               #2359
             </a>
-            ).
+            ). Brukere over sitt tak får <code className={code}>429</code>.
           </li>
         </Bullets>
       </VStack>

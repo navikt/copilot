@@ -1,5 +1,7 @@
 # T7: manual prod verification
 
+> Note (2026-11-26): dev and prod fleet-gateway now read routes from fleet-control (`routes_source: fleet-control`, #3059), and `pilot-routes.prod.yaml` is frozen (`routes_freeze_test.go`). Steps that edit or load `pilot-routes.<env>.yaml` are historical. To stop one route today, use «Avpubliser» in `/fleet` or `GATEWAY_DISABLED_ROUTES` (see the runbook).
+
 Run after each prod deploy of fleet-gateway. Cluster `prod-gcp`, namespace `copilot`.
 Step 3 deletes one prod pod. That is the only step that changes prod. Steps 2, 4 and 5 log in and out with your own user, and step 7 writes a temporary local file. Never read secrets (`kubectl get secret`, `nais secret`).
 

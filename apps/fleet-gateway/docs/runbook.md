@@ -14,7 +14,7 @@ OAuth 2.1 authorization server in front of Microsoft Entra ID, plus a reverse pr
 | Texas (Nais token exchange) | OBO token to the upstream | Every `/mcp/*` call fails |
 | Nais Postgres (`fleet-gateway`) | Sessions, consent, DCR clients, counters | `fleet_gateway_store_up` = 0 and alert `FleetGatewayStoreDown`; `/ready` stays 200, see below |
 | `RT_KEYS` secret `fleet-gateway-rt-keys` | Seals refresh tokens and every store value; also signs the Entra state cookie | Startup fails on Nais without it |
-| Route file (`pilot-routes.<env>.yaml`, baked into the image) | Which routes exist, their tools and `enabled` | Startup fails on an invalid file |
+| Route file (`pilot-routes.<env>.yaml`, baked into the image) | With `ROUTES_SOURCE=git`: which routes exist, their tools and `enabled`. Dev and prod run on fleet-control, where the file only pins the primary resource; `pilot-routes.prod.yaml` is frozen (`routes_freeze_test.go`) | Startup fails on an invalid file |
 | fleet-control and Texas (only with `ROUTES_SOURCE=fleet-control`) | The route snapshot | A pod with a snapshot keeps it. A new pod starts from the snapshot stored in Postgres (`fleet_gateway_routes_from_stored_snapshot` = 1). With no valid stored snapshot it serves no routes: `/mcp/*` 503 and `/ready` fails until the first valid snapshot. A route revoked after the stored snapshot was taken comes back if a pod restarts during a fleet-control outage: watch for `fleet_gateway_routes_from_stored_snapshot` = 1 and the warning log `route table loaded from stored snapshot, fleet-control unreachable`, which gives the snapshot's age |
 | Upstreams (for example `mcp-onboarding`) | The MCP servers | Only that route fails |
 | `github.com`, `opencode.ai`, `ki-utvikling.nav.no` | Serve the CIMD client documents | New logins for that client fail |
@@ -67,7 +67,9 @@ To make it stick across deploys, set `disabled_routes: "/mcp/copilot/kodeverk"` 
 
 A malformed entry (not `/mcp/<namespace>/<name>`) is logged as a WARN at startup and skipped; valid entries in the same list still apply. Startup does not fail, so a typo cannot block the deploy that disables a route. Check the startup log line `routes disabled by GATEWAY_DISABLED_ROUTES` lists what you meant, then confirm with the `curl` below.
 
-**Slow path, file source only:**
+**Normal path, fleet-control (dev and prod):** the owner team or team copilot clicks «Avpubliser» on the server's page in `/fleet`. The route stays in the next routes snapshot with `enabled: false`, which pods poll every 30 s, and the gateway answers `503` on it; only the registry snapshot drops it. While fleet-control is down a revoked route keeps serving; use the fast path.
+
+**Slow path, file source only:** (no longer used in dev or prod; `pilot-routes.prod.yaml` is frozen)
 
 1. Set `enabled: false` on the route in `pilot-routes.<env>.yaml`. For a route registered in prod, also remove its entry from `apps/mcp-registry/allowlist.json`: `TestRegistryMatchesProdRoutes` (`registry_consistency_test.go`) fails when a registry entry has no enabled prod route. Also update the test that lists the route: closing a registered route breaks `TestServersListHandler_KodeverkTitle` in `apps/mcp-registry/handlers_test.go` (kodeverk), or whichever test lists the route you close.
 2. PR, required checks, merge queue, build, deploy.
@@ -200,14 +202,14 @@ Before setting `RISK_ENFORCEMENT=enforce`, the would-deny count must be zero or 
 
 ## Switch prod routes to fleet-control (#2760)
 
-Prod reads routes from `pilot-routes.prod.yaml` today. This section moves it to `ROUTES_SOURCE=fleet-control` and back. Rehearse the whole run in dev first and write the times below.
+Done: prod reads routes from fleet-control since 2026-11-26 (#3059, merged 11:37 UTC). This section is the record of the switch and the way back: a rollback reverts `routes_source` in `.nais/prod-gcp.yaml` (or `nais app set env fleet-gateway ROUTES_SOURCE=git`). Rehearse a rollback in dev first.
 
 ### Gates (all before the prod switch)
 
 - [ ] The fleet-gateway ROS is revised for fleet-control as route source and approved by the owner.
-- [ ] fleet-control is deployed to prod-gcp (#2855).
+- [x] fleet-control is deployed to prod-gcp (#2855, 2026-11-25).
 - [ ] The Nais Console service-account binding for fleet-control prod is done (#2855). Network rules and Entra are not enough: without the binding, snapshot reads work while every team lookup returns 503. Check it with a team lookup: `GET /apis/<group>/<version>/whoami` on fleet-control prod (my-copilot `/fleet` calls it) returns your teams, not 503. Once #2855 adds a service-account line to fleet-control's `/ready`, that line must show the binding.
-- [ ] fleet-control prod lists fleet-gateway as inbound. The gateway side comes in prod step 3.
+- [x] fleet-control prod lists fleet-gateway as inbound (#2855). The gateway side came in prod step 3.
 
 ### Seeding
 
@@ -260,10 +262,10 @@ Corrections found in the run:
 ### Prod steps
 
 1. Check every gate above.
-2. Deploy fleet-control prod. Its log shows `seed` with `imported` true and the server count. Time: ____
+2. Deploy fleet-control prod. Its log shows `seed` with `imported` true and the server count. Done: 2026-11-25 (#2855), seeded with 4 servers.
 3. Preparation PR, deployed before the watch starts. In `.nais/prod-gcp.yaml` add `fleet_control_audience: "api://prod-gcp.copilot.fleet-control/.default"` and `routes_shadow_source: fleet-control`. Shadow mode cannot fetch without the audience. After the deploy, the first `fleet-control shadow diff` log line must appear on every pod; `fleet_gateway_routes_shadow_failures_total` growing means the audience or fleet-control's inbound rule is missing. Merged: ____ First shadow log: ____
 4. Watch for 24 h: `fleet_gateway_routes_shadow_diff` stays at 0 on every pod and `fleet_gateway_routes_shadow_failures_total` does not grow. Any non-zero diff resets the clock. Start: ____ End: ____
-5. Switch PR: replace `routes_shadow_source` with `routes_source: fleet-control`; the audience stays. Merge and watch the deploy job. Merged: ____ Rollout complete: ____
+5. Switch PR: replace `routes_shadow_source` with `routes_source: fleet-control`; the audience stays. Merge and watch the deploy job. Merged: 2026-11-26 11:37 UTC (#3059). Rollout complete: not recorded.
 6. Verify: `/ready` 200 on every pod, snapshot age under 120 s, no `fleet-control routes not updated` in the logs, and the post-deploy smoke on each prod route (PRM 200, then one tool call). Done: ____
 
 ### When fleet-control is down (after the switch)
@@ -327,7 +329,7 @@ Traffic is sparse: the median route sees 0 to 1 requests an hour. A window with 
 histogram_quantile(0.95, sum by (route, le) (rate(fleet_gateway_mcp_request_duration_seconds_bucket{namespace="copilot", kind!="sse"}[30d])))
 ```
 
-**5xx rate** reads `fleet_gateway_http_requests_total{code,reason}`. It has no route label, so it is gateway-wide. `reason` is set only on deliberate 503s (kill switch, caps, store quota, concurrent refresh), and those do not count. Recorded as `fleet_gateway:slo_5xx:ratio_rate1d`, only when the day has at least 20 responses. Upstream 502s cannot be told apart in this counter and do count.
+**5xx rate** reads `fleet_gateway_http_requests_total{code,reason}`. It has no route label, so it is gateway-wide. `reason` is set only on deliberate 503s (kill switch, caps, store quota, concurrent refresh) and the per-user 429s (`user_cap`, `user_sse_cap`), and those do not count. Recorded as `fleet_gateway:slo_5xx:ratio_rate1d`, only when the day has at least 20 responses. Upstream 502s cannot be told apart in this counter and do count.
 
 ```promql
 sum(increase(fleet_gateway_http_requests_total{namespace="copilot", code=~"5..", reason=""}[30d]))
@@ -341,7 +343,7 @@ Two alerts on the availability SLO, per route. The long window carries the volum
 - `FleetGatewayAvailabilityBurnFast` (critical): error ratio above 7.2 % (14.4 times budget) over both 1 h and 5 min, with at least 20 requests in 6 h. At that rate 2 % of the month's budget is gone in an hour.
 - `FleetGatewayAvailabilityBurnSlow` (warning): error ratio above 3 % (6 times budget) over both 1 d and 6 h, with at least 20 requests in 1 d.
 
-What to do: break `fleet_gateway_mcp_requests_total` down by `outcome` for the route in the alert. `store_error` means Postgres (see "Postgres outage or loss"). `upstream_token_error` means token exchange with Entra ID fails; search pod logs for `audit mcp` lines with that outcome. `over_capacity` or `sse_over_capacity` means the global in-flight cap is hit; look for a slow upstream holding requests. `user_cap` or `user_sse_cap` means one user hit the per-user cap; check whether a client loops.
+What to do: break `fleet_gateway_mcp_requests_total` down by `outcome` for the route in the alert. `store_error` means Postgres (see "Postgres outage or loss"). `upstream_token_error` means token exchange with Entra ID fails; search pod logs for `audit mcp` lines with that outcome. `over_capacity` or `sse_over_capacity` means the global in-flight cap is hit; look for a slow upstream holding requests. `user_cap` and `user_sse_cap` (429) are not bad outcomes here and do not burn the budget; FleetGatewayUserCapsHit tracks them.
 
 ## Alerts
 

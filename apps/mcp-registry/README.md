@@ -175,7 +175,7 @@ Names follow reverse-DNS with exactly one `/`:
 
 `owner`, `gateway` and `toolHashes` are reserved in `_meta."io.github.navikt/registry"` ([#2101](https://github.com/navikt/copilot/pull/2101)) but cannot be set in `allowlist.json` yet. `owner` is the Nais team that answers for the server, `gateway` is the MCP gateway route that fronts a team server, and `toolHashes` pins each tool to a sha256 of its name, description and input schema (not enforced yet).
 
-Postgres is the second source next to `allowlist.json`: teams submit gateway MCP servers through the write API, and admins approve them. The ki-utvikling form and `/admin` queue are not built yet ([#2099](https://github.com/navikt/copilot/issues/2099)). External servers stay PRs to `allowlist.json`. See the [MCP gateway plan](https://github.com/navikt/copilot/issues/2351).
+Postgres is the second source next to `allowlist.json`: teams submit gateway MCP servers through the write API, and admins approve them. Gateway MCP servers are now registered in `/fleet` on ki-utvikling and approved by team copilot under «Til godkjenning» (`/fleet/godkjenning`), stored in fleet-control ([#2099](https://github.com/navikt/copilot/issues/2099)). Prod mcp-registry still serves `allowlist.json` and runs fleet-control in shadow mode (`registry_source: shadow`, [#2765](https://github.com/navikt/copilot/issues/2765)). External servers stay PRs to `allowlist.json`. See the [MCP gateway plan](https://github.com/navikt/copilot/issues/2351).
 
 ### Remote Servers (HTTP)
 
