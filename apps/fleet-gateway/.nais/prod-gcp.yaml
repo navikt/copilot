@@ -34,3 +34,7 @@ identity_source: introspection
 # with fleet-control and only reports the diff. Switch with routes_source.
 routes_shadow_source: fleet-control
 fleet_control_audience: "api://prod-gcp.copilot.fleet-control/.default"
+# Probe (#2985, #3078): my-copilot's prod Entra client id (azp). Owner turned
+# it on 2026-11-26, accepting the pinning risk. Needs the Console service
+# account bound to fleet-gateway, as in dev.
+probe_allowed_azp: "98a4002f-75bc-4c72-85ef-6c8005937617"
