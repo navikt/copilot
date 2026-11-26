@@ -1,6 +1,6 @@
 # Telemetri i nav-pilot CLI
 
-> **Beta-dokument for interne Nav-utviklere.** Dette gjelder nav-pilot CLI-versjonen v0.x+ med OpenTelemetry-støtte.
+> **Beta-dokument for interne Nav-utviklere.** Dette gjelder nav-pilot CLI med OpenTelemetry-støtte (datobaserte versjoner, for eksempel `2026.11.26-…`).
 
 ## 1. Hva samles inn?
 
@@ -307,7 +307,7 @@ Klassifisering prioriterer:
 Telemetri er **aktivert som standard** i pilot-fase.
 
 ```bash
-nav-pilot install @nav-pilot
+nav-pilot install nav-pilot
 ```
 
 Standard endpoint er:
@@ -557,7 +557,7 @@ export NAV_PILOT_TELEMETRY_ENABLED=0
 
 ```bash
 # 1. Kjør nav-pilot som vanlig (telemetri er på som standard)
-nav-pilot install @nav-pilot
+nav-pilot install nav-pilot
 
 # 2. Data sendes automatisk til backend
 # (ingen output, veldig stille)
@@ -642,10 +642,10 @@ Planlagt: Q4 2026. Da blir telemetri gjort obligatorisk (eller stilt av). Pilot-
 - **Ved avslutning**: nav-pilot venter ikke på nettet. Den siste eksporten skrives til `~/.nav-pilot/telemetry-spool/`, og nav-pilot starter `nav-pilot __telemetry-send` i en egen sesjon før den avslutter. Denne prosessen sender fila og sletter den, og avslutter så. Den lever i høyst 15 sekunder, og du kan se den i `ps` så lenge. Den har ingen terminal og skriver ingenting. Feiler sendingen, for eksempel bak en brannmur, blir fila liggende, og neste nav-pilot sender den i bakgrunnen. En lås på `.send.lock` hindrer at to prosesser sender de samme filene samtidig. Låsen slippes når prosessen avslutter. Hver fil får i tillegg navnet `.sending` før den sendes, så den bare sendes av én prosess, også der låsen ikke virker. Dør prosessen midt i sendingen, blir fila liggende til den er en uke gammel og slettes da usendt. Får en sending ikke svar mens nav-pilot kjører, sendes den på nytt uendret, med de samme målingene og tidsstemplene, før neste sending. Hadde mottakeren allerede tatt imot den, forkaster Mimir kopien. nav-pilot tar vare på høyst fem slike sendinger. Blir det flere, legges tallene i den neste sendingen, som før. Mangler svaret når nav-pilot avslutter, eller avviser mottakeren kopien, havner sendingen i `telemetry-spool` og får nytt tidsstempel. Da kan den telles to ganger. Det er sjeldent og godtatt, fordi tallene viser bruk og ikke brukes til fakturering. `--version` og `--help` sender ingenting.
 - **Ingen egen prosess**: inne i cplt-sandkassen (cplt reagerer på prosesser som forlater økten med `setsid`) og når telemetrien er slått av. Da venter fila på neste nav-pilot.
 - **Tidsstempel**: En fil som sendes senere, får tidsstempelet til sendetidspunktet. Mimir avviser målinger som er eldre enn vinduet for målinger i feil rekkefølge (30–60 minutter), så en fil fra kvelden før ville ellers gått tapt. Starttidspunktet beholdes.
-- **Språk**: Go 1.21+
+- **Språk**: Go 1.26+
 - **Avhengigheter**: `go.opentelemetry.io/otel/*` (se `go.mod`)
 
 For implementeringsdetaljer, se:
 - `cli/nav-pilot/internal/telemetry/telemetry.go`: initialisering og recording
-- `cli/nav-pilot/main.go`: integrasjon med kommandoer
+- `cli/nav-pilot/internal/cli/cli.go`: integrasjon med kommandoer
 - `cli/nav-pilot/internal/telemetry/telemetry_test.go`: enhetstester

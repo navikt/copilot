@@ -13,7 +13,7 @@ nav-pilot → copilot-cli → Texas (M2M) → copilot-api → GitHub/BigQuery
 
 **Key principles:**
 
-- **Internal-only API** — only accessible from `my-copilot` within NAIS network
+- **Internal-only API** — only accessible from `my-copilot`, `copilot-cli` and `copilot-survey` within NAIS network
 - **Azure AD On-Behalf-Of (OBO)** authentication via Texas sidecar
 - **Resource-oriented REST API** with canonical DTOs
 - **RFC 7807 Problem Details** for errors
@@ -30,15 +30,23 @@ nav-pilot → copilot-cli → Texas (M2M) → copilot-api → GitHub/BigQuery
 
 ### Protected (requires Azure AD OBO token)
 
+The full route list lives in [`internal/api/router/router.go`](internal/api/router/router.go) and [`internal/budget/http.go`](internal/budget/http.go). Main groups:
+
 #### Usage Metrics
 
 - `GET /api/v1/copilot/usage/metrics`: Daily usage metrics
 - `GET /api/v1/copilot/usage/trends`: Monthly trends
+- `GET /api/v1/copilot/usage/{quality,daily-summary,distribution,credits-per-user,copilot-prs,cohort-retention,segments,repositories,clients,editors}`: Aggregate usage views
+- `GET /api/v1/copilot/usage/{team-gross,team-net,team-year,spend-bands}`: Team and spend overviews
+- `GET /api/v1/copilot/usage/my-teams`: The caller's teams (per user)
+- `GET /api/v1/copilot/usage/user/{username}`, `.../weekly`, `.../daily-credits`: Per-user metrics (ownership checked)
+- `GET /api/v1/copilot/mimir/telemetry`: nav-pilot telemetry from the Mimir dataset
 
 #### Billing
 
 - `GET /api/v1/copilot/billing`: Enterprise billing overview
 - `GET /api/v1/copilot/billing/premium`: Premium request usage
+- `GET /api/v1/copilot/billing/{monthly,monthly-trend,model-daily,model-forecast,model-breakdown}`: Billing from BigQuery
 
 #### Adoption
 
@@ -46,6 +54,7 @@ nav-pilot → copilot-cli → Texas (M2M) → copilot-api → GitHub/BigQuery
 - `GET /api/v1/copilot/adoption/teams`: Team-level adoption
 - `GET /api/v1/copilot/adoption/languages`: Language-specific adoption
 - `GET /api/v1/copilot/adoption/staleness`: Last activity per repository
+- `GET /api/v1/copilot/adoption/cohorts`: Adoption cohorts
 
 #### Customizations
 
@@ -59,6 +68,21 @@ nav-pilot → copilot-cli → Texas (M2M) → copilot-api → GitHub/BigQuery
 - `DELETE /api/v1/copilot/seats/{username}`: Remove user seat
 - `GET /api/v1/copilot/saml/{identity}`: Resolve GitHub username from SAML identity
 - `GET /api/v1/copilot/repo-contributors`: Repository file contributors
+
+#### Budget
+
+- `GET /api/v1/copilot/budget`: The caller's budget (per user)
+- `GET /api/v1/copilot/budget/global`: Global budget
+- `GET /api/v1/copilot/budget/options`, `GET|PUT /api/v1/copilot/budget/profile`, `GET|POST /api/v1/copilot/budget/raises`: Budget raises (per user)
+
+#### Admin (requires admin)
+
+- `GET /api/v1/admin/billing/{monthly,active-users,high-consumers,budget-days,anomalies,cost-forecast,model-users,volume}`
+
+### Public (no auth, `/public/v1/`)
+
+- `GET /public/v1/videos`, `/public/v1/videos/{id}`, `.../play`, `.../captions`: Video feed
+- `GET /public/v1/fact`: Public fact
 
 ### Internal (one caller each)
 
@@ -77,7 +101,7 @@ API supports multiple authentication mechanisms via the **Identity Resolver** ar
 1. **Signature** — verified against Azure AD JWKS
 2. **Issuer** — `https://login.microsoftonline.com/{tenant}/v2.0`
 3. **Audience** — `AZURE_APP_CLIENT_ID` (supports both string and array `aud` claims)
-4. **Authorized Party (azp)** — must match pre-authorized client (my-copilot)
+4. **Authorized Party (azp)** — must match a pre-authorized client (`my-copilot`, `copilot-cli` or `copilot-survey`)
 5. **Expiry** — token must not be expired
 
 **User claims extracted:**
@@ -100,6 +124,7 @@ API supports multiple authentication mechanisms via the **Identity Resolver** ar
 | `AZURE_OPENID_CONFIG_JWKS_URI` | JWKS endpoint | (injected by NAIS) |
 | `AZURE_APP_PRE_AUTHORIZED_APPS` | Allowed client IDs (JSON) | (injected by NAIS) |
 | `GITHUB_ORG` | GitHub organization | `navikt` |
+| `GITHUB_ENTERPRISE` | GitHub enterprise slug | `nav` |
 | `GITHUB_APP_ID` | GitHub App ID | (secret) |
 | `GITHUB_APP_PRIVATE_KEY` | GitHub App private key | (secret) |
 | `GITHUB_APP_INSTALLATION_ID` | GitHub App installation ID | (secret) |
@@ -107,6 +132,7 @@ API supports multiple authentication mechanisms via the **Identity Resolver** ar
 | `COPILOT_METRICS_DATASET` | BigQuery metrics dataset | `copilot_metrics` |
 | `COPILOT_METRICS_TABLE` | BigQuery metrics table | `usage_metrics` |
 | `COPILOT_ADOPTION_DATASET` | BigQuery adoption dataset | `copilot_adoption` |
+| `COPILOT_MIMIR_DATASET` | BigQuery dataset for nav-pilot telemetry | `copilot_metrics_staging` |
 | `VIDEO_BUCKET_PUBLIC_DEV` | Dev public video bucket | `copilot-videos-public-dev` |
 | `VIDEO_BUCKET_PUBLIC_PROD` | Prod public video bucket | `copilot-videos-public-prod` |
 | `VIDEO_MANIFEST_URL` | Manifest URL (prefer `gs://...` to bypass object cache) | `gs://<bucket>/video_manifest.json` |
@@ -151,7 +177,7 @@ mise build
 Deployed via NAIS to `dev-gcp` and `prod-gcp`:
 
 - **Image:** `ghcr.io/navikt/copilot-api`
-- **Access:** Internal-only (my-copilot inbound rule)
+- **Access:** Internal-only (inbound rules for `my-copilot`, `copilot-cli` and `copilot-survey`)
 - **Observability:** OpenTelemetry auto-instrumentation, Prometheus metrics, Loki logs
 
 ## Testing
@@ -175,7 +201,7 @@ mise check
 ## Security
 
 - **Zero trust** — validates all tokens, doesn't trust BFF blindly
-- **Least privilege** — only `my-copilot` can call API (azp validation)
+- **Least privilege** — only `my-copilot`, `copilot-cli` and `copilot-survey` can call the API (azp validation)
 - **Audit logging** — all mutations logged with user identity
 - **Secrets rotation** — GitHub App credentials stored in NAIS secrets
 - **Rate limiting** — GitHub API calls respect rate limits with exponential backoff
@@ -216,11 +242,14 @@ Common error types:
 
 Prometheus metrics:
 
-- `copilot_seats_total`: Total Copilot seats
-- `copilot_seats_active`: Active seats this cycle
-- `copilot_seats_inactive`: Inactive seats this cycle
-- `copilot_seats_pending`: Pending invitation
-- `copilot_seats_cancelling`: Pending cancellation
+| Metric                               | Type  | Labels | Description                             |
+| ------------------------------------ | ----- | ------ | --------------------------------------- |
+| `copilot_seats_total`                | Gauge | —      | Total Copilot seats in the organization |
+| `copilot_seats_active_this_cycle`    | Gauge | —      | Seats active in current billing cycle   |
+| `copilot_seats_inactive_this_cycle`  | Gauge | —      | Seats inactive in current billing cycle |
+| `copilot_seats_added_this_cycle`     | Gauge | —      | Seats added in current billing cycle    |
+| `copilot_seats_pending_invitation`   | Gauge | —      | Seats with pending invitations          |
+| `copilot_seats_pending_cancellation` | Gauge | —      | Seats pending cancellation              |
 - `github_metrics_last_success_timestamp`: Last successful collection
 
 ## License

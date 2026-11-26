@@ -30,10 +30,10 @@ Adding a 3rd auth mechanism (GitHub Actions, service accounts, new CLI) required
 │     → runs IdentityResolverChain.Resolve(user, request)                 │
 │     → first-match-wins: on-behalf-of → SAML → ...                       │
 │     → stores *ResolvedIdentity in context (or skips on failure)         │
-│  3. Per-user routes: requireResolvedIdentity(chain, handler)            │
+│  3. Per-user routes: auth.RequireResolvedIdentity(chain, handler)       │
 │     → wraps handler with IdentityMiddleware(chain, required=true)       │
 │     → structurally blocks request if no identity resolved               │
-│  4. Handler calls requireOwnership(w, r, username)                      │
+│  4. Handler calls auth.RequireOwnership(w, r, username)                 │
 │     → compares resolved identity with requested username                │
 │     → rejects mismatches with 403                                       │
 └─────────────────────────────────────────────────────────────────────────┘
@@ -42,7 +42,7 @@ Adding a 3rd auth mechanism (GitHub Actions, service accounts, new CLI) required
 ### Core Interfaces
 
 ```go
-// identity.go — one impl per auth mechanism
+// internal/auth/identity.go — one impl per auth mechanism
 type IdentityResolver interface {
     CanResolve(user *User, r *http.Request) bool   // cheap, no I/O
     Resolve(ctx context.Context, user *User, r *http.Request) (*ResolvedIdentity, error)
@@ -59,8 +59,8 @@ type ResolvedIdentity struct {
 
 | File | Resolver | Condition | Resolution |
 |------|----------|-----------|------------|
-| `identity_onbehalfof.go` | `OnBehalfOfIdentityResolver` | App token (`idtyp=app` or role `access_as_application`, no NAVident or e-mail), `azp` ∈ trusted set, `GET` on a route in `onBehalfOfRoutes` | `X-On-Behalf-Of` header (format-validated) |
-| `identity_saml.go` | `SAMLIdentityResolver` | User has non-empty email | GitHub SCIM API lookup |
+| `internal/auth/identity_onbehalfof.go` | `OnBehalfOfIdentityResolver` | App token (`idtyp=app` or role `access_as_application`, no NAVident or e-mail), `azp` ∈ trusted set, `GET` on a route in `onBehalfOfRoutes` | `X-On-Behalf-Of` header (format-validated) |
+| `internal/auth/identity_saml.go` | `SAMLIdentityResolver` | User has non-empty email | GitHub SCIM API lookup |
 
 **Chain order matters** — on-behalf-of is registered before SAML because a trusted M2M token typically has no email claim for SAML to resolve.
 
@@ -75,16 +75,16 @@ type ResolvedIdentity struct {
 | `ErrIdentityHeaderMissing` | Trusted intermediary expected header but it's absent | 401 |
 | `ErrInvalidIdentityHeader` | Header present but not a valid GitHub username | 401 |
 
-Mapping lives in `writeIdentityResolutionError()` in `identity_middleware.go`.
+Mapping lives in `writeIdentityResolutionError()` in `internal/auth/identity_middleware.go`.
 
 ### Handler Pattern
 
 After the refactor, every per-user handler follows this 4-line pattern:
 
 ```go
-func (h *BigQueryHandlers) handleUserMetrics(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) HandleUserMetrics(w http.ResponseWriter, r *http.Request) {
     username := r.PathValue("username")
-    if !requireOwnership(w, r, username) { return }  // ← mechanism-agnostic
+    if !auth.RequireOwnership(w, r, username) { return }  // ← mechanism-agnostic
 
     // Pure business logic from here on...
 }
@@ -96,17 +96,17 @@ Handlers have **zero knowledge** of SAML, X-On-Behalf-Of, or any future mechanis
 
 1. **Global `IdentityMiddleware(chain, required=false)`** — runs on all `/api/v1/` routes, resolves identity best-effort so aggregate endpoints (team dashboards, billing) aren't blocked when identity can't be determined.
 
-2. **Route-level `requireResolvedIdentity(chain, handler)`** — wraps specific per-user routes with `required=true`, making it _structurally impossible_ for a per-user route to serve requests without a resolved identity. Applied in `router.API()` (`internal/api/router/router.go`):
+2. **Route-level `auth.RequireResolvedIdentity(chain, handler)`** — wraps specific per-user routes with `required=true`, making it _structurally impossible_ for a per-user route to serve requests without a resolved identity. Applied in `router.API()` (`internal/api/router/router.go`):
 
    ```go
    perUser := func(h http.HandlerFunc) http.HandlerFunc {
-       return requireResolvedIdentity(identityChain, h)
+       return auth.RequireResolvedIdentity(identityChain, h)
    }
    mux.HandleFunc("GET /api/v1/copilot/usage/user/{username}", bq(perUser(...)))
    mux.HandleFunc("GET /api/v1/copilot/seats/{username}", gh(perUser(...)))
    ```
 
-3. **Handler-level `requireOwnership(w, r, username)`** — verifies the resolved identity matches the _specific_ requested username. Even if layer 2 ensures some identity exists, this prevents user A from accessing user B's data.
+3. **Handler-level `auth.RequireOwnership(w, r, username)`** — verifies the resolved identity matches the _specific_ requested username. Even if layer 2 ensures some identity exists, this prevents user A from accessing user B's data.
 
 ### Adding a New Auth Mechanism
 
@@ -128,9 +128,9 @@ The `OnBehalfOfIdentityResolver` validates the `X-On-Behalf-Of` header against G
 
 ### Testing
 
-- **Resolver isolation**: Each resolver tested independently with mocked dependencies (`identity_test.go`)
-- **Handler isolation**: Tests inject `ResolvedIdentity` directly into context via `identityContext()` helper — no need to mock the full SAML/GitHub API chain just to test business logic (`github_handlers_test.go`, `budget_handlers_test.go`)
-- **Integration**: Chain + middleware tested end-to-end with multiple resolvers wired together (`identity_test.go:TestIdentityMiddleware`)
+- **Resolver isolation**: Each resolver tested independently with mocked dependencies (`internal/auth/identity_test.go`)
+- **Handler isolation**: Tests inject `ResolvedIdentity` directly into context via `identityContext()` helper — no need to mock the full SAML/GitHub API chain just to test business logic (`internal/api/copilot/github_handlers_test.go`, `internal/budget/budget_handlers_test.go`)
+- **Integration**: Chain + middleware tested end-to-end with multiple resolvers wired together (`internal/auth/identity_test.go:TestIdentityMiddleware`)
 
 ---
 
@@ -138,9 +138,10 @@ The `OnBehalfOfIdentityResolver` validates the `X-On-Behalf-Of` header against G
 
 ```
 /health, /ready, /metrics  ← public (no auth)
-/public/v1/*               ← public (no auth, video feeds)
+/public/v1/*               ← public (no auth): videos, fact
 /internal/v1/saml/name-id  ← app token from copilot-survey only; no identity
                              middleware, request log or trace
+/internal/v1/github/org-membership ← app token from copilot-cli only; same
 /api/v1/*                  ← protected:
   ├── Auth middleware (JWT validation)
   ├── Identity middleware (global, required=false)
@@ -151,24 +152,29 @@ The `OnBehalfOfIdentityResolver` validates the `X-On-Behalf-Of` header against G
   │   ├── GET /copilot/billing
   │   └── ...
   │
-  └── Per-user routes (perUser wrapper + requireOwnership):
+  ├── Admin routes (auth.RequireAdmin):
+  │   └── GET /admin/billing/*
+  │
+  └── Per-user routes (perUser wrapper + auth.RequireOwnership):
+      ├── GET /copilot/usage/my-teams
       ├── GET /copilot/usage/user/{username}
       ├── GET /copilot/usage/user/{username}/weekly
       ├── GET /copilot/usage/user/{username}/daily-credits
       ├── GET /copilot/seats/{username}
       ├── POST /copilot/seats
       ├── DELETE /copilot/seats/{username}
-      └── GET /copilot/budget
+      ├── GET /copilot/budget
+      └── /copilot/budget/{options,profile,raises} (budget.RegisterRaiseRoutes)
 ```
 
 ## Key Files
 
 | File | Responsibility |
 |------|---------------|
-| `identity.go` | Interface, chain, sentinel errors |
-| `identity_onbehalfof.go` | X-On-Behalf-Of resolver (copilot-cli) |
-| `identity_saml.go` | SAML → GitHub username resolver (my-copilot) |
-| `identity_middleware.go` | Middleware, requireOwnership, requireResolvedIdentity |
-| `identity_test.go` | Comprehensive tests for all identity components |
+| `internal/auth/identity.go` | Interface, chain, sentinel errors |
+| `internal/auth/identity_onbehalfof.go` | X-On-Behalf-Of resolver (copilot-cli) |
+| `internal/auth/identity_saml.go` | SAML → GitHub username resolver (my-copilot) |
+| `internal/auth/identity_middleware.go` | Middleware, `RequireOwnership`, `RequireResolvedIdentity` |
+| `internal/auth/identity_test.go` | Comprehensive tests for all identity components |
 | `internal/api/router/router.go` | /api/v1/ router with perUser wiring |
 | `main.go` | Chain construction and middleware composition |

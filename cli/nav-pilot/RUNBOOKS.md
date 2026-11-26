@@ -6,7 +6,7 @@ Operative retningslinjer for håndtering av nav-pilot-telemetrialarmer. Hver run
 
 ## ⚠️ Metrikk-tilgjengelighet (les først)
 
-nav-pilot CLI emitterer disse metrikkene i dag (se `cli/nav-pilot/internal/telemetry/telemetry.go`):
+Runbookene bygger på disse metrikkene (se `cli/nav-pilot/internal/telemetry/telemetry.go`). nav-pilot emitterer flere; den fullstendige listen står i [TELEMETRY.md](TELEMETRY.md):
 
 | Metrikk | Type | Datapunkt-dimensjoner |
 |---------|------|-----------------------|
@@ -65,7 +65,7 @@ Pluss resource-attributtene `service.name`, `service.version`, `os`, `arch`, `de
 2. **Was there a recent code push?**
    ```bash
    # Check git log for installs.go changes in last 2h
-   git log --oneline -n 20 -- cli/nav-pilot/install.go
+   git log --oneline -n 20 -- cli/nav-pilot/internal/cli/install.go
    ```
 
 3. **Which error types are causing failures?**
@@ -86,12 +86,12 @@ Install success < 85%
 ### Tiltak
 
 **If recent code change (within 2h):**
-1. Review diff in `install.go`, `manifest.go`, `resolver.go`
+1. Review diff in `internal/cli/install.go`, `internal/source/manifest.go`, `internal/source/resolver.go`
 2. If risky change: **revert immediately** (coordinate with team)
 3. If not obvious: enable DEBUG logging and deploy to staging
 
 **If conflict errors spiking:**
-1. Check `sync.go` conflict resolution logic
+1. Check `internal/cli/sync.go` conflict resolution logic
 2. Review error messages in dashboard
 3. Possible fix: improve conflict detection or auto-resolve safe cases
 4. Create ticket: "Improve conflict resolution UX"
@@ -152,7 +152,7 @@ On-call determines: fix in place, or revert to stable version
 
 2. **Recent error message changes?**
    ```bash
-   git log --oneline -n 10 -- cli/nav-pilot/output.go cli/nav-pilot/interactive.go
+   git log --oneline -n 10 -- cli/nav-pilot/internal/cli/interactive.go
    ```
 
 3. **Check error context:**
@@ -174,7 +174,7 @@ Dry-run conversion < 40%
 ### Tiltak
 
 **If recent change to error messaging:**
-1. Review diff in `output.go` or `interactive.go`
+1. Review diff in `internal/cli/interactive.go`
 2. Assess: is the warning too alarming?
 3. Possible fix: soften wording, add reassurance
 4. Deploy and monitor conversion rate next day
@@ -240,7 +240,7 @@ Check rate next day
 
 2. **Any recent changes to scope handling?**
    ```bash
-   git log --oneline -n 5 -- cli/nav-pilot/scope.go
+   git log --oneline -n 5 -- cli/nav-pilot/internal/artifacts/state.go
    ```
 
 3. **What does the error message say?**
@@ -272,9 +272,9 @@ Permission errors > 100/day
 3. Offer 1:1 help
 
 **If error message unclear:**
-1. Review error text in `scope.go` or permission checking
+1. Review error text for `InstallScope` (`internal/artifacts/`) or permission checking
 2. Improve message: include actionable next step
-3. Example: "Permission denied. Are you in the right repo? Try: `nav-pilot install --scope user @foo`"
+3. Example: "Permission denied. Are you in the right repo? Try: `nav-pilot install --user <name>`"
 4. Deploy update
 
 **If git config issue:**
@@ -320,7 +320,7 @@ Følg med neste uke
 1. **When did this spike start?**
    - Recent change to prompts?
    ```bash
-   git log --oneline -n 5 -- cli/nav-pilot/interactive.go
+   git log --oneline -n 5 -- cli/nav-pilot/internal/cli/interactive.go
    ```
 
 2. **Which action is being declined?**
@@ -329,7 +329,7 @@ Følg med neste uke
    - Check metrics by action
 
 3. **Is the prompt wording clear?**
-   - Review in `interactive.go`
+   - Review in `internal/cli/interactive.go`
    - Is risk/consequence obvious?
 
 ### Årsakstre
@@ -352,7 +352,7 @@ Confirmation abort > 25%
 
 **If wording unclear:**
 1. Improve prompt to be clearer: "This will update 5 agents. Continue? [y/N]"
-2. Add reassurance: "(You can undo with 'nav-pilot sync --revert')"
+2. Add reassurance: "(Run 'nav-pilot sync' first: it shows the changes and writes nothing until 'nav-pilot sync --apply')"
 3. Deploy update
 
 **If too many confirmations:**
@@ -407,7 +407,7 @@ Følg med neste vakt
 
 2. **Recent changes to merge algorithm?**
    ```bash
-   git log --oneline -n 5 -- cli/nav-pilot/sync.go cli/nav-pilot/manifest.go
+   git log --oneline -n 5 -- cli/nav-pilot/internal/cli/sync.go cli/nav-pilot/internal/source/manifest.go
    ```
 
 3. **Are users aborting on conflicts?**
@@ -428,14 +428,14 @@ Sync conflicts > 50/hour
 ### Tiltak
 
 **If merge algorithm too strict:**
-1. Review `sync.go` conflict detection
+1. Review `internal/cli/sync.go` conflict detection
 2. Identify: what's being flagged as conflict?
 3. Can we auto-resolve safe cases?
 4. Create ticket: "Auto-resolve non-destructive conflicts"
 
 **If conflicts are legitimate:**
 1. This is expected in collaborative environments
-2. Communicate: "Conflicts are normal; resolve with: `nav-pilot sync --interactive`"
+2. Communicate: "Conflicts are normal; `nav-pilot install --force` overwrites them and saves yours as `.orig`"
 3. Improve UX: better conflict resolution interface
 4. Add docs: "Conflict resolution guide"
 

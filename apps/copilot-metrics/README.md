@@ -180,8 +180,8 @@ go run . --run-once
 The `copilot-mimir-daily` Naisjob ([.nais/mimir.yaml](.nais/mimir.yaml), 03:00 UTC, prod only) copies yesterday's aggregates to the configured authoritative source table `<GCP_TEAM_PROJECT_ID>.copilot_metrics_staging.mimir_daily`.
 
 Configuration and overrides:
-- `BIGQUERY_DATASET` defaults to `copilot_metrics` across the service for GitHub usage reports ([config.go](internal/config/config.go#L42)), but [.nais/mimir.yaml](.nais/mimir.yaml#L30) explicitly overrides it to `copilot_metrics_staging` for the Mimir job.
-- `apps/copilot-api` configures `COPILOT_MIMIR_DATASET` with a default of `copilot_metrics_staging` ([config.go](../copilot-api/config.go#L68)) to query this table.
+- `BIGQUERY_DATASET` defaults to `copilot_metrics` across the service for GitHub usage reports ([config.go](internal/config/config.go#L47)), but [.nais/mimir.yaml](.nais/mimir.yaml#L30) explicitly overrides it to `copilot_metrics_staging` for the Mimir job.
+- `apps/copilot-api` configures `COPILOT_MIMIR_DATASET` with a default of `copilot_metrics_staging` ([config.go](../copilot-api/internal/config/config.go#L84)) to query this table.
 
 Schedule, evaluation window, and retention:
 - Schedule: Runs daily at 03:00 UTC ([.nais/mimir.yaml](.nais/mimir.yaml#L9)) to leave a margin for late sample acceptance in Mimir.

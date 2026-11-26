@@ -4,9 +4,9 @@ Naisjob that scans all repositories in the `navikt` GitHub organization for AI c
 
 ## What It Scans
 
-The scanner checks every non-archived repository for **16 customization categories** across 4 AI coding tools:
+The scanner checks every non-archived repository for **32 customization categories** across Copilot, Cursor, Claude Code, Windsurf, OpenCode, nav-pilot, Gemini, cplt and shared MCP/skill files:
 
-### GitHub Copilot (8 categories)
+### GitHub Copilot (12 categories)
 
 | Category               | Path                                     | Type      | Detail Level            |
 | ---------------------- | ---------------------------------------- | --------- | ----------------------- |
@@ -18,6 +18,10 @@ The scanner checks every non-archived repository for **16 customization categori
 | `skills`               | `.github/skills/*`                       | directory | individual folder names |
 | `mcp_config`           | `.vscode/mcp.json`                       | file      | exists only             |
 | `copilot_dir`          | `.github/copilot/*`                      | directory | individual filenames    |
+| `copilot_review_instructions` | `.github/copilot-review-instructions.md` | file | exists only        |
+| `copilot_setup_steps`  | `.github/copilot-setup-steps.yml`        | file      | exists only             |
+| `agentic_workflows`    | `.github/aw/*`                           | directory | individual filenames    |
+| `copilot_hooks`        | `.github/hooks/copilot-hooks.json`       | file      | exists only             |
 
 ### Cursor (3 categories)
 
@@ -27,18 +31,47 @@ The scanner checks every non-archived repository for **16 customization categori
 | `cursor_rules_dir` | `.cursor/rules/*.mdc` | directory | individual filenames |
 | `cursorignore`     | `.cursorignore`       | file      | exists only          |
 
-### Claude Code (2 categories)
+### Claude Code (5 categories)
 
 | Category          | Path                    | Type | Detail Level |
 | ----------------- | ----------------------- | ---- | ------------ |
 | `claude_md`       | `CLAUDE.md`             | file | exists only  |
 | `claude_settings` | `.claude/settings.json` | file | exists only  |
+| `claude_agents`   | `.claude/agents/*`      | directory | individual filenames |
+| `claude_commands` | `.claude/commands/*`    | directory | individual filenames |
+| `claude_skills`   | `.claude/skills/*`      | directory | individual filenames |
 
 ### Windsurf (1 category)
 
 | Category        | Path             | Type | Detail Level |
 | --------------- | ---------------- | ---- | ------------ |
 | `windsurfrules` | `.windsurfrules` | file | exists only  |
+
+### OpenCode (3 categories)
+
+| Category         | Path             | Type      | Detail Level         |
+| ---------------- | ---------------- | --------- | -------------------- |
+| `opencode_json`  | `opencode.json`  | file      | exists only          |
+| `opencode_jsonc` | `opencode.jsonc` | file      | exists only          |
+| `opencode_dir`   | `.opencode/*`    | directory | individual filenames |
+
+### nav-pilot (3 categories)
+
+| Category              | Path                              | Type | Detail Level |
+| --------------------- | --------------------------------- | ---- | ------------ |
+| `nav_pilot_state`     | `.github/.nav-pilot-state.json`   | file | exists only  |
+| `agentpakke_manifest` | `.nav-pilot/agentpakke.json`      | file | exists only  |
+| `agentpakke_lock`     | `.nav-pilot/agentpakke.lock.json` | file | exists only  |
+
+### Shared and other tools (5 categories)
+
+| Category        | Path              | Type      | Detail Level         |
+| --------------- | ----------------- | --------- | -------------------- |
+| `agents_skills` | `.agents/skills/*` | directory | individual filenames |
+| `root_mcp_json` | `.mcp.json`       | file      | exists only          |
+| `jetbrains_mcp` | `.idea/mcp.json`  | file      | exists only          |
+| `gemini_md`     | `GEMINI.md`       | file      | exists only          |
+| `cplt_toml`     | `.cplt.toml`      | file      | exists only          |
 
 > To add a new category, append an entry to `DefaultCriteria()` in [internal/adoption/criteria.go](internal/adoption/criteria.go) — no other code changes needed.
 
@@ -64,7 +97,7 @@ Partitioned by `scan_date`, clustered on `(org, has_any_customization, primary_l
 | `teams`                 | JSON              | Teams with access (see below)              |
 | `customizations`        | JSON              | Search results per category (see below)    |
 | `has_any_customization` | BOOLEAN           | Quick filter: any customization found      |
-| `customization_count`   | INTEGER           | Number of distinct categories found (0–16) |
+| `customization_count`   | INTEGER           | Number of distinct categories found (0–32) |
 | `loaded_at`             | TIMESTAMP         | When the row was inserted                  |
 
 ### JSON Column: `customizations`
