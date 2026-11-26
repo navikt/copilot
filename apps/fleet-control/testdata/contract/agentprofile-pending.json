@@ -1,0 +1,145 @@
+{
+  "apiVersion": "fleet.nav.no/v1alpha1",
+  "kind": "AgentProfile",
+  "metadata": {
+    "creationTimestamp": "2026-01-01T00:00:00Z",
+    "generation": 1,
+    "name": "assistant",
+    "namespace": "team-c",
+    "resourceVersion": "1",
+    "uid": "1"
+  },
+  "spec": {
+    "dpia": {
+      "owner": "team-c",
+      "reference": "PVK"
+    },
+    "grants": [
+      {
+        "allowedTools": [
+          "lookup"
+        ],
+        "maxRisk": "Read",
+        "serverRef": {
+          "group": "fleet.nav.no",
+          "kind": "MCPServer",
+          "name": "kodeverk",
+          "namespace": "team-b"
+        }
+      }
+    ],
+    "identity": {
+      "app": "app-a",
+      "cluster": "dev-gcp",
+      "entraClientID": "00000000-0000-4000-8000-000000000001"
+    },
+    "mode": "Delegated",
+    "quota": {
+      "dailyCalls": 2000,
+      "dailyCallsPerUser": 200,
+      "maxInFlight": 4,
+      "requestsPerMinute": 30
+    }
+  },
+  "status": {
+    "conditions": [
+      {
+        "lastTransitionTime": "2026-01-01T00:00:00Z",
+        "observedGeneration": 1,
+        "reason": "NeverApproved",
+        "status": "False",
+        "type": "Published"
+      },
+      {
+        "lastTransitionTime": "2026-01-01T00:00:00Z",
+        "observedGeneration": 1,
+        "reason": "AwaitingGrant",
+        "status": "True",
+        "type": "PendingApproval"
+      },
+      {
+        "lastTransitionTime": "2026-01-01T00:00:00Z",
+        "observedGeneration": 1,
+        "reason": "NotRevoked",
+        "status": "False",
+        "type": "Revoked"
+      },
+      {
+        "lastTransitionTime": "2026-01-01T00:00:00Z",
+        "observedGeneration": 1,
+        "reason": "NotExpired",
+        "status": "False",
+        "type": "Expired"
+      },
+      {
+        "lastTransitionTime": "2026-01-01T00:00:00Z",
+        "observedGeneration": 1,
+        "reason": "ClientIDMatchesApp",
+        "status": "True",
+        "type": "IdentityVerified"
+      },
+      {
+        "lastTransitionTime": "2026-01-01T00:00:00Z",
+        "observedGeneration": 1,
+        "reason": "PendingApproval",
+        "status": "False",
+        "type": "Ready"
+      }
+    ],
+    "grants": [
+      {
+        "contentHash": "v1:sha256:83acee4016225857280cd11a99f1c7c387b64c8ccac1c2037deafba40207f9d7",
+        "granted": false,
+        "serverRef": {
+          "group": "fleet.nav.no",
+          "kind": "MCPServer",
+          "name": "kodeverk",
+          "namespace": "team-b"
+        }
+      }
+    ],
+    "identityVerifiedAt": "2026-01-01T00:00:00Z",
+    "observedGeneration": 1,
+    "pending": {
+      "contentHash": "v1:sha256:bd8855ea5b1f875424cfce24ee4d8e15098fcde528a89f64b0ed33af66cee1a3",
+      "expiresAt": "2026-01-01T00:00:00Z",
+      "generation": 1,
+      "spec": {
+        "dpia": {
+          "owner": "team-c",
+          "reference": "PVK"
+        },
+        "grants": [
+          {
+            "allowedTools": [
+              "lookup"
+            ],
+            "maxRisk": "Read",
+            "serverRef": {
+              "group": "fleet.nav.no",
+              "kind": "MCPServer",
+              "name": "kodeverk",
+              "namespace": "team-b"
+            }
+          }
+        ],
+        "identity": {
+          "app": "app-a",
+          "cluster": "dev-gcp",
+          "entraClientID": "00000000-0000-4000-8000-000000000001"
+        },
+        "mode": "Delegated",
+        "quota": {
+          "dailyCalls": 2000,
+          "dailyCallsPerUser": 200,
+          "maxInFlight": 4,
+          "requestsPerMinute": 30
+        }
+      },
+      "submittedBy": {
+        "kind": "User",
+        "name": "A111111"
+      }
+    }
+  }
+}

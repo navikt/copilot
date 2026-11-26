@@ -1,0 +1,12 @@
+{
+  "apiVersion": "v1",
+  "code": 409,
+  "details": {
+    "group": "fleet.nav.no",
+    "kind": "mcpservers"
+  },
+  "kind": "Status",
+  "message": "mcpservers \"svc\" already exists",
+  "reason": "AlreadyExists",
+  "status": "Failure"
+}
