@@ -272,9 +272,10 @@ describe("POST /api/fleet", () => {
   });
 
   it("edits with PUT and the resourceVersion, which makes a new version", async () => {
+    fetch.mockResolvedValueOnce(Response.json(current));
     const res = await post({ ...editForm, resourceVersion: "7", tools: "search read" });
     await expect(res.json()).resolves.toEqual({ href: "/fleet/mcp-servere/team-a/docs?sendt=1" });
-    const [url, init] = fetch.mock.calls[0];
+    const [url, init] = fetch.mock.calls[1];
     expect(url).toBe("http://fc/apis/fleet.nav.no/v1alpha1/namespaces/team-a/mcpservers/docs");
     expect(init.method).toBe("PUT");
     expect(JSON.parse(init.body)).toMatchObject({
@@ -282,7 +283,55 @@ describe("POST /api/fleet", () => {
       spec: { allowedTools: ["search", "read"], dataCategory: "Intern" },
     });
     expect((await post(editForm)).status).toBe(400);
-    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  // What fleet-control holds: fields the edit form does not show must survive an edit.
+  const current = {
+    metadata: { namespace: "team-a", name: "docs", resourceVersion: "7" },
+    spec: {
+      dataCategory: "Intern",
+      upstream: { app: "docs", url: "x" },
+      allowedTools: ["search", "read"],
+      readme: "old",
+      tools: [
+        { name: "search", description: "Søk" },
+        { name: "read", description: "Les" },
+      ],
+      defaultRisk: "read",
+      toolRisk: { search: "read", read: "propose" },
+      rosRef: "ROS-1",
+      registry: { version: "1.0.0" },
+    },
+    status: {},
+  };
+  const editTo = async (fields: Record<string, string>) => {
+    fetch.mockResolvedValueOnce(Response.json(current));
+    const res = await post({ ...editForm, resourceVersion: "7", ...fields });
+    expect(res.status).toBe(200);
+    const [url, init] = fetch.mock.calls[1];
+    expect(url).toBe("http://fc/apis/fleet.nav.no/v1alpha1/namespaces/team-a/mcpservers/docs");
+    expect(init.method).toBe("PUT");
+    return JSON.parse(init.body).spec;
+  };
+
+  it("a readme-only edit keeps risk levels, rosRef, tool descriptions and registry", async () => {
+    expect(await editTo({ tools: "search read", readme: "new" })).toEqual({ ...current.spec, readme: "new" });
+  });
+
+  it("removing a tool drops its risk level and description", async () => {
+    expect(await editTo({ tools: "search" })).toEqual({
+      ...current.spec,
+      allowedTools: ["search"],
+      tools: [{ name: "search", description: "Søk" }],
+      toolRisk: { search: "read" },
+      readme: undefined,
+    });
+  });
+
+  it("refuses a bad app name before any call", async () => {
+    expect((await post({ ...editForm, resourceVersion: "7", app: "Bad_App" })).status).toBe(400);
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   const grant = {
@@ -325,10 +374,12 @@ describe("POST /api/fleet", () => {
 
   it("maps a failed edit: stale resourceVersion is a conflict, a bad field is marked", async () => {
     const edit = { ...editForm, resourceVersion: "7" };
+    fetch.mockResolvedValueOnce(Response.json(current));
     fetch.mockResolvedValueOnce(status(409, "Conflict", "resourceVersion is stale", ["metadata.resourceVersion"]));
     let res = await post(edit);
     expect(res.status).toBe(409);
     await expect(res.json()).resolves.toMatchObject({ error: expect.stringMatching(/Noen andre har endret/) });
+    fetch.mockResolvedValueOnce(Response.json(current));
     fetch.mockResolvedValueOnce(status(422, "Invalid", "tools must be unique", ["spec.allowedTools"]));
     res = await post(edit);
     expect(res.status).toBe(422);
