@@ -38,7 +38,7 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { hasCondition, refKey } from "@/lib/fleet-names";
 import type { AgentProfile, AuditEvent, FleetProblem, MCPServer, MCPServerSpec, ServerRef } from "@/lib/fleet-control";
-import { APPROVAL_RULE, APPROVER, CHANGE_RULE, ownVersionText } from "@/lib/fleet-approval";
+import { APPROVAL_RULE, APPROVER, CHANGE_RULE, ownVersionText, waitingText } from "@/lib/fleet-approval";
 
 const linkClass = "text-blue-600 hover:underline";
 
@@ -842,6 +842,7 @@ export function ServerDetail({
   me,
   myName,
   owner = false,
+  approver = false,
   agents = [],
   agentsFailed = false,
   grafanaUrl,
@@ -857,6 +858,8 @@ export function ServerDetail({
   myName?: string;
   // In the owner team: only then the edit form shows. fleet-control checks it again.
   owner?: boolean;
+  // In the platform team: only then «Godkjenn» shows. fleet-control checks it again.
+  approver?: boolean;
   agents?: AgentProfile[];
   agentsFailed?: boolean;
   grafanaUrl?: string;
@@ -865,7 +868,7 @@ export function ServerDetail({
     <VStack gap="space-24">
       {submitted && server.status.pending && <SubmittedAlert server={server} />}
       <BodyLong>Neste steg: {serverNextStep(server)}</BodyLong>
-      <ServerActions server={server} me={me} myName={myName} owner={owner} part="approve" />
+      <ServerActions server={server} me={me} myName={myName} owner={owner} approver={approver} part="approve" />
       {server.status.pending?.spec && (
         <VStack gap="space-8">
           <HStack justify="space-between" align="end" gap="space-8">
@@ -1366,12 +1369,14 @@ function ServerActions({
   me,
   myName,
   owner,
+  approver = false,
   part,
 }: {
   server: MCPServer;
   me?: string;
   myName?: string;
   owner: boolean;
+  approver?: boolean;
   part: "approve" | "rest" | "edit";
 }) {
   const approve = useFleetPost("approve");
@@ -1410,8 +1415,9 @@ function ServerActions({
               <BodyShort weight="semibold">{APPROVER}</BodyShort>
             </VStack>
           </Stack>
-          {ownVersion ? (
-            <BodyShort>{ownVersionText(pending.generation)}</BodyShort>
+          {/* The UI only hides the button; fleet-control still decides, and a 403 is shown via route.ts. */}
+          {!approver ? (
+            <BodyShort>{ownVersion ? ownVersionText(pending.generation) : waitingText(pending.generation)}</BodyShort>
           ) : (
             <form onSubmit={approve.onSubmit}>
               <VStack gap="space-8" align={{ xs: "stretch", md: "start" }}>

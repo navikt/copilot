@@ -331,7 +331,26 @@ describe("/fleet", () => {
     expect(screen.getByText(/må sende det inn på nytt/)).toBeInTheDocument();
   });
 
+  it("shows «Godkjenn» to the platform team only, whoever submitted", async () => {
+    // Owner team, not in copilot: no button, the rule instead.
+    render(await ServerPage(params("team-a", "docs")));
+    expect(screen.queryByRole("button", { name: "Godkjenn versjon 3" })).toBeNull();
+    expect(screen.getByText(/^Versjon 3 venter på team copilot\. Gir den ikke mer tilgang/)).toBeInTheDocument();
+    cleanup();
+    // In copilot and the submitter: self-approval is allowed.
+    const own = server();
+    Object.assign(own.status.pending, { submittedBy: { kind: "User", name: "A123456" } });
+    stub({
+      [`${API}/namespaces/team-a/mcpservers/docs`]: own,
+      [`${API}/whoami`]: { name: "A123456", teams: ["team-a", "copilot"] },
+    });
+    render(await ServerPage(params("team-a", "docs")));
+    expect(screen.getByRole("button", { name: "Godkjenn versjon 3" })).toBeInTheDocument();
+  });
+
   it("offers approval with the pending version, and revocation only while not revoked", async () => {
+    // A copilot member on another team's server (#3095 lists these).
+    stub({ [`${API}/whoami`]: { name: "B654321", teams: ["copilot"] } });
     render(await ServerPage(params("team-a", "docs")));
     expect(screen.getByRole("button", { name: "Godkjenn versjon 3" })).toBeInTheDocument();
     expect(document.querySelector('input[name="contentHash"]')).toHaveValue("h3");
