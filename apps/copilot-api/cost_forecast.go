@@ -7,6 +7,7 @@ import (
 	"time"
 
 	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
+	"github.com/navikt/copilot/apps/copilot-api/internal/budget"
 	"github.com/navikt/copilot/apps/copilot-api/internal/cost"
 )
 
@@ -27,22 +28,22 @@ func (h *BigQueryHandlers) handleCostForecast(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	status, budget := cost.BudgetError, 0.0
+	status, budgetUSD := cost.BudgetError, 0.0
 	if h.budgetClient != nil {
-		b, err := h.budgetClient.getGlobalBudget(r.Context())
+		b, err := h.budgetClient.GetGlobalBudget(r.Context())
 		switch {
-		case errors.Is(err, errBudgetNotFound):
+		case errors.Is(err, budget.ErrBudgetNotFound):
 			status = cost.BudgetMissing
 		case err != nil:
 			slog.Warn("Failed to fetch enterprise budget for cost forecast", "error", err)
 		case b != nil && b.EnterpriseBudget > 0:
-			status, budget = cost.BudgetSet, b.EnterpriseBudget
+			status, budgetUSD = cost.BudgetSet, b.EnterpriseBudget
 		default:
 			status = cost.BudgetMissing
 		}
 	}
 
-	out := cost.BuildCostForecast(days, users, month, budget, status)
+	out := cost.BuildCostForecast(days, users, month, budgetUSD, status)
 	snaps, err := h.bqClient.GetLimitSnapshots(r.Context())
 	if err != nil {
 		// The markers are a nicety; the documented limits still give the history.

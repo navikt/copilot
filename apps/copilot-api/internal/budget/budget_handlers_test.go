@@ -1,4 +1,4 @@
-package main
+package budget
 
 import (
 	"context"
@@ -9,17 +9,17 @@ import (
 	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
 )
 
-// TestBudgetHandlersHandleGetBudget verifies handleGetBudget relies on
+// TestBudgetHandlersHandleGetBudget verifies HandleGetBudget relies on
 // IdentityMiddleware having already resolved the caller's GitHub username
 // (Phase 3 of the auth architecture migration — see identity_middleware.go),
 // rather than doing its own SAML lookup.
 func TestBudgetHandlersHandleGetBudget(t *testing.T) {
 	t.Run("missing resolved identity is rejected", func(t *testing.T) {
-		h := newBudgetHandlers(nil)
+		h := NewBudgetHandlers(nil, nil)
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/budget", nil)
 		rec := httptest.NewRecorder()
 
-		h.handleGetBudget(rec, req)
+		h.HandleGetBudget(rec, req)
 
 		if rec.Code != http.StatusUnauthorized {
 			t.Errorf("status: got %d, want %d", rec.Code, http.StatusUnauthorized)
@@ -27,8 +27,8 @@ func TestBudgetHandlersHandleGetBudget(t *testing.T) {
 	})
 
 	t.Run("resolved identity is used to fetch the user's budget", func(t *testing.T) {
-		budgetClient := newBudgetClient(staticToken("fake-token"), "nav")
-		h := newBudgetHandlers(budgetClient)
+		budgetClient := NewBudgetClient(staticToken("fake-token"), "nav")
+		h := NewBudgetHandlers(budgetClient, nil)
 
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/budget", nil)
 		ctx := context.WithValue(req.Context(), auth.ResolvedIdentityContextKey, &auth.ResolvedIdentity{GitHubUsername: "hans", Source: "test"})
@@ -36,10 +36,10 @@ func TestBudgetHandlersHandleGetBudget(t *testing.T) {
 		rec := httptest.NewRecorder()
 
 		// No real GitHub API available in this unit test, so we just assert
-		// that handleGetBudget got past the identity check (it will fail
+		// that HandleGetBudget got past the identity check (it will fail
 		// later trying to reach the real budget API — any status other than
 		// 401 confirms requireOwnership/GetResolvedIdentity was satisfied).
-		h.handleGetBudget(rec, req)
+		h.HandleGetBudget(rec, req)
 
 		if rec.Code == http.StatusUnauthorized {
 			t.Errorf("expected identity check to pass with a resolved identity in context, got 401")
@@ -55,7 +55,7 @@ func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 
 func TestFetchAllBudgetPagesExceedsMaxPages(t *testing.T) {
 	var pages int
-	client := newBudgetClient(staticToken("fake-token"), "nav")
+	client := NewBudgetClient(staticToken("fake-token"), "nav")
 	client.httpClient = &http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			pages++

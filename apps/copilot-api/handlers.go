@@ -10,6 +10,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
+	"github.com/navikt/copilot/apps/copilot-api/internal/budget"
 	"github.com/navikt/copilot/apps/copilot-api/internal/config"
 	"github.com/navikt/copilot/apps/copilot-api/internal/problem"
 )
@@ -52,7 +53,7 @@ func readyHandler(w http.ResponseWriter, r *http.Request) {
 // requireResolvedIdentity) — this is defense-in-depth on top of each
 // handler's own requireOwnership/GetResolvedIdentity call, ensuring a future
 // per-user route can't accidentally ship without an ownership check.
-func makeAPIRouter(config *config.Config, bqHandlers *BigQueryHandlers, ghHandlers *GitHubHandlers, budgetHandlers *BudgetHandlers, identityChain *auth.IdentityResolverChain, raise *budgetRaiseHandlers) http.Handler {
+func makeAPIRouter(config *config.Config, bqHandlers *BigQueryHandlers, ghHandlers *GitHubHandlers, budgetHandlers *budget.BudgetHandlers, identityChain *auth.IdentityResolverChain, raise *budget.BudgetRaiseHandlers) http.Handler {
 	mux := http.NewServeMux()
 
 	bqStub := serviceUnavailableHandler("BigQuery is not configured for this environment")
@@ -71,7 +72,7 @@ func makeAPIRouter(config *config.Config, bqHandlers *BigQueryHandlers, ghHandle
 		}
 		return ghStub
 	}
-	budget := func(h http.HandlerFunc) http.HandlerFunc {
+	budgetAPI := func(h http.HandlerFunc) http.HandlerFunc {
 		if budgetHandlers != nil {
 			return h
 		}
@@ -126,7 +127,7 @@ func makeAPIRouter(config *config.Config, bqHandlers *BigQueryHandlers, ghHandle
 		h := bq(nilSafe(bqHandlers, r.handler))
 		adminMux.HandleFunc("GET "+r.path, h)
 	}
-	mux.Handle("/api/v1/admin/", requireAdmin(adminMux))
+	mux.Handle("/api/v1/admin/", auth.RequireAdmin(adminMux))
 
 	// GitHub API endpoints
 	mux.HandleFunc("GET /api/v1/copilot/billing", gh(nilSafe(ghHandlers, func(h *GitHubHandlers) http.HandlerFunc { return h.handleBilling })))
@@ -138,16 +139,11 @@ func makeAPIRouter(config *config.Config, bqHandlers *BigQueryHandlers, ghHandle
 	mux.HandleFunc("GET /api/v1/copilot/saml/{identity}", gh(nilSafe(ghHandlers, func(h *GitHubHandlers) http.HandlerFunc { return h.handleGetUsernameBySAML })))
 
 	// Enterprise budget endpoints
-	mux.HandleFunc("GET /api/v1/copilot/budget", budget(perUser(nilSafe(budgetHandlers, func(h *BudgetHandlers) http.HandlerFunc { return h.handleGetBudget }))))
-	// Personal budget raises (budget_raise.go). Own 503 when Postgres or the
+	mux.HandleFunc("GET /api/v1/copilot/budget", budgetAPI(perUser(nilSafe(budgetHandlers, func(h *budget.BudgetHandlers) http.HandlerFunc { return h.HandleGetBudget }))))
+	// Personal budget raises (internal/budget). Own 503 when Postgres or the
 	// write token is missing, so the rest of the API is unaffected.
-	mux.HandleFunc("GET /api/v1/copilot/budget/options", perUser(raise.wrap((*budgetRaiseHandlers).handleOptions)))
-	mux.HandleFunc("GET /api/v1/copilot/budget/profile", perUser(raise.wrap((*budgetRaiseHandlers).handleGetProfile)))
-	mux.HandleFunc("PUT /api/v1/copilot/budget/profile", perUser(raise.wrap((*budgetRaiseHandlers).handlePutProfile)))
-	mux.HandleFunc("GET /api/v1/copilot/budget/raises", perUser(raise.wrap((*budgetRaiseHandlers).handleListRaises)))
-	mux.HandleFunc("POST /api/v1/copilot/budget/raises", perUser(raise.wrap((*budgetRaiseHandlers).handleRaise)))
-	mux.Handle("POST /api/v1/copilot/budget/admin/override", requireAdmin(perUser(raise.wrap((*budgetRaiseHandlers).handleAdminOverride))))
-	mux.HandleFunc("GET /api/v1/copilot/budget/global", budget(nilSafe(budgetHandlers, func(h *BudgetHandlers) http.HandlerFunc { return h.handleGetGlobalBudget })))
+	budget.RegisterRaiseRoutes(mux, raise, perUser)
+	mux.HandleFunc("GET /api/v1/copilot/budget/global", budgetAPI(nilSafe(budgetHandlers, func(h *budget.BudgetHandlers) http.HandlerFunc { return h.HandleGetGlobalBudget })))
 
 	return mux
 }

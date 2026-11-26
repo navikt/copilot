@@ -129,7 +129,7 @@ func (h *GitHubHandlers) handleAssignSeat(w http.ResponseWriter, r *http.Request
 	// Defense-in-depth for the BFF's group check: only members of a group
 	// listed under azure.application.claims.groups may activate a seat.
 	// The admin group is in the claim only for requireAdmin and grants no seat.
-	if user == nil || !slices.ContainsFunc(user.Groups, func(g string) bool { return g != "" && g != os.Getenv(adminGroupEnv) }) {
+	if user == nil || !slices.ContainsFunc(user.Groups, func(g string) bool { return g != "" && g != os.Getenv(auth.AdminGroupEnv) }) {
 		respondError(w, "forbidden", "User is not a member of any allowed group", http.StatusForbidden)
 		return
 	}

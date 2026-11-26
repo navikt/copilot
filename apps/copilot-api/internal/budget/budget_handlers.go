@@ -1,4 +1,4 @@
-package main
+package budget
 
 import (
 	"errors"
@@ -13,20 +13,22 @@ import (
 // BudgetHandlers handles the enterprise AI credit budget endpoint.
 type BudgetHandlers struct {
 	budgetClient *BudgetClient
-	raises       *budgetRaiseHandlers // optional: adds this month's raises
+	raises       *BudgetRaiseHandlers // optional: adds this month's raises
+	activeSeats  func() int64         // background-collected licensed seats (metrics collector)
 }
 
-func newBudgetHandlers(budgetClient *BudgetClient) *BudgetHandlers {
+func NewBudgetHandlers(budgetClient *BudgetClient, activeSeats func() int64) *BudgetHandlers {
 	return &BudgetHandlers{
 		budgetClient: budgetClient,
+		activeSeats:  activeSeats,
 	}
 }
 
-// handleGetBudget handles GET /api/v1/copilot/budget.
+// HandleGetBudget handles GET /api/v1/copilot/budget.
 // Relies on IdentityMiddleware (see identity_middleware.go) having already
 // resolved the caller's GitHub username — mechanism-agnostic, works
 // identically whether resolution came from SAML or X-On-Behalf-Of.
-func (h *BudgetHandlers) handleGetBudget(w http.ResponseWriter, r *http.Request) {
+func (h *BudgetHandlers) HandleGetBudget(w http.ResponseWriter, r *http.Request) {
 	identity, ok := auth.GetResolvedIdentity(r.Context())
 	if !ok {
 		respondError(w, "unauthorized", "Caller identity could not be determined", http.StatusUnauthorized)
@@ -35,7 +37,7 @@ func (h *BudgetHandlers) handleGetBudget(w http.ResponseWriter, r *http.Request)
 
 	budget, err := h.budgetClient.getUserBudget(r.Context(), identity.GitHubUsername)
 	if err != nil {
-		if errors.Is(err, errBudgetNotFound) {
+		if errors.Is(err, ErrBudgetNotFound) {
 			respondError(w, "not_found", "No budget data found", http.StatusNotFound)
 			return
 		}
@@ -64,12 +66,12 @@ func (h *BudgetHandlers) handleGetBudget(w http.ResponseWriter, r *http.Request)
 	respondJSON(w, out, http.StatusOK)
 }
 
-// handleGetGlobalBudget handles GET /api/v1/copilot/budget/global.
+// HandleGetGlobalBudget handles GET /api/v1/copilot/budget/global.
 // Returns the enterprise-wide default AI credit budget (no identity resolution required).
-func (h *BudgetHandlers) handleGetGlobalBudget(w http.ResponseWriter, r *http.Request) {
-	budget, err := h.budgetClient.getGlobalBudget(r.Context())
+func (h *BudgetHandlers) HandleGetGlobalBudget(w http.ResponseWriter, r *http.Request) {
+	budget, err := h.budgetClient.GetGlobalBudget(r.Context())
 	if err != nil {
-		if errors.Is(err, errBudgetNotFound) {
+		if errors.Is(err, ErrBudgetNotFound) {
 			respondError(w, "not_found", "No global budget data found", http.StatusNotFound)
 			return
 		}
@@ -86,13 +88,16 @@ func (h *BudgetHandlers) handleGetGlobalBudget(w http.ResponseWriter, r *http.Re
 
 	// Use the background-collected seat count for an accurate active user total.
 	// The budget API only lists override users, not all licensed seats.
-	metricsCollector.mu.RLock()
-	activeSeats := metricsCollector.githubSeatsActive
-	metricsCollector.mu.RUnlock()
+	activeSeats := h.activeSeats()
 	if activeSeats > 0 {
 		budget.ActiveUsers = int(activeSeats)
 	}
 
 	cacheControl(w, 30*60, true) // public — same for all users
 	respondJSON(w, budget, http.StatusOK)
+}
+
+// SetRaises adds this month's raises to the budget response.
+func (h *BudgetHandlers) SetRaises(raises *BudgetRaiseHandlers) {
+	h.raises = raises
 }

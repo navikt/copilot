@@ -442,7 +442,7 @@ func (h *BigQueryHandlers) resolveBudgetCredits(ctx context.Context) float64 {
 	if h.budgetClient == nil {
 		return defaultPerUserBudgetCredits
 	}
-	budget, err := h.budgetClient.getGlobalBudget(ctx)
+	budget, err := h.budgetClient.GetGlobalBudget(ctx)
 	if err != nil || budget == nil || budget.PerUserBudget <= 0 {
 		slog.Warn("Falling back to default per-user budget for usage distribution", "error", err)
 		return defaultPerUserBudgetCredits

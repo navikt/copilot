@@ -13,7 +13,7 @@ import (
 
 func TestAdminTrendRoutesNeedAdmin(t *testing.T) {
 	const group = "11111111-2222-3333-4444-555555555555"
-	t.Setenv(adminGroupEnv, group)
+	t.Setenv(auth.AdminGroupEnv, group)
 	router := makeAPIRouter(&config.Config{}, newBigQueryHandlers(&mockBigQueryClient{}), nil, nil, nil, nil)
 	for _, path := range []string{"/api/v1/admin/billing/active-users", "/api/v1/admin/billing/high-consumers", "/api/v1/admin/billing/budget-days"} {
 		for _, tc := range []struct {

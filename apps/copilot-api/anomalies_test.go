@@ -14,7 +14,7 @@ import (
 )
 
 func TestCostAnomaliesAdminOnly(t *testing.T) {
-	t.Setenv(adminGroupEnv, "admins")
+	t.Setenv(auth.AdminGroupEnv, "admins")
 	h := newBigQueryHandlers(&mockBigQueryClient{anomalies: []bqstore.Anomaly{{Rule: "A1", Date: "2026-09-21"}}})
 	mux := makeAPIRouter(&config.Config{}, h, nil, nil, nil, nil)
 	for _, tc := range []struct {

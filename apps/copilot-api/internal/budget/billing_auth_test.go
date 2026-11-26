@@ -1,4 +1,4 @@
-package main
+package budget
 
 import (
 	"context"
@@ -55,7 +55,7 @@ func budgetAppConfig(t *testing.T) *config.Config {
 
 func callBudgetReads(t *testing.T, tok func(context.Context) (string, error)) {
 	t.Helper()
-	c := newBudgetClient(tok, "nav")
+	c := NewBudgetClient(tok, "nav")
 	if _, err := c.getEnterpriseBudgets(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +68,7 @@ func callBudgetReads(t *testing.T, tok func(context.Context) (string, error)) {
 
 func TestBillingReadsUseBudgetApp(t *testing.T) {
 	auths := fakeBillingGitHub(t)
-	tok, err := newBillingTokenSource(budgetAppConfig(t))
+	tok, err := NewBillingTokenSource(budgetAppConfig(t))
 	if err != nil || tok == nil {
 		t.Fatalf("token source: %v", err)
 	}
@@ -84,7 +84,7 @@ func TestBillingReadsUseBudgetApp(t *testing.T) {
 }
 
 func TestBillingWithoutAppIsUnavailable(t *testing.T) {
-	tok, err := newBillingTokenSource(&config.Config{GitHubBillingToken: "classic-pat"})
+	tok, err := NewBillingTokenSource(&config.Config{GitHubBillingToken: "classic-pat"})
 	if err != nil || tok != nil {
 		t.Fatalf("no app and no BILLING_PAT_FALLBACK must leave billing unavailable, got tok=%v err=%v", tok != nil, err)
 	}
@@ -94,7 +94,7 @@ func TestBillingPATOnlyWithFlag(t *testing.T) {
 	auths := fakeBillingGitHub(t)
 	cfg := budgetAppConfig(t)
 	cfg.BillingPATFallback = true
-	tok, err := newBillingTokenSource(cfg)
+	tok, err := NewBillingTokenSource(cfg)
 	if err != nil || tok == nil {
 		t.Fatalf("token source: %v", err)
 	}

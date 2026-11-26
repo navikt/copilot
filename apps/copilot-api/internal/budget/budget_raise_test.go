@@ -1,4 +1,4 @@
-package main
+package budget
 
 import (
 	"bytes"
@@ -211,10 +211,18 @@ func (emailResolver) Resolve(_ context.Context, u *auth.User, _ *http.Request) (
 	return &auth.ResolvedIdentity{GitHubUsername: strings.TrimSuffix(u.Email, "@nav.no"), Source: "test"}, nil
 }
 
+// newRaiseRouter registers the raise routes as makeAPIRouter does: perUser
+// identity resolution, admin override behind auth.RequireAdmin.
+func newRaiseRouter(chain *auth.IdentityResolverChain, raise *BudgetRaiseHandlers) http.Handler {
+	mux := http.NewServeMux()
+	RegisterRaiseRoutes(mux, raise, func(h http.HandlerFunc) http.HandlerFunc { return auth.RequireResolvedIdentity(chain, h) })
+	return mux
+}
+
 type budgetEnv struct {
 	t      *testing.T
 	gh     *fakeGitHub
-	h      *budgetRaiseHandlers
+	h      *BudgetRaiseHandlers
 	router http.Handler
 	dsn    string
 }
@@ -239,7 +247,7 @@ func newBudgetEnv(t *testing.T, dsn string) *budgetEnv {
 		}
 	})
 	env := &budgetEnv{t: t, gh: gh, h: h, dsn: dsn}
-	env.router = makeAPIRouter(&config.Config{}, nil, nil, nil, auth.NewIdentityResolverChain(emailResolver{}), h)
+	env.router = newRaiseRouter(auth.NewIdentityResolverChain(emailResolver{}), h)
 	return env
 }
 
@@ -334,7 +342,7 @@ func TestBudgetRaiseOwnBudgetUntouched(t *testing.T) {
 	if code, out := e.raise("ola", "k1"); code != 409 || !strings.HasSuffix(out["type"].(string), "own_budget") {
 		t.Fatalf("own budget: %d %v", code, out)
 	}
-	t.Setenv(adminGroupEnv, "admins")
+	t.Setenv(auth.AdminGroupEnv, "admins")
 	if code, _ := e.do("POST", "/api/v1/copilot/budget/admin/override", "boss", "a1", `{"githubLogin":"ola"}`, "admins"); code != 409 {
 		t.Fatalf("admin override must not touch a foreign budget either: %d", code)
 	}
@@ -405,11 +413,11 @@ func TestBudgetAdminOverride(t *testing.T) {
 	for i := range 4 {
 		e.raise("ola", fmt.Sprint("k", i))
 	}
-	t.Setenv(adminGroupEnv, "")
+	t.Setenv(auth.AdminGroupEnv, "")
 	if code, _ := e.do("POST", "/api/v1/copilot/budget/admin/override", "boss", "a1", `{"githubLogin":"ola"}`, "admins"); code != 404 {
 		t.Fatalf("unset admin group must fail closed: %d", code)
 	}
-	t.Setenv(adminGroupEnv, "admins")
+	t.Setenv(auth.AdminGroupEnv, "admins")
 	if code, _ := e.do("POST", "/api/v1/copilot/budget/admin/override", "ola", "a1", `{"githubLogin":"ola"}`); code != 404 {
 		t.Fatalf("non-admin: %d", code)
 	}
@@ -545,7 +553,7 @@ func TestBudgetRaiseUnavailable(t *testing.T) {
 		t.Errorf("GitHub written: %v", e.gh.writes)
 	}
 	// Not configured at all: own 503, the router still builds.
-	r := makeAPIRouter(&config.Config{}, nil, nil, nil, auth.NewIdentityResolverChain(emailResolver{}), nil)
+	r := newRaiseRouter(auth.NewIdentityResolverChain(emailResolver{}), nil)
 	req := httptest.NewRequest("GET", "/api/v1/copilot/budget/profile", nil)
 	req = req.WithContext(context.WithValue(req.Context(), auth.UserContextKey, &auth.User{Email: "ola@nav.no"}))
 	rec := httptest.NewRecorder()
@@ -789,7 +797,7 @@ func TestBudgetRaiseAcrossReplicas(t *testing.T) {
 			h2.store.pool.Close()
 		}
 	})
-	r2 := makeAPIRouter(&config.Config{}, nil, nil, nil, auth.NewIdentityResolverChain(emailResolver{}), h2)
+	r2 := newRaiseRouter(auth.NewIdentityResolverChain(emailResolver{}), h2)
 	for i := range 20 {
 		login := fmt.Sprint("user", i)
 		e.profile(login)
@@ -881,7 +889,7 @@ func TestBudgetRaiseStaleListAcrossReplicas(t *testing.T) {
 		close(reached)
 		<-release
 	}
-	r2 := makeAPIRouter(&config.Config{}, nil, nil, nil, auth.NewIdentityResolverChain(emailResolver{}), h2)
+	r2 := newRaiseRouter(auth.NewIdentityResolverChain(emailResolver{}), h2)
 	done := make(chan int)
 	go func() {
 		req := httptest.NewRequest("POST", "/api/v1/copilot/budget/raises", strings.NewReader(`{"category":"koding","expectedValue":"spare_tid"}`))
@@ -1141,7 +1149,7 @@ func TestBudgetRaiseWriteSerialisedWithReserve(t *testing.T) {
 			h2.store.pool.Close()
 		}
 	})
-	r2 := makeAPIRouter(&config.Config{}, nil, nil, nil, auth.NewIdentityResolverChain(emailResolver{}), h2)
+	r2 := newRaiseRouter(auth.NewIdentityResolverChain(emailResolver{}), h2)
 	post := func(router http.Handler, key string) int {
 		req := httptest.NewRequest("POST", "/api/v1/copilot/budget/raises", strings.NewReader(`{"category":"koding","expectedValue":"spare_tid"}`))
 		req.Header.Set("Idempotency-Key", key)
@@ -1195,7 +1203,7 @@ func (e *budgetEnv) waiters(cond string) int {
 	return e.count("SELECT count(*) FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND " + cond)
 }
 
-func (e *budgetEnv) secondReplica() (*budgetRaiseHandlers, func(key string) int) {
+func (e *budgetEnv) secondReplica() (*BudgetRaiseHandlers, func(key string) int) {
 	e.t.Helper()
 	h2, err := newBudgetRaiseHandlers(&config.Config{BudgetDatabaseURL: e.dsn, BudgetWrites: "on", BudgetDefaultUSD: 150, BudgetTimeZone: "Europe/Oslo", BudgetRaisesOpen: true}, e.h.writer, fakeSeats{})
 	if err != nil {
@@ -1207,7 +1215,7 @@ func (e *budgetEnv) secondReplica() (*budgetRaiseHandlers, func(key string) int)
 			h2.store.pool.Close()
 		}
 	})
-	r2 := makeAPIRouter(&config.Config{}, nil, nil, nil, auth.NewIdentityResolverChain(emailResolver{}), h2)
+	r2 := newRaiseRouter(auth.NewIdentityResolverChain(emailResolver{}), h2)
 	return h2, func(key string) int {
 		req := httptest.NewRequest("POST", "/api/v1/copilot/budget/raises", strings.NewReader(`{"category":"koding","expectedValue":"spare_tid"}`))
 		req.Header.Set("Idempotency-Key", key)
@@ -1444,7 +1452,7 @@ func TestBudgetRaiseReadOnlyDoesNotBumpVersion(t *testing.T) {
 // #2720: before opening, admin override only works for test users.
 func TestBudgetAdminOverrideRespectsNotOpen(t *testing.T) {
 	e := newBudgetEnv(t, openBudgetTestDB(t))
-	t.Setenv(adminGroupEnv, "admins")
+	t.Setenv(auth.AdminGroupEnv, "admins")
 	e.h.open, e.h.testUsers = false, map[string]bool{"tester": true}
 	if code, out := e.do("POST", "/api/v1/copilot/budget/admin/override", "boss", "a1", `{"githubLogin":"ola"}`, "admins"); code != 409 || !strings.HasSuffix(out["type"].(string), "not_open") {
 		t.Fatalf("override for a non-test user while closed: %d %v", code, out)
@@ -1535,10 +1543,10 @@ func TestBudgetReconcileSettlesStaleWithoutNextRaise(t *testing.T) {
 
 // #2718: reconciler does nothing unless BUDGET_WRITES is on and writer is configured.
 func TestBudgetReconcileSkipsWhenNotOn(t *testing.T) {
-	for name, setup := range map[string]func(*budgetRaiseHandlers){
-		"off":       func(h *budgetRaiseHandlers) { h.mode = "off" },
-		"dry_run":   func(h *budgetRaiseHandlers) { h.mode = "dry_run" },
-		"no writer": func(h *budgetRaiseHandlers) { h.writer = nil },
+	for name, setup := range map[string]func(*BudgetRaiseHandlers){
+		"off":       func(h *BudgetRaiseHandlers) { h.mode = "off" },
+		"dry_run":   func(h *BudgetRaiseHandlers) { h.mode = "dry_run" },
+		"no writer": func(h *BudgetRaiseHandlers) { h.writer = nil },
 	} {
 		t.Run(name, func(t *testing.T) {
 			e := newBudgetEnv(t, openBudgetTestDB(t))
@@ -1686,10 +1694,8 @@ func TestBudgetReconcileAlertsWhenStuckOverAnHour(t *testing.T) {
 	if !strings.Contains(buf.String(), "stuck in pending for over an hour") || strings.Contains(buf.String(), "ola") {
 		t.Errorf("unexpected error log: %s", buf.String())
 	}
-	rec := httptest.NewRecorder()
-	metricsHandler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/metrics", nil))
-	if !strings.Contains(rec.Body.String(), "copilot_api_budget_raises_stuck_pending 1") {
-		t.Errorf("/metrics missing stuck gauge: %s", rec.Body.String())
+	if m := BudgetReconcileMetrics(); !strings.Contains(m, "copilot_api_budget_raises_stuck_pending 1") {
+		t.Errorf("/metrics missing stuck gauge: %s", m)
 	}
 
 	// Next pass with GitHub reachable: settles and clears the gauge.
@@ -1699,7 +1705,7 @@ func TestBudgetReconcileAlertsWhenStuckOverAnHour(t *testing.T) {
 	}
 }
 
-// #2718: runReconciler ticks, settles stale rows, and exits cleanly when ctx is cancelled.
+// #2718: RunReconciler ticks, settles stale rows, and exits cleanly when ctx is cancelled.
 func TestBudgetRunReconcilerStopsOnCancel(t *testing.T) {
 	e := newBudgetEnv(t, openBudgetTestDB(t))
 	e.exec(`INSERT INTO budget_raises (github_login, idempotency_key, month, amount_usd, budget_set_usd, category, team_id, expected_value, status, created_at)
@@ -1708,7 +1714,7 @@ func TestBudgetRunReconcilerStopsOnCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go func() {
-		e.h.runReconciler(ctx, 10*time.Millisecond)
+		e.h.RunReconciler(ctx, 10*time.Millisecond)
 		close(done)
 	}()
 	e.waitFor("SELECT count(*) FROM budget_raises WHERE status = 'failed'")
@@ -1716,7 +1722,7 @@ func TestBudgetRunReconcilerStopsOnCancel(t *testing.T) {
 	select {
 	case <-done:
 	case <-time.After(2 * time.Second):
-		t.Fatal("runReconciler did not stop on context cancel")
+		t.Fatal("RunReconciler did not stop on context cancel")
 	}
 }
 
@@ -1759,7 +1765,7 @@ func TestBudgetReconcileFailingUsersDoNotStarveOthers(t *testing.T) {
 // userLocks is a fixed stripe array: the same login always maps to the same
 // mutex, and memory stays bounded however many logins pass through.
 func TestBudgetRaiseUserLockStriped(t *testing.T) {
-	h := &budgetRaiseHandlers{}
+	h := &BudgetRaiseHandlers{}
 	a, b := h.userLock("ola"), h.userLock("ola")
 	if a != b {
 		t.Fatal("same login must map to the same mutex")

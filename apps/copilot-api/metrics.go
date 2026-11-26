@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/navikt/copilot/apps/copilot-api/internal/budget"
 	"github.com/navikt/copilot/apps/copilot-api/internal/config"
 	"github.com/navikt/copilot/apps/copilot-api/internal/github"
 )
@@ -79,7 +80,7 @@ copilot_seats_pending_cancellation %d
 		w.Header().Set("Content-Type", "text/plain; version=0.0.4")
 		w.Header().Set("Cache-Control", "no-store")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(metrics + samlNameIDMetrics() + budgetReconcileMetrics() + httpMetricsText()))
+		w.Write([]byte(metrics + samlNameIDMetrics() + budget.BudgetReconcileMetrics() + httpMetricsText()))
 	})
 }
 
