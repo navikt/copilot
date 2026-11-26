@@ -7,27 +7,25 @@
 // owner-team membership, the target URL (same check as registration, private
 // IPs only at dial time, no redirects), the forwarded methods (initialize,
 // notifications/initialized and tools/list only), the response size and the
-// per-user rate. The probe first calls the target without a credential. Only
-// if it answers 401 does the probe exchange the caller's token (OBO, the same
-// exchange a route uses) for one to the target app and retry as the user, so
-// the target's own checks apply (owner decision 2026-11-26).
+// per-user rate. Before any call to the target, the probe exchanges the
+// caller's token (OBO, the same exchange a route uses) for one to the team's
+// own app and makes exactly one fetch with it, so the target's own checks
+// apply (owner decision 2026-11-26, #3078). It never calls unauthenticated.
 //
 // A failure answers {"error": kind}, the kinds my-copilot's fleet-tools.ts
-// handles (DiscoveryFailure):
+// handles (DiscoveryFailure). Every failure of the target itself (status,
+// DNS, refused, timeout, size, not MCP) answers 502 access, so the probe is
+// no reachability oracle for other namespaces (#3078); the audit log keeps
+// the detail. The list below says where each kind can come from:
 //
-//	unavailable  Texas, the Nais Console or the target failed (503, 5xx), or
-//	             the caller hit the rate limit (429). Try again later.
-//	auth         The caller's token was refused (401), or the target refused
-//	             the user's OBO token too (502). Log in again.
-//	access       The caller is not in the team (403), the target does not
-//	             accept tokens from fleet-gateway (AADSTS65001), the target
-//	             answered 403, or the connection was refused or timed out:
-//	             usually its inbound accessPolicy lacks fleet-gateway.
-//	noroute      No such app in the team's namespace (DNS), or 404 at the path.
-//	toolarge     An answer was over 512 KiB.
-//	invalid      The request (team, upstream_url) was refused (400, 422), or
-//	             the target did not answer as an MCP server: a redirect, an
-//	             unexpected status, not a JSON-RPC result, a bad tool name.
+//	unavailable  Texas or the Nais Console failed (503), the token exchange
+//	             failed (502), or the caller hit the rate limit (429).
+//	auth         The caller's token was refused (401). Log in again.
+//	access       The caller is not in the team (403), the team's app does not
+//	             accept tokens from fleet-gateway (AADSTS65001, 502), or the
+//	             target failed in any way (502): status, DNS, refused,
+//	             timeout, size, not MCP. The audit log keeps the detail.
+//	invalid      The request (team, upstream_url) was refused (400, 422).
 package probe
 
 import (
@@ -251,27 +249,28 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	list, err := h.fetchTools(ctx, target.String(), "")
-	var se *statusError
-	if errors.As(err, &se) && se.code == http.StatusUnauthorized {
-		// Q2: the target wants Entra login; retry as the user with an OBO token for it.
-		tok, xerr := h.exchange(ctx, userToken, h.cluster+":"+req.Team+":"+app, app)
-		if xerr != nil {
-			slog.Warn("probe: token exchange failed", "app", audit.Sanitize(app), "error", xerr)
-			var missing *teamtoken.AccessMissingError
-			if errors.As(xerr, &missing) {
-				fail(http.StatusBadGateway, "token_access_missing", kindAccess)
-			} else {
-				fail(http.StatusBadGateway, "token_exchange_failed", kindUnavailable)
-			}
-			return
+	// OBO first (#3078): exchange for the team's own app before any target call,
+	// so the target's own checks apply and the probe never calls unauthenticated.
+	// An exchange failure depends only on the caller's own team and app.
+	tok, xerr := h.exchange(ctx, userToken, h.cluster+":"+req.Team+":"+app, app)
+	if xerr != nil {
+		slog.Warn("probe: token exchange failed", "app", audit.Sanitize(app), "error", xerr)
+		var missing *teamtoken.AccessMissingError
+		if errors.As(xerr, &missing) {
+			fail(http.StatusBadGateway, "token_access_missing", kindAccess)
+		} else {
+			fail(http.StatusBadGateway, "token_exchange_failed", kindUnavailable)
 		}
-		list, err = h.fetchTools(ctx, target.String(), tok)
+		return
 	}
+	list, err := h.fetchTools(ctx, target.String(), tok)
 	if err != nil {
 		slog.Warn("probe: upstream failed", "host", audit.Sanitize(host), "error", err)
-		status, o, kind := upstreamFailure(ctx, err)
-		fail(status, o, kind)
+		// One answer for every target failure (#3078): until the target is pinned
+		// to the team's own pods, distinct kinds are a reachability oracle for
+		// other namespaces. The audit outcome keeps the detail.
+		_, o, _ := upstreamFailure(ctx, err)
+		fail(http.StatusBadGateway, o, kindAccess)
 		return
 	}
 	tools, outcome = len(list), "ok"
@@ -379,8 +378,8 @@ func hasAudience(raw json.RawMessage, want string) bool {
 }
 
 // fetchTools sends initialize, notifications/initialized and tools/list, and
-// nothing else. token is "" (no credential) or the OBO token for the target,
-// never the caller's own token.
+// nothing else. token is the OBO token for the target, never the caller's
+// own token.
 func (h *Handler) fetchTools(ctx context.Context, target, token string) ([]Tool, error) {
 	_, session, err := h.call(ctx, target, token, "", 1, "initialize", map[string]any{
 		"protocolVersion": protocolVersion,

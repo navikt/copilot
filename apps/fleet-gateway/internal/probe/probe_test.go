@@ -43,8 +43,6 @@ type fakeUpstream struct {
 	methods []string
 	session []string
 	auth    []string
-	// requireAuth answers 401 to a request without Authorization, as an Entra-protected server does.
-	requireAuth bool
 }
 
 // newUpstream answers initialize and tools/list; tools is the tools/list result.
@@ -61,10 +59,6 @@ func newUpstream(t *testing.T, tools string) *fakeUpstream {
 		f.session = append(f.session, r.Header.Get("Mcp-Session-Id"))
 		f.auth = append(f.auth, r.Header.Get("Authorization"))
 		f.mu.Unlock()
-		if f.requireAuth && r.Header.Get("Authorization") == "" {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
 		if msg.Method == "notifications/initialized" {
 			w.WriteHeader(http.StatusAccepted)
 			return
@@ -213,43 +207,34 @@ func TestProbeListsTools(t *testing.T) {
 	if up.session[1] != "sess-1" || up.session[2] != "sess-1" {
 		t.Fatalf("sessions %q, want sess-1 after initialize", up.session)
 	}
-	if len(targets) != 0 {
-		t.Fatalf("exchange targets %q, want none: the target did not ask for login", targets)
+	// OBO first (#3078): one exchange for the team's own app, and every call carries its token.
+	if strings.Join(targets, ",") != "dev-gcp:team-a:app" {
+		t.Fatalf("exchange targets %q, want dev-gcp:team-a:app", targets)
 	}
 	for _, a := range up.auth {
-		if a != "" {
-			t.Fatalf("upstream Authorization %q, want none", a)
+		if a != "Bearer obo:dev-gcp:team-a:app" {
+			t.Fatalf("upstream Authorization %q, want the OBO token on every call, never the caller's own", up.auth)
 		}
 	}
 }
 
-// Q2: a 401 from the target makes the probe retry as the user with an OBO token for that app.
-func TestProbeExchangesOBOOn401(t *testing.T) {
-	up := newUpstream(t, twoTools)
-	up.requireAuth = true
-	var targets []string
-	rec := do(newHandler(t, up, opts{targets: &targets}), "tok", okBody)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status %d: %s", rec.Code, rec.Body)
-	}
-	if strings.Join(targets, ",") != "dev-gcp:team-a:app" {
-		t.Fatalf("exchange targets %q, want dev-gcp:team-a:app", targets)
-	}
-	want := []string{"", "Bearer obo:dev-gcp:team-a:app", "Bearer obo:dev-gcp:team-a:app", "Bearer obo:dev-gcp:team-a:app"}
-	if strings.Join(up.auth, "|") != strings.Join(want, "|") {
-		t.Fatalf("upstream Authorization %q, want %q: never the caller's own token", up.auth, want)
-	}
-}
-
 func TestProbeOBOFailures(t *testing.T) {
-	t.Run("still 401", func(t *testing.T) {
-		up := &fakeUpstream{Server: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	// No 401-then-unavailable oracle (#3078): a target that refuses the OBO
+	// token gets one call and the same 502 access as any target failure.
+	t.Run("target refuses OBO token", func(t *testing.T) {
+		var calls []string
+		up := &fakeUpstream{Server: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			calls = append(calls, r.Header.Get("Authorization"))
 			w.WriteHeader(http.StatusUnauthorized)
 		}))}
 		t.Cleanup(up.Close)
-		rec := do(newHandler(t, up, opts{}), "tok", okBody)
-		if rec.Code != http.StatusBadGateway || kind(t, rec) != "auth" {
-			t.Fatalf("status %d body %s, want 502 auth", rec.Code, rec.Body)
+		var targets []string
+		rec := do(newHandler(t, up, opts{targets: &targets}), "tok", okBody)
+		if rec.Code != http.StatusBadGateway || kind(t, rec) != "access" {
+			t.Fatalf("status %d body %s, want 502 access", rec.Code, rec.Body)
+		}
+		if len(targets) != 1 || len(calls) != 1 || calls[0] != "Bearer obo:dev-gcp:team-a:app" {
+			t.Fatalf("exchanges %q, calls %q, want one of each, with the OBO token", targets, calls)
 		}
 	})
 	for name, tc := range map[string]struct {
@@ -260,24 +245,25 @@ func TestProbeOBOFailures(t *testing.T) {
 		"texas down":     {errors.New("texas exchange request failed"), "unavailable"},
 	} {
 		t.Run(name, func(t *testing.T) {
+			// The answer depends only on the caller's own team and app: the target is never called.
 			up := newUpstream(t, twoTools)
-			up.requireAuth = true
 			rec := do(newHandler(t, up, opts{xerr: tc.err}), "tok", okBody)
 			if rec.Code != http.StatusBadGateway || kind(t, rec) != tc.kind {
 				t.Fatalf("status %d body %s, want 502 %s", rec.Code, rec.Body, tc.kind)
 			}
-			if got := up.seen(); len(got) != 1 {
-				t.Fatalf("upstream saw %v, want only the first initialize", got)
+			if got := up.seen(); len(got) != 0 {
+				t.Fatalf("upstream saw %v, want no call before the exchange succeeds", got)
 			}
 		})
 	}
 }
 
-// Each upstream answer maps to the kind my-copilot's fleet-tools.ts handles.
+// Every upstream failure answers "access" (#3078): distinct kinds would tell a
+// caller which services in other namespaces exist and answer.
 func TestProbeUpstreamKinds(t *testing.T) {
 	for code, want := range map[int]string{
-		http.StatusForbidden: "access", http.StatusNotFound: "noroute",
-		http.StatusInternalServerError: "unavailable", http.StatusTeapot: "invalid",
+		http.StatusForbidden: "access", http.StatusNotFound: "access",
+		http.StatusInternalServerError: "access", http.StatusTeapot: "access",
 	} {
 		up := &fakeUpstream{Server: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(code)
@@ -289,8 +275,8 @@ func TestProbeUpstreamKinds(t *testing.T) {
 	}
 	h := newHandler(t, nil, opts{})
 	h.upstream = &http.Client{Transport: errTransport{&net.DNSError{Err: "no such host", Name: "app", IsNotFound: true}}}
-	if rec := do(h, "tok", okBody); kind(t, rec) != "noroute" {
-		t.Errorf("no such app: body %s, want noroute", rec.Body)
+	if rec := do(h, "tok", okBody); kind(t, rec) != "access" {
+		t.Errorf("no such app: body %s, want access", rec.Body)
 	}
 	h.upstream = &http.Client{Transport: errTransport{errors.New("connection refused")}}
 	if rec := do(h, "tok", okBody); kind(t, rec) != "access" {
@@ -307,8 +293,8 @@ func TestProbeSlowUpstream(t *testing.T) {
 	h := newHandler(t, up, opts{})
 	h.timeout = 100 * time.Millisecond
 	rec := do(h, "tok", okBody)
-	if rec.Code != http.StatusGatewayTimeout || kind(t, rec) != "access" {
-		t.Fatalf("status %d body %s, want 504 access", rec.Code, rec.Body)
+	if rec.Code != http.StatusBadGateway || kind(t, rec) != "access" {
+		t.Fatalf("status %d body %s, want 502 access", rec.Code, rec.Body)
 	}
 }
 
@@ -424,8 +410,8 @@ func TestProbeDoesNotFollowRedirects(t *testing.T) {
 	inner := newUpstream(t, twoTools)
 	redirector := &fakeUpstream{Server: httptest.NewServer(http.RedirectHandler(inner.URL, http.StatusTemporaryRedirect))}
 	t.Cleanup(redirector.Close)
-	if rec := do(newHandler(t, redirector, opts{}), "tok", okBody); rec.Code != http.StatusBadGateway || kind(t, rec) != "invalid" {
-		t.Fatalf("status %d, want 502", rec.Code)
+	if rec := do(newHandler(t, redirector, opts{}), "tok", okBody); rec.Code != http.StatusBadGateway || kind(t, rec) != "access" {
+		t.Fatalf("status %d, want 502 access", rec.Code)
 	}
 	if len(inner.seen()) != 0 {
 		t.Fatal("redirect followed")
@@ -486,8 +472,8 @@ func TestProbeRefusesOversizedResponse(t *testing.T) {
 	big := `{"tools":[{"name":"x","description":"` + strings.Repeat("a", MaxResponseBytes) + `"}]}`
 	up := newUpstream(t, big)
 	h := newHandler(t, up, opts{})
-	if rec := do(h, "tok", okBody); rec.Code != http.StatusBadGateway || kind(t, rec) != "toolarge" {
-		t.Fatalf("status %d body %s, want 502 toolarge", rec.Code, rec.Body)
+	if rec := do(h, "tok", okBody); rec.Code != http.StatusBadGateway || kind(t, rec) != "access" {
+		t.Fatalf("status %d body %s, want 502 access", rec.Code, rec.Body)
 	}
 	// The cap itself, not a JSON error from a truncated body.
 	if _, _, err := h.call(context.Background(), up.URL, "t", "", 1, "tools/list", nil); err == nil || !strings.Contains(err.Error(), "bytes") {
@@ -497,8 +483,8 @@ func TestProbeRefusesOversizedResponse(t *testing.T) {
 
 func TestProbeRefusesBadToolName(t *testing.T) {
 	bad := `{"tools":[{"name":"ok"},{"name":"bad name"}]}`
-	if rec := do(newHandler(t, newUpstream(t, bad), opts{}), "tok", okBody); rec.Code != http.StatusBadGateway || kind(t, rec) != "invalid" {
-		t.Fatalf("status %d, want 502", rec.Code)
+	if rec := do(newHandler(t, newUpstream(t, bad), opts{}), "tok", okBody); rec.Code != http.StatusBadGateway || kind(t, rec) != "access" {
+		t.Fatalf("status %d, want 502 access", rec.Code)
 	}
 }
 
