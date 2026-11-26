@@ -22,6 +22,7 @@ const NO_ACCESS = (team: string) =>
 const SELF_APPROVAL = "the submitter cannot approve their own generation";
 const NO_PERSON = "the pending generation has no person as submitter; a person must submit it again";
 const NO_OID = "the approver has no object id";
+const NOT_IN_PILOT = "writes are not enabled for this team in this cluster";
 const SELF_GRANT = "the submitter cannot grant access to their own profile";
 
 /**
@@ -131,6 +132,11 @@ function failure(err: unknown, team: string, name: string, generation: number, w
     if (detail === SELF_GRANT) return fail(`Du sendte inn agentprofilen selv. En annen på ${team} må gi tilgang.`, 403);
     if (detail === NO_OID)
       return fail("Fleet kjenner ikke igjen innloggingen din. Logg ut, logg inn og prøv igjen.", 403);
+    if (detail === NOT_IN_PILOT)
+      return fail(
+        "Teamet ditt er ikke med i piloten ennå. Skriv i #ki-produktutvikling-diskusjon hvis dere vil være med.",
+        403
+      );
     return fail(NO_ACCESS(team), 403);
   }
   if (status === 404) return fail(`Fant ikke ${what}, eller du har ikke tilgang.`, 404);

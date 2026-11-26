@@ -548,7 +548,11 @@ export function ServerReadme({ markdown }: { markdown: string }) {
           );
         },
         img: ({ alt }) => <span>{alt}</span>,
-        pre: ({ children }) => <pre className="overflow-x-auto">{children}</pre>,
+        pre: ({ children }) => (
+          <pre className="overflow-x-auto" role="region" tabIndex={0} aria-label="Kodeblokk">
+            {children}
+          </pre>
+        ),
         ...readmeHeadings,
       }}
     >
@@ -713,7 +717,6 @@ function ConfirmForm({
         {children}
         <Button
           type="button"
-
           variant="danger"
           loading={busy}
           onClick={() => form.current?.reportValidity() && setOpen(true)}
