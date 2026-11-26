@@ -332,6 +332,20 @@ describe("/fleet", () => {
     expect(screen.getByText(/må sende det inn på nytt/)).toBeInTheDocument();
   });
 
+  it("the overview table shows a follow-up under the status only when something waits, and no version column", async () => {
+    const published = { ...server(), metadata: { ...server().metadata, name: "ferdig" } };
+    published.status = { ...published.status, pending: undefined, conditions: [cond("Published", true)] } as never;
+    stub({ [`${API}/namespaces/team-a/mcpservers`]: { items: [server(), published] } });
+    render(await FleetPage(sp()));
+    const table = screen.getByRole("table", { name: "MCP-serverne til team-a" });
+    expect(within(table).queryByRole("columnheader", { name: "Neste steg" })).toBeNull();
+    expect(within(table).queryByRole("columnheader", { name: "Publisert versjon" })).toBeNull();
+    const [, pendingRow, publishedRow] = within(table).getAllByRole("row");
+    expect(within(pendingRow).getByText("Venter på team copilot")).toBeInTheDocument();
+    expect(publishedRow.querySelectorAll("td")[1].textContent).toBe("Publisert");
+    expect(within(table).queryByText("Ingen")).toBeNull();
+  });
+
   it("the overview names «Godkjenn» as the next step only for the platform team", async () => {
     render(await FleetPage(sp()));
     expect(screen.queryAllByText("Godkjenn versjon 3")).toHaveLength(0);
