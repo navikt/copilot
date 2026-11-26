@@ -198,6 +198,32 @@
     },
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+      "name": "io.github.navikt/aksel-studio",
+      "owner": "aksel-studio",
+      "title": "Aksel Studio",
+      "description": "Lag og les konsepter og prototyper i Aksel Studio via gatewayen med Nav-innlogging.",
+      "version": "1.0.0",
+      "status": "active",
+      "publishedAt": "2026-11-26T00:00:00Z",
+      "websiteUrl": "https://studio.ansatt.dev.nav.no",
+      "repository": {
+        "url": "https://github.com/navikt/aksel-studio",
+        "source": "github",
+        "subfolder": "backend"
+      },
+      "tools": ["list_konsepter", "les_konsept", "les_fil", "les_komponentregister", "lag_konsept", "foresla_ny_fil", "foresla_endring"],
+      "toolRisk": {"lag_konsept": "write", "foresla_ny_fil": "write", "foresla_endring": "write"},
+      "tags": ["aksel", "prototyping", "nav-internal", "gateway"],
+      "protocolVersions": ["2026-07-28", "2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"],
+      "remotes": [
+        {
+          "type": "streamable-http",
+          "url": "https://fleet-gateway.{{domain_internal}}/mcp/aksel-studio/studio"
+        }
+      ]
+    },
+    {
+      "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "io.github.navikt/aksel-mcp",
       "owner": "designsystem",
       "title": "Aksel",
