@@ -80,7 +80,7 @@ profile's team is not the owner team. See open question 3.
 
 ## Registry snapshot
 
-`snapshotItems` (`api/snapshot.go:41-84`) puts each server's public
+`snapshotItems` (`api/snapshot.go:41-79`) puts each server's public
 `server.json` into the registry snapshot, which mcp-registry serves to
 everyone. Internal servers are left out of the registry snapshot entirely.
 The registry has no notion of a caller today, so "visible to the owner

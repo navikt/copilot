@@ -216,7 +216,7 @@ stateDiagram-v2
     killed --> [*]
 ```
 
-## Spørsmål til gjennomgangen
+## Questions for the walkthrough
 
 Questions for the walkthrough, most important first.
 
