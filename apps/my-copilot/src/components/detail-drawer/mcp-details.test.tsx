@@ -128,6 +128,8 @@ describe("McpDetails", () => {
     expect(effectOf("host-exec", true)).toBe("unsandboxed");
     expect(effectOf("unknown", true)).toBe("unsandboxed");
     expect(effectOf("unknown", false)).toBe("acts");
+    expect(effectOf("external", true)).toBe("acts");
+    expect(effectOf("external", false)).toBe("acts");
   });
 
   it("counts a server with a package as local, whatever remote it also lists", () => {
@@ -159,6 +161,27 @@ describe("McpDetails", () => {
     render(<McpDetails item={item} />);
     expect(screen.getByText(/Delvis på som standard/)).toBeInTheDocument();
   });
+
+  it.each(["playwright-mcp", "chrome-devtools-mcp"])(
+    "%s: local external tools show «Utfører», never «Fri tilgang»",
+    (name) => {
+      const item = {
+        id: `mcp-${name}`,
+        name,
+        description: "Browser.",
+        type: "mcp",
+        serverId: `x/${name}`,
+        packages: [{ registryType: "npm", identifier: name, transport: { type: "stdio" } }],
+        remotes: [],
+        tools: ["click", "navigate"],
+        toolRisk: { click: "external", navigate: "external" },
+        usedBy: [],
+      } as unknown as EnrichedCustomization;
+      render(<McpDetails item={item} />);
+      expect(screen.getAllByText("Utfører").length).toBeGreaterThan(0);
+      expect(screen.queryByText("Fri tilgang")).not.toBeInTheDocument();
+    }
+  );
 
   it("groups tools by risk and says which are off and how to turn them on", () => {
     const item: EnrichedCustomization = {
