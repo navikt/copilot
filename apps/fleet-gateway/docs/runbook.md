@@ -54,11 +54,26 @@ Both return `503` with `Retry-After: 300` for `/mcp/*`. The check runs before th
 
 ### Close one route
 
+**Fast path, any route source (file or fleet-control):** `GATEWAY_DISABLED_ROUTES` takes comma-separated route paths, `/mcp/<namespace>/<name>`. A listed route answers `503` (`temporarily_unavailable`, `Retry-After: 300`), logs `route disabled by GATEWAY_DISABLED_ROUTES` and counts as `fleet_gateway_http_requests_total{code="503",reason="route_disabled"}` and `outcome="route_disabled"` on `fleet_gateway_mcp_requests_total`. The check runs per request on the path, so it holds across fleet-control snapshot updates and does not need fleet-control to be up. Other routes are not affected.
+
+Break-glass without a merge (rollout, about 30 to 60 s, overwritten by the next deploy like `GATEWAY_DISABLED`):
+
+```sh
+# break-glass: changes the cluster you name. Starts a rolling restart.
+nais app set env fleet-gateway GATEWAY_DISABLED_ROUTES=/mcp/copilot/kodeverk -t copilot -e <env>
+```
+
+To make it stick across deploys, set `disabled_routes: "/mcp/copilot/kodeverk"` in `.nais/<env>.yaml` and deploy. Undo: empty the value and deploy (or `GATEWAY_DISABLED_ROUTES-` for the break-glass path).
+
+A malformed entry (not `/mcp/<namespace>/<name>`) is logged as a WARN at startup and skipped; valid entries in the same list still apply. Startup does not fail, so a typo cannot block the deploy that disables a route. Check the startup log line `routes disabled by GATEWAY_DISABLED_ROUTES` lists what you meant, then confirm with the `curl` below.
+
+**Slow path, file source only:**
+
 1. Set `enabled: false` on the route in `pilot-routes.<env>.yaml`. For a route registered in prod, also remove its entry from `apps/mcp-registry/allowlist.json`: `TestRegistryMatchesProdRoutes` (`registry_consistency_test.go`) fails when a registry entry has no enabled prod route. Also update the test that lists the route: closing a registered route breaks `TestServersListHandler_KodeverkTitle` in `apps/mcp-registry/handlers_test.go` (kodeverk), or whichever test lists the route you close.
 2. PR, required checks, merge queue, build, deploy.
 3. Confirm: `curl -s -o /dev/null -w '%{http_code}\n' -X POST $URL/mcp/<namespace>/<name>` prints `503`.
 
-Time from merge to 503: **7 min 4 s** (time to first 503 seen at the ingress) in the prod drill of 2026-11-24 (route kodeverk, #2844 and #2845); decision to 503 was 18 min 9 s, of which 11 min 5 s was PR to merge. There is no faster per-route path. Watch the fleet-gateway build-deploy job after the merge and re-run it if it fails: a failed deploy extends the outage (see the drill below). For an urgent single-route stop use the global switch.
+Time from merge to 503: **7 min 4 s** (time to first 503 seen at the ingress) in the prod drill of 2026-11-24 (route kodeverk, #2844 and #2845); decision to 503 was 18 min 9 s, of which 11 min 5 s was PR to merge. Watch the fleet-gateway build-deploy job after the merge and re-run it if it fails: a failed deploy extends the outage (see the drill below). For an urgent single-route stop use the fast path above.
 
 ### Close everything
 

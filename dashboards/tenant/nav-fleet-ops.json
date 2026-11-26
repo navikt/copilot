@@ -339,7 +339,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\", outcome!~\"ok|unauthorized|disabled|tool_denied\"}[5m])) or vector(0)",
+          "expr": "sum(rate(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\", outcome!~\"ok|unauthorized|disabled|route_disabled|tool_denied\"}[5m])) or vector(0)",
           "legendFormat": "",
           "refId": "A"
         }
@@ -1143,7 +1143,7 @@
       },
       "targets": [
         {
-          "expr": "sum(increase(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\", outcome!~\"ok|unauthorized|disabled|tool_denied\"}[5m])) or vector(0)",
+          "expr": "sum(increase(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\", outcome!~\"ok|unauthorized|disabled|route_disabled|tool_denied\"}[5m])) or vector(0)",
           "legendFormat": "",
           "refId": "A"
         }
@@ -1620,7 +1620,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (route, outcome) (rate(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\", outcome!~\"ok|unauthorized|disabled|tool_denied\"}[$__rate_interval]))",
+          "expr": "sum by (route, outcome) (rate(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\", outcome!~\"ok|unauthorized|disabled|route_disabled|tool_denied\"}[$__rate_interval]))",
           "legendFormat": "{{route}} {{outcome}}",
           "refId": "A"
         }
@@ -2699,7 +2699,7 @@
           "pluginVersion": "12.3.2",
           "targets": [
             {
-              "expr": "sum by (outcome) (rate(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\", outcome!~\"unauthorized|disabled|tool_denied\"}[$__rate_interval]))",
+              "expr": "sum by (outcome) (rate(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\", outcome!~\"unauthorized|disabled|route_disabled|tool_denied\"}[$__rate_interval]))",
               "legendFormat": "{{outcome}}",
               "refId": "A"
             }
@@ -3104,7 +3104,7 @@
           "pluginVersion": "12.3.2",
           "targets": [
             {
-              "expr": "sum by (outcome) (rate(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\", outcome=~\"unauthorized|disabled|tool_denied\"}[$__rate_interval]))",
+              "expr": "sum by (outcome) (rate(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\", outcome=~\"unauthorized|disabled|route_disabled|tool_denied\"}[$__rate_interval]))",
               "legendFormat": "{{outcome}}",
               "refId": "A"
             }

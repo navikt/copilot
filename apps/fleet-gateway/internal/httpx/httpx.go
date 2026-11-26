@@ -36,7 +36,7 @@ func (w *StatusWriter) Unwrap() http.ResponseWriter {
 }
 
 // MarkShed labels a deliberate 503 so the 5xx alert can tell it apart from
-// real failures: "disabled" (kill switch), "cap" (in-flight/SSE limits),
+// real failures: "disabled" (kill switch), "route_disabled" (per-route kill switch), "cap" (in-flight/SSE limits),
 // "user_cap" (per-user in-flight limit), "user_sse_cap" (per-user SSE limit),
 // "store_full" (store quota reached), "refresh_in_flight" (concurrent refresh).
 // Store errors and upstream failures stay unlabelled and count.

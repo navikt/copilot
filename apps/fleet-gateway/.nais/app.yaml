@@ -78,6 +78,9 @@ spec:
       value: "{{allowed_client_ids}}"
     - name: ALLOWED_REDIRECT_URIS
       value: "{{allowed_redirect_uris}}"
+    # Per-route kill switch: comma-separated /mcp/<namespace>/<name> (runbook, Close one route).
+    - name: GATEWAY_DISABLED_ROUTES
+      value: "{{disabled_routes}}"
 {{#if dcr_enabled}}
     - name: DCR_ENABLED
       value: "{{dcr_enabled}}"
@@ -167,27 +170,27 @@ spec:
         - record: fleet_gateway:slo_availability_errors:ratio_rate5m
           expr: |
             (sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity|user_cap|user_sse_cap"}[5m]))
-              or sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|tool_denied"}[5m])) * 0)
-              / sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|tool_denied"}[5m]))
+              or sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|route_disabled|tool_denied"}[5m])) * 0)
+              / sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|route_disabled|tool_denied"}[5m]))
         - record: fleet_gateway:slo_availability_errors:ratio_rate1h
           expr: |
             (sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity|user_cap|user_sse_cap"}[1h]))
-              or sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|tool_denied"}[1h])) * 0)
-              / sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|tool_denied"}[1h]))
+              or sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|route_disabled|tool_denied"}[1h])) * 0)
+              / sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|route_disabled|tool_denied"}[1h]))
         - record: fleet_gateway:slo_availability_errors:ratio_rate6h
           expr: |
             (sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity|user_cap|user_sse_cap"}[6h]))
-              or sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|tool_denied"}[6h])) * 0)
-              / sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|tool_denied"}[6h]))
+              or sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|route_disabled|tool_denied"}[6h])) * 0)
+              / sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|route_disabled|tool_denied"}[6h]))
         - record: fleet_gateway:slo_availability_errors:ratio_rate1d
           expr: |
             (sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity|user_cap|user_sse_cap"}[1d]))
-              or sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|tool_denied"}[1d])) * 0)
-              / sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|tool_denied"}[1d]))
+              or sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|route_disabled|tool_denied"}[1d])) * 0)
+              / sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|route_disabled|tool_denied"}[1d]))
         - record: fleet_gateway:slo_availability_requests:increase6h
-          expr: sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|tool_denied"}[6h]))
+          expr: sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|route_disabled|tool_denied"}[6h]))
         - record: fleet_gateway:slo_availability_requests:increase1d
-          expr: sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|tool_denied"}[1d]))
+          expr: sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|route_disabled|tool_denied"}[1d]))
         - record: fleet_gateway:slo_5xx:ratio_rate1d
           expr: |
             sum by (namespace) (increase(fleet_gateway_http_requests_total{namespace="copilot", code=~"5..", reason=""}[1d]))

@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"net/http"
 	"os"
 	"os/signal"
+	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -271,6 +273,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 		Cfg: proxy.Config{
 			BaseURL:              g.cfg.BaseURL,
 			GatewayDisabled:      g.cfg.GatewayDisabled,
+			DisabledRoutes:       g.cfg.DisabledRoutes,
 			RiskEnforcement:      g.cfg.RiskEnforcement,
 			HTTPClient:           g.cfg.HTTPClient,
 			ProxyHeaderTimeout:   g.cfg.ProxyHeaderTimeout,
@@ -447,6 +450,12 @@ func main() {
 		Level: cfg.LogLevel,
 	}))
 	slog.SetDefault(logger)
+	for _, entry := range cfg.MalformedDisabledRoutes {
+		slog.Warn("GATEWAY_DISABLED_ROUTES: ignoring malformed entry, want /mcp/<namespace>/<name>", "entry", entry)
+	}
+	if len(cfg.DisabledRoutes) > 0 {
+		slog.Warn("routes disabled by GATEWAY_DISABLED_ROUTES", "routes", slices.Sorted(maps.Keys(cfg.DisabledRoutes)))
+	}
 
 	gw, err := newGateway(cfg, nil)
 	if err != nil {

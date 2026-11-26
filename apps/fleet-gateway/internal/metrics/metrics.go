@@ -155,7 +155,7 @@ func Init(routes []routing.Route) {
 	for _, code := range []string{"200", "500", "502", "503", "504"} {
 		httpRequests.WithLabelValues(code, "")
 	}
-	for _, reason := range []string{"disabled", "cap", "user_cap", "user_sse_cap", "store_full", "refresh_in_flight"} {
+	for _, reason := range []string{"disabled", "route_disabled", "cap", "user_cap", "user_sse_cap", "store_full", "refresh_in_flight"} {
 		httpRequests.WithLabelValues("503", reason)
 	}
 	for _, step := range []string{"metadata", "code_redeem", "introspection"} {
@@ -180,6 +180,7 @@ func Init(routes []routing.Route) {
 			mcpRequests.WithLabelValues(r.Route, o, "deny", reason, "")
 		}
 		mcpRequests.WithLabelValues(r.Route, "disabled", "", "", "")
+		mcpRequests.WithLabelValues(r.Route, "route_disabled", "", "", "")
 	}
 }
 
