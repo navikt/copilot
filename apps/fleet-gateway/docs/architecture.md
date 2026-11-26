@@ -1,7 +1,8 @@
 # fleet-gateway architecture
 
 fleet-gateway is an OAuth 2.1 authorization server in front of Entra ID and an
-MCP reverse proxy for the routes in `pilot-routes.*.yaml`. This page records the
+MCP reverse proxy for the routes it reads from fleet-control (dev and prod;
+`pilot-routes.*.yaml` with `ROUTES_SOURCE=git`). This page records the
 current package layout, the target layout and the order of the moves (#2926).
 
 ## Current structure
@@ -32,7 +33,7 @@ there are two implementations or a test seam that tests use.
 | Package | Owns | Key type or interface |
 |---|---|---|
 | `internal/ratelimit` | Per-IP limiter, rate-limit log sampler, client IP from the trusted ingress | `Limiter`, `LogSampler`, `ClientIP` |
-| `internal/routing` | `routing.Route`, YAML loading and validation, tool policy, `routing.Table` | `Load`, `NewTable`. Fleet-control already supplies routes in dev (#2641, `fleetControlRoutes` and `swapRoutes` in `main`); no interface, since the two sources have different shapes |
+| `internal/routing` | `routing.Route`, YAML loading and validation, tool policy, `routing.Table` | `Load`, `NewTable`. Fleet-control supplies routes in dev and prod (#2641, #3059, `fleetControlRoutes` and `swapRoutes` in `main`); no interface, since the two sources have different shapes |
 | `internal/inflight` | Global, per-user and per-route concurrency slots | `Slots`, `PerKey` |
 | `internal/ttlmap` | Bounded generic TTL map | `Map[V]` |
 | `internal/session` | Store interface, memory and Postgres stores, sealing, key ring (exists) | `Store` |

@@ -1,6 +1,6 @@
 # fleet-control
 
-Single source of truth for the MCP registry and fleet-gateway routes (#2334). It serves a read-only internal API for fleet-gateway and mcp-registry, and a write API for teams. There is no ingress, and it runs in dev-gcp only.
+Single source of truth for the MCP registry and fleet-gateway routes (#2334). It serves a read-only internal API for fleet-gateway and mcp-registry, and a write API for teams. There is no ingress, and it runs in dev-gcp and prod-gcp (prod since 2026-11-25, #2855).
 
 ## Access
 
@@ -25,8 +25,8 @@ Every request needs a person's Entra token that my-copilot obtained on their beh
 | ------ | ------------------------------------------------------------------------ |
 | 400    | Invalid name or body                                                     |
 | 401    | Missing or invalid token, app token, or a token from another client      |
-| 403    | Not a member of the owning team, or approving your own draft             |
-| 404    | Unknown server                                                           |
+| 403    | Approving as an owner team outside the platform team (`NotPlatformTeam`), or a submitter or approver without an oid. Platform team members may approve their own submission (`self_approved`) |
+| 404    | Unknown server, or not a member of the owning team                       |
 | 409    | Not the pending version, wrong hash, wrong state, or registry name taken |
 | 503    | Texas, team lookup or Postgres unavailable                               |
 
@@ -162,7 +162,7 @@ Existing migrations, checked against the rule (#2761):
 
 ### Rollback after 011
 
-A rollback to an image from before migration `011` is no longer possible. That image reads `agent_profiles` and writes `content_hash`, which no longer exist, so it fails on agent profile reads and on every server draft. During the rolling deploy of `011` itself, old replicas fail the same way until they are replaced; this was accepted because fleet-control runs in dev only.
+A rollback to an image from before migration `011` is no longer possible. That image reads `agent_profiles` and writes `content_hash`, which no longer exist, so it fails on agent profile reads and on every server draft. During the rolling deploy of `011` itself, old replicas fail the same way until they are replaced; this was accepted because fleet-control then ran in dev only, and `011` shipped before prod had data.
 
 To undo `011`, restore the database from a backup taken before it (see "Backup and restore") together with the older image. Do not recreate the tables by hand.
 
@@ -220,7 +220,7 @@ Nais Postgres ([doc.nais.io](https://doc.nais.io/persistence/postgres/reference/
 
 ### While fleet-control is down
 
-fleet-gateway is fail-static: it keeps serving its last snapshot of routes and agent profiles and does not drop to an empty route set. Writes (publish, approve, revoke, jobs) fail until fleet-control is back. Do not restart or deploy fleet-gateway during the outage: a new pod has no snapshot, so its MCP routes answer 503 and `/ready` fails until fleet-control answers (#2797).
+fleet-gateway is fail-static: it keeps serving its last snapshot of routes and agent profiles and does not drop to an empty route set. Writes (publish, approve, revoke, jobs) fail until fleet-control is back. A new fleet-gateway pod loads the last snapshot stored in its own Postgres (`fleet_gateway_routes_from_stored_snapshot` is 1, #2892). Only with no valid stored snapshot do its MCP routes answer 503 and `/ready` fail until fleet-control answers (#2797). Avoid restarting or deploying fleet-gateway during a long outage anyway; the stored snapshot is the only thing keeping a new pod up.
 
 ### Restore runbook
 
@@ -254,7 +254,9 @@ Needs a human with write access to dev-gcp. Fill in and commit the result here. 
 
 ## Prod rollout (#2754)
 
-Merging the PR that adds `prod-gcp` to `nais-clusters` in `.github/workflows/fleet-control.yaml` is the deploy. The owner does the steps below in order.
+Done. fleet-control deploys to prod-gcp (#2855, 2026-11-25), `/fleet` runs in prod against it (#3045, 2026-11-25), and prod fleet-gateway reads routes from it (`routes_source: fleet-control`, #3059, 2026-11-26). `pilot-routes.prod.yaml` is frozen since the switch (`routes_freeze_test.go`). The steps below are kept as the record of how it was rolled out.
+
+Merging the PR that adds `prod-gcp` to `nais-clusters` in `.github/workflows/fleet-control.yaml` is the deploy. The owner did the steps below in order.
 
 1. **Deploy.** Merge. The deploy creates Postgres (`.nais/postgres.yaml`; Nais takes a nightly base backup plus archived WAL, with a 7-day point-in-time recovery window set by `spec.pitr.windowDays`) together with the app. Check that the pod is ready. `/ready` answers 200 with "team lookups unavailable: no Console service account bound" until step 3.
 2. **Verify the seed.** The first start imports the gateway servers from `pilot-routes.prod.yaml` and the allowlist. Check the log for the seed import and no `snapshot rebuild failed`, and that `fleet_control_snapshot_last_success_timestamp_seconds` exists for `routes`. No static teams and no agent seed exist in prod.
