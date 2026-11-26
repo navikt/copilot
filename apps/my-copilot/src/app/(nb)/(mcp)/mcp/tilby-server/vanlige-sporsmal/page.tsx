@@ -83,7 +83,8 @@ export default function FleetFaqPage() {
         <ReadMore header="Vilkår for en relé-app">
           <Bullets>
             <li>
-              Godta bare tokens med azp <code className={code}>prod-gcp:copilot:fleet-gateway</code>.
+              Godta bare tokens der azp er klient-ID-en til <code className={code}>prod-gcp:copilot:fleet-gateway</code>
+              .
             </li>
             <li>Godta bare persontokens med NAVident. Avvis app-tokens.</li>
             <li>Utgående trafikk bare til dev-ingressen.</li>
@@ -113,7 +114,7 @@ export default function FleetFaqPage() {
               videre på kallene etter initialize.
             </li>
             <li>Svar som JSON eller SSE. Ingen omdirigeringer.</li>
-            <li>10 sekunder og 512 KiB totalt.</li>
+            <li>10 sekunder for hele hentingen og høyst 512 KiB per svar.</li>
             <li>
               Alle verktøy på første side. <code className={code}>nextCursor</code> følges ikke.
             </li>
@@ -121,8 +122,11 @@ export default function FleetFaqPage() {
               Verktøynavn bare med <code className={code}>A–Z a–z 0–9 _ . -</code>, høyst 128 tegn.
             </li>
             <li>
-              fleet-gateway står i <code className={code}>accessPolicy.inbound</code>, og appen godtar azp{" "}
-              <code className={code}>&lt;cluster&gt;:copilot:fleet-gateway</code>.
+              fleet-gateway står i <code className={code}>accessPolicy.inbound</code>, og appen godtar bare tokens der
+              azp er fleet-gateways klient-ID. Den er en GUID, og appen finner den i{" "}
+              <code className={code}>AZURE_APP_PRE_AUTHORIZED_APPS</code> under navnet{" "}
+              <code className={code}>&lt;cluster&gt;:copilot:fleet-gateway</code>. Go-apper kan bruke{" "}
+              <code className={code}>GatewayClientID</code> i <code className={code}>lib/mcpkit</code>.
             </li>
           </Bullets>
         </ReadMore>
@@ -134,7 +138,7 @@ export default function FleetFaqPage() {
         </LinkableHeading>
         <BodyLong>/fleet viser veiledning når hentingen feiler. De vanligste årsakene:</BodyLong>
         <Bullets>
-          <li>Appen kjører i et annet cluster enn fleet-en.</li>
+          <li>Appen kjører i et annet cluster.</li>
           <li>fleet-gateway mangler i accessPolicy.inbound.</li>
           <li>Appen er ikke registrert i Entra ID, så OBO-vekslingen feiler.</li>
           <li>Appen svarer ikke innen 10 sekunder.</li>
@@ -144,7 +148,7 @@ export default function FleetFaqPage() {
 
       <VStack gap="space-12">
         <LinkableHeading id="etter-godkjenning" size="medium" level="2">
-          Serveren er godkjent. Hva gjør brukerne?
+          Serveren er godkjent. Hva skjer videre?
         </LinkableHeading>
         <Bullets>
           <li>
