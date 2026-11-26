@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"log/slog"
@@ -58,7 +58,7 @@ type Config struct {
 	BudgetReconcileInterval time.Duration
 }
 
-func loadConfig() *Config {
+func Load() *Config {
 	environment := getEnv("NAIS_CLUSTER_NAME", "local")
 	config := &Config{
 		Port:                   getEnv("PORT", "8080"),
@@ -90,7 +90,7 @@ func loadConfig() *Config {
 		VideoFeedCacheSeconds:  getEnvInt("VIDEO_FEED_CACHE_SECONDS", 60),
 
 		BudgetDatabaseURL:       os.Getenv("DB_URL"),
-		BudgetWrites:            parseBudgetWrites(os.Getenv("BUDGET_WRITES")),
+		BudgetWrites:            ParseBudgetWrites(os.Getenv("BUDGET_WRITES")),
 		BudgetAppID:             os.Getenv("BUDGET_GITHUB_APP_ID"),
 		BudgetAppPrivateKey:     os.Getenv("BUDGET_GITHUB_APP_PRIVATE_KEY"),
 		BudgetAppInstallationID: os.Getenv("BUDGET_GITHUB_APP_INSTALLATION_ID"),
@@ -187,8 +187,8 @@ func parseEndpoints(input string) map[string]bool {
 	return endpoints
 }
 
-// parseBudgetWrites maps BUDGET_WRITES to off, dry_run or on. Unknown is off.
-func parseBudgetWrites(v string) string {
+// ParseBudgetWrites maps BUDGET_WRITES to off, dry_run or on. Unknown is off.
+func ParseBudgetWrites(v string) string {
 	switch v {
 	case "dry_run", "on":
 		return v

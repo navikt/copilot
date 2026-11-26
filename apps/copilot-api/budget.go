@@ -11,6 +11,8 @@ import (
 	"net/url"
 	"sync"
 	"time"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/config"
 )
 
 const (
@@ -81,7 +83,7 @@ func staticToken(tok string) func(context.Context) (string, error) {
 // newBillingTokenSource returns the token source for enterprise billing reads:
 // the budget app, or the classic PAT only when BILLING_PAT_FALLBACK=true. The
 // PAT is never a silent fallback; nil means budget endpoints are unavailable.
-func newBillingTokenSource(cfg *Config) (func(context.Context) (string, error), error) {
+func newBillingTokenSource(cfg *config.Config) (func(context.Context) (string, error), error) {
 	if cfg.BillingPATFallback && cfg.GitHubBillingToken != "" {
 		slog.Warn("Billing reads use GITHUB_BILLING_TOKEN because BILLING_PAT_FALLBACK=true; remove the flag once the budget GitHub App works")
 		return staticToken(cfg.GitHubBillingToken), nil

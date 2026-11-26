@@ -10,6 +10,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
+	"github.com/navikt/copilot/apps/copilot-api/internal/config"
 	"github.com/navikt/copilot/apps/copilot-api/internal/problem"
 )
 
@@ -51,7 +52,7 @@ func readyHandler(w http.ResponseWriter, r *http.Request) {
 // requireResolvedIdentity) — this is defense-in-depth on top of each
 // handler's own requireOwnership/GetResolvedIdentity call, ensuring a future
 // per-user route can't accidentally ship without an ownership check.
-func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *GitHubHandlers, budgetHandlers *BudgetHandlers, identityChain *auth.IdentityResolverChain, raise *budgetRaiseHandlers) http.Handler {
+func makeAPIRouter(config *config.Config, bqHandlers *BigQueryHandlers, ghHandlers *GitHubHandlers, budgetHandlers *BudgetHandlers, identityChain *auth.IdentityResolverChain, raise *budgetRaiseHandlers) http.Handler {
 	mux := http.NewServeMux()
 
 	bqStub := serviceUnavailableHandler("BigQuery is not configured for this environment")
@@ -152,7 +153,7 @@ func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *Git
 }
 
 // makePublicRouter creates the public router for unauthenticated endpoints.
-func makePublicRouter(config *Config, videoHandlers *VideoHandlers, bqHandlers *BigQueryHandlers) http.Handler {
+func makePublicRouter(config *config.Config, videoHandlers *VideoHandlers, bqHandlers *BigQueryHandlers) http.Handler {
 	mux := http.NewServeMux()
 
 	videoStub := serviceUnavailableHandler("Video service is not configured for this environment")
@@ -224,7 +225,7 @@ func respondJSON(w http.ResponseWriter, data interface{}, status int) {
 func tracePath(r *http.Request) bool { return !strings.Contains(strings.ToLower(r.URL.Path), "/saml/") }
 
 // loggingMiddleware logs HTTP requests
-func loggingMiddleware(config *Config, next http.Handler) http.Handler {
+func loggingMiddleware(config *config.Config, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		shouldLog := false
 		for endpoint := range config.LoggedEndpoints {

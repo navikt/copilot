@@ -17,11 +17,12 @@ import (
 
 	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
 
+	"github.com/navikt/copilot/apps/copilot-api/internal/config"
 	"github.com/navikt/copilot/apps/copilot-api/internal/github"
 )
 
 func main() {
-	config := loadConfig()
+	config := config.Load()
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: config.LogLevel,
@@ -272,7 +273,7 @@ func main() {
 // misconfigured deployment. The explicit ENABLE_DEV_QUERY opt-in ensures an
 // unauthenticated raw-SQL endpoint can never appear because an env var went
 // missing.
-func registerDevRoutes(mux *http.ServeMux, config *Config, rawBQClient *bqstore.BigQueryClient) {
+func registerDevRoutes(mux *http.ServeMux, config *config.Config, rawBQClient *bqstore.BigQueryClient) {
 	if rawBQClient == nil || config.Environment != "local" || !config.EnableDevQuery {
 		return
 	}

@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/navikt/copilot/apps/copilot-api/internal/config"
 	"github.com/navikt/copilot/apps/copilot-api/internal/github"
 )
 
@@ -83,7 +84,7 @@ copilot_seats_pending_cancellation %d
 }
 
 // startMetricsCollector starts the background metrics collection
-func startMetricsCollector(config *Config, client *github.Client) {
+func startMetricsCollector(config *config.Config, client *github.Client) {
 	// Collect immediately on startup (if configured)
 	if client != nil {
 		slog.Info("Running initial GitHub metrics collection")

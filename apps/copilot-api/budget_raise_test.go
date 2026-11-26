@@ -22,6 +22,7 @@ import (
 
 	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
 
+	"github.com/navikt/copilot/apps/copilot-api/internal/config"
 	"github.com/navikt/copilot/apps/copilot-api/internal/github"
 )
 
@@ -223,7 +224,7 @@ func newBudgetEnv(t *testing.T, dsn string) *budgetEnv {
 	gh := &fakeGitHub{budgets: map[string][]ghBudget{}}
 	srv := httptest.NewServer(gh.handler())
 	t.Cleanup(srv.Close)
-	h, err := newBudgetRaiseHandlers(&Config{BudgetDatabaseURL: dsn, BudgetWrites: "on", BudgetDefaultUSD: 150, BudgetTimeZone: "Europe/Oslo", BudgetRaisesOpen: true},
+	h, err := newBudgetRaiseHandlers(&config.Config{BudgetDatabaseURL: dsn, BudgetWrites: "on", BudgetDefaultUSD: 150, BudgetTimeZone: "Europe/Oslo", BudgetRaisesOpen: true},
 		&budgetWriter{httpClient: srv.Client(), baseURL: srv.URL, enterprise: "nav", budgetType: "BundlePricing", token: func(context.Context) (string, error) { return "test-token", nil }},
 		fakeSeats{})
 	if err != nil {
@@ -238,7 +239,7 @@ func newBudgetEnv(t *testing.T, dsn string) *budgetEnv {
 		}
 	})
 	env := &budgetEnv{t: t, gh: gh, h: h, dsn: dsn}
-	env.router = makeAPIRouter(&Config{}, nil, nil, nil, auth.NewIdentityResolverChain(emailResolver{}), h)
+	env.router = makeAPIRouter(&config.Config{}, nil, nil, nil, auth.NewIdentityResolverChain(emailResolver{}), h)
 	return env
 }
 
@@ -515,7 +516,7 @@ func TestBudgetRaiseLicenceAndOpen(t *testing.T) {
 		t.Errorf("raise without token: %d", code)
 	}
 	e.h.writer = w
-	e.h.mode = parseBudgetWrites("yes")
+	e.h.mode = config.ParseBudgetWrites("yes")
 	if code, _ := e.raise("ola", "k3"); code != 503 {
 		t.Errorf("unknown BUDGET_WRITES must be off: %d", code)
 	}
@@ -536,7 +537,7 @@ func TestBudgetRaiseUnavailable(t *testing.T) {
 	if code, _ := e.raise("ola", "k1"); code != 503 {
 		t.Errorf("raise with Postgres down: %d", code)
 	}
-	e.h.mode = parseBudgetWrites("yes")
+	e.h.mode = config.ParseBudgetWrites("yes")
 	if code, _ := e.raise("ola", "k1"); code != 503 {
 		t.Errorf("unknown BUDGET_WRITES must be off: %d", code)
 	}
@@ -544,7 +545,7 @@ func TestBudgetRaiseUnavailable(t *testing.T) {
 		t.Errorf("GitHub written: %v", e.gh.writes)
 	}
 	// Not configured at all: own 503, the router still builds.
-	r := makeAPIRouter(&Config{}, nil, nil, nil, auth.NewIdentityResolverChain(emailResolver{}), nil)
+	r := makeAPIRouter(&config.Config{}, nil, nil, nil, auth.NewIdentityResolverChain(emailResolver{}), nil)
 	req := httptest.NewRequest("GET", "/api/v1/copilot/budget/profile", nil)
 	req = req.WithContext(context.WithValue(req.Context(), auth.UserContextKey, &auth.User{Email: "ola@nav.no"}))
 	rec := httptest.NewRecorder()
@@ -747,7 +748,7 @@ func TestBudgetStoreHangingPostgres(t *testing.T) {
 			held = append(held, c)
 		}
 	}()
-	h, err := newBudgetRaiseHandlers(&Config{BudgetDatabaseURL: "postgres://x:y@" + ln.Addr().String() + "/db?sslmode=disable", BudgetTimeZone: "Europe/Oslo"}, nil, nil)
+	h, err := newBudgetRaiseHandlers(&config.Config{BudgetDatabaseURL: "postgres://x:y@" + ln.Addr().String() + "/db?sslmode=disable", BudgetTimeZone: "Europe/Oslo"}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -769,7 +770,7 @@ func TestBudgetStoreHangingPostgres(t *testing.T) {
 func TestBudgetWriteBudgetTypeDefault(t *testing.T) {
 	t.Setenv("BUDGET_GITHUB_BUDGET_TYPE", "")
 	t.Setenv("BUDGET_GITHUB_APP_ID", "")
-	if got := loadConfig().BudgetGitHubBudgetType; got != "BundlePricing" {
+	if got := config.Load().BudgetGitHubBudgetType; got != "BundlePricing" {
 		t.Errorf("default budget_type: %q (every live AI-credit budget lists BundlePricing)", got)
 	}
 }
@@ -778,7 +779,7 @@ func TestBudgetWriteBudgetTypeDefault(t *testing.T) {
 // lock and the pending-row check must still give one step per raise.
 func TestBudgetRaiseAcrossReplicas(t *testing.T) {
 	e := newBudgetEnv(t, openBudgetTestDB(t))
-	h2, err := newBudgetRaiseHandlers(&Config{BudgetDatabaseURL: e.dsn, BudgetWrites: "on", BudgetDefaultUSD: 150, BudgetTimeZone: "Europe/Oslo", BudgetRaisesOpen: true}, e.h.writer, fakeSeats{})
+	h2, err := newBudgetRaiseHandlers(&config.Config{BudgetDatabaseURL: e.dsn, BudgetWrites: "on", BudgetDefaultUSD: 150, BudgetTimeZone: "Europe/Oslo", BudgetRaisesOpen: true}, e.h.writer, fakeSeats{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -788,7 +789,7 @@ func TestBudgetRaiseAcrossReplicas(t *testing.T) {
 			h2.store.pool.Close()
 		}
 	})
-	r2 := makeAPIRouter(&Config{}, nil, nil, nil, auth.NewIdentityResolverChain(emailResolver{}), h2)
+	r2 := makeAPIRouter(&config.Config{}, nil, nil, nil, auth.NewIdentityResolverChain(emailResolver{}), h2)
 	for i := range 20 {
 		login := fmt.Sprint("user", i)
 		e.profile(login)
@@ -864,7 +865,7 @@ func TestBudgetRaiseLostResponseListDown(t *testing.T) {
 func TestBudgetRaiseStaleListAcrossReplicas(t *testing.T) {
 	e := newBudgetEnv(t, openBudgetTestDB(t))
 	e.profile("ola")
-	h2, err := newBudgetRaiseHandlers(&Config{BudgetDatabaseURL: e.dsn, BudgetWrites: "on", BudgetDefaultUSD: 150, BudgetTimeZone: "Europe/Oslo", BudgetRaisesOpen: true}, e.h.writer, fakeSeats{})
+	h2, err := newBudgetRaiseHandlers(&config.Config{BudgetDatabaseURL: e.dsn, BudgetWrites: "on", BudgetDefaultUSD: 150, BudgetTimeZone: "Europe/Oslo", BudgetRaisesOpen: true}, e.h.writer, fakeSeats{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -880,7 +881,7 @@ func TestBudgetRaiseStaleListAcrossReplicas(t *testing.T) {
 		close(reached)
 		<-release
 	}
-	r2 := makeAPIRouter(&Config{}, nil, nil, nil, auth.NewIdentityResolverChain(emailResolver{}), h2)
+	r2 := makeAPIRouter(&config.Config{}, nil, nil, nil, auth.NewIdentityResolverChain(emailResolver{}), h2)
 	done := make(chan int)
 	go func() {
 		req := httptest.NewRequest("POST", "/api/v1/copilot/budget/raises", strings.NewReader(`{"category":"koding","expectedValue":"spare_tid"}`))
@@ -1130,7 +1131,7 @@ func TestBudgetRaiseCreateServerErrorIsUnknown(t *testing.T) {
 func TestBudgetRaiseWriteSerialisedWithReserve(t *testing.T) {
 	e := newBudgetEnv(t, openBudgetTestDB(t))
 	e.profile("ola")
-	h2, err := newBudgetRaiseHandlers(&Config{BudgetDatabaseURL: e.dsn, BudgetWrites: "on", BudgetDefaultUSD: 150, BudgetTimeZone: "Europe/Oslo", BudgetRaisesOpen: true}, e.h.writer, fakeSeats{})
+	h2, err := newBudgetRaiseHandlers(&config.Config{BudgetDatabaseURL: e.dsn, BudgetWrites: "on", BudgetDefaultUSD: 150, BudgetTimeZone: "Europe/Oslo", BudgetRaisesOpen: true}, e.h.writer, fakeSeats{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1140,7 +1141,7 @@ func TestBudgetRaiseWriteSerialisedWithReserve(t *testing.T) {
 			h2.store.pool.Close()
 		}
 	})
-	r2 := makeAPIRouter(&Config{}, nil, nil, nil, auth.NewIdentityResolverChain(emailResolver{}), h2)
+	r2 := makeAPIRouter(&config.Config{}, nil, nil, nil, auth.NewIdentityResolverChain(emailResolver{}), h2)
 	post := func(router http.Handler, key string) int {
 		req := httptest.NewRequest("POST", "/api/v1/copilot/budget/raises", strings.NewReader(`{"category":"koding","expectedValue":"spare_tid"}`))
 		req.Header.Set("Idempotency-Key", key)
@@ -1196,7 +1197,7 @@ func (e *budgetEnv) waiters(cond string) int {
 
 func (e *budgetEnv) secondReplica() (*budgetRaiseHandlers, func(key string) int) {
 	e.t.Helper()
-	h2, err := newBudgetRaiseHandlers(&Config{BudgetDatabaseURL: e.dsn, BudgetWrites: "on", BudgetDefaultUSD: 150, BudgetTimeZone: "Europe/Oslo", BudgetRaisesOpen: true}, e.h.writer, fakeSeats{})
+	h2, err := newBudgetRaiseHandlers(&config.Config{BudgetDatabaseURL: e.dsn, BudgetWrites: "on", BudgetDefaultUSD: 150, BudgetTimeZone: "Europe/Oslo", BudgetRaisesOpen: true}, e.h.writer, fakeSeats{})
 	if err != nil {
 		e.t.Fatal(err)
 	}
@@ -1206,7 +1207,7 @@ func (e *budgetEnv) secondReplica() (*budgetRaiseHandlers, func(key string) int)
 			h2.store.pool.Close()
 		}
 	})
-	r2 := makeAPIRouter(&Config{}, nil, nil, nil, auth.NewIdentityResolverChain(emailResolver{}), h2)
+	r2 := makeAPIRouter(&config.Config{}, nil, nil, nil, auth.NewIdentityResolverChain(emailResolver{}), h2)
 	return h2, func(key string) int {
 		req := httptest.NewRequest("POST", "/api/v1/copilot/budget/raises", strings.NewReader(`{"category":"koding","expectedValue":"spare_tid"}`))
 		req.Header.Set("Idempotency-Key", key)

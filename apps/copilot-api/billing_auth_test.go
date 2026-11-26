@@ -12,6 +12,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/config"
 )
 
 // fakeBillingGitHub mints app installation tokens and records the
@@ -42,13 +44,13 @@ func fakeBillingGitHub(t *testing.T) *[]string {
 	return &auths
 }
 
-func budgetAppConfig(t *testing.T) *Config {
+func budgetAppConfig(t *testing.T) *config.Config {
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		t.Fatal(err)
 	}
 	pemKey := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
-	return &Config{GitHubBillingToken: "classic-pat", BudgetAppID: "1", BudgetAppPrivateKey: string(pemKey), BudgetAppInstallationID: "2"}
+	return &config.Config{GitHubBillingToken: "classic-pat", BudgetAppID: "1", BudgetAppPrivateKey: string(pemKey), BudgetAppInstallationID: "2"}
 }
 
 func callBudgetReads(t *testing.T, tok func(context.Context) (string, error)) {
@@ -82,7 +84,7 @@ func TestBillingReadsUseBudgetApp(t *testing.T) {
 }
 
 func TestBillingWithoutAppIsUnavailable(t *testing.T) {
-	tok, err := newBillingTokenSource(&Config{GitHubBillingToken: "classic-pat"})
+	tok, err := newBillingTokenSource(&config.Config{GitHubBillingToken: "classic-pat"})
 	if err != nil || tok != nil {
 		t.Fatalf("no app and no BILLING_PAT_FALLBACK must leave billing unavailable, got tok=%v err=%v", tok != nil, err)
 	}

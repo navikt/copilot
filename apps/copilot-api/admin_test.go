@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
+	"github.com/navikt/copilot/apps/copilot-api/internal/config"
 )
 
 // TestAdminRoutesGuarded walks every registered admin route.
@@ -15,7 +16,7 @@ import (
 func TestAdminRoutesGuarded(t *testing.T) {
 	const group = "11111111-2222-3333-4444-555555555555"
 	// nil BigQuery handlers: an admin who gets through sees the 503 stub.
-	router := makeAPIRouter(&Config{}, nil, nil, nil, nil, nil)
+	router := makeAPIRouter(&config.Config{}, nil, nil, nil, nil, nil)
 	cases := []struct {
 		name string
 		env  string
@@ -83,7 +84,7 @@ func TestRequireAdmin(t *testing.T) {
 func TestOldAdminPathsGone(t *testing.T) {
 	const group = "11111111-2222-3333-4444-555555555555"
 	t.Setenv(adminGroupEnv, group)
-	router := makeAPIRouter(&Config{}, nil, nil, nil, nil, nil)
+	router := makeAPIRouter(&config.Config{}, nil, nil, nil, nil, nil)
 	for _, p := range []string{
 		"/api/v1/copilot/billing/admin-monthly",
 		"/api/v1/copilot/billing/admin-active-users",

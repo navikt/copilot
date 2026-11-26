@@ -28,6 +28,7 @@ import (
 
 	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
 
+	"github.com/navikt/copilot/apps/copilot-api/internal/config"
 	"github.com/navikt/copilot/apps/copilot-api/internal/github"
 )
 
@@ -187,14 +188,14 @@ type budgetRaiseHandlers struct {
 	midReconcile func()         // test hook: runs inside reconcileUser's tx, after the version check
 }
 
-func newBudgetRaiseHandlers(cfg *Config, writer *budgetWriter, seats seatLookup) (*budgetRaiseHandlers, error) {
+func newBudgetRaiseHandlers(cfg *config.Config, writer *budgetWriter, seats seatLookup) (*budgetRaiseHandlers, error) {
 	loc, err := time.LoadLocation(cfg.BudgetTimeZone)
 	if err != nil {
 		return nil, fmt.Errorf("BUDGET_TIME_ZONE: %w", err)
 	}
 	h := &budgetRaiseHandlers{
 		store: &budgetStore{dsn: cfg.BudgetDatabaseURL}, writer: writer, seats: seats,
-		mode: parseBudgetWrites(cfg.BudgetWrites), defaultUSD: cfg.BudgetDefaultUSD, loc: loc,
+		mode: config.ParseBudgetWrites(cfg.BudgetWrites), defaultUSD: cfg.BudgetDefaultUSD, loc: loc,
 		open: cfg.BudgetRaisesOpen, testUsers: cfg.BudgetTestUsers, now: time.Now,
 		limiter: &loginLimiter{per: budgetRatePerMin, window: time.Minute, seen: map[string]*loginWindow{}},
 	}
@@ -1094,7 +1095,7 @@ func (h *budgetRaiseHandlers) verify(ctx context.Context, login, id string, amou
 
 // newBudgetRaiseHandlersFromConfig builds the raise handlers. A missing token
 // leaves writer nil (raises 503); a broken token config is an error.
-func newBudgetRaiseHandlersFromConfig(cfg *Config, seats seatLookup, teams teamSource) (*budgetRaiseHandlers, error) {
+func newBudgetRaiseHandlersFromConfig(cfg *config.Config, seats seatLookup, teams teamSource) (*budgetRaiseHandlers, error) {
 	tok, err := newBudgetTokenSource(cfg)
 	if err != nil {
 		return nil, err
@@ -1103,7 +1104,7 @@ func newBudgetRaiseHandlersFromConfig(cfg *Config, seats seatLookup, teams teamS
 	if tok != nil {
 		writer = &budgetWriter{httpClient: &http.Client{Timeout: 15 * time.Second}, baseURL: "https://api.github.com", enterprise: cfg.GitHubEnterprise, token: tok, budgetType: cfg.BudgetGitHubBudgetType}
 	}
-	slog.Info("Budget raises configured", "writes", parseBudgetWrites(cfg.BudgetWrites), "write_token", tok != nil, "database", cfg.BudgetDatabaseURL != "")
+	slog.Info("Budget raises configured", "writes", config.ParseBudgetWrites(cfg.BudgetWrites), "write_token", tok != nil, "database", cfg.BudgetDatabaseURL != "")
 	h, err := newBudgetRaiseHandlers(cfg, writer, seats)
 	if h != nil {
 		h.teams = teams

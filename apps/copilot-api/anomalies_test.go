@@ -10,12 +10,13 @@ import (
 	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 
 	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
+	"github.com/navikt/copilot/apps/copilot-api/internal/config"
 )
 
 func TestCostAnomaliesAdminOnly(t *testing.T) {
 	t.Setenv(adminGroupEnv, "admins")
 	h := newBigQueryHandlers(&mockBigQueryClient{anomalies: []bqstore.Anomaly{{Rule: "A1", Date: "2026-09-21"}}})
-	mux := makeAPIRouter(&Config{}, h, nil, nil, nil, nil)
+	mux := makeAPIRouter(&config.Config{}, h, nil, nil, nil, nil)
 	for _, tc := range []struct {
 		groups []string
 		want   int

@@ -9,6 +9,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/config"
 )
 
 func testVideoManifestJSON() []byte {
@@ -73,7 +75,7 @@ func newTestVideoRouter(t *testing.T) http.Handler {
 	t.Helper()
 	server, _ := newTestVideoManifestServer(t)
 
-	cfg := &Config{
+	cfg := &config.Config{
 		VideoManifestURL:      server.URL,
 		VideoBucketPublic:     "copilot-videos-public",
 		VideoFeedCacheSeconds: 60,
@@ -86,7 +88,7 @@ func newTestVideoRouterWithPlayLimit(t *testing.T, limit int) http.Handler {
 	t.Helper()
 	server, _ := newTestVideoManifestServer(t)
 
-	cfg := &Config{
+	cfg := &config.Config{
 		VideoManifestURL:      server.URL,
 		VideoBucketPublic:     "copilot-videos-public",
 		VideoFeedCacheSeconds: 60,
@@ -271,7 +273,7 @@ func TestVideoFeedEndpoint(t *testing.T) {
 
 func TestVideoFeedEndpointServesStaleManifestOnRefreshError(t *testing.T) {
 	server, _ := newTestVideoManifestServer(t)
-	cfg := &Config{
+	cfg := &config.Config{
 		VideoManifestURL:      server.URL,
 		VideoBucketPublic:     "copilot-videos-public",
 		VideoFeedCacheSeconds: 60,
