@@ -1,0 +1,79 @@
+{
+  "apiVersion": "fleet.nav.no/v1alpha1",
+  "kind": "MCPServer",
+  "metadata": {
+    "creationTimestamp": "2026-01-01T00:00:00Z",
+    "generation": 1,
+    "name": "svc",
+    "namespace": "team-a",
+    "resourceVersion": "1",
+    "uid": "1"
+  },
+  "spec": {
+    "allowedTools": [
+      "fetch",
+      "search"
+    ],
+    "dataCategory": "Intern",
+    "upstream": {
+      "app": "svc",
+      "url": "http://svc.team-a/mcp"
+    }
+  },
+  "status": {
+    "conditions": [
+      {
+        "lastTransitionTime": "2026-01-01T00:00:00Z",
+        "observedGeneration": 1,
+        "reason": "NeverApproved",
+        "status": "False",
+        "type": "Published"
+      },
+      {
+        "lastTransitionTime": "2026-01-01T00:00:00Z",
+        "observedGeneration": 1,
+        "reason": "AwaitingPlatformTeam",
+        "status": "True",
+        "type": "PendingApproval"
+      },
+      {
+        "lastTransitionTime": "2026-01-01T00:00:00Z",
+        "observedGeneration": 1,
+        "reason": "NotRevoked",
+        "status": "False",
+        "type": "Revoked"
+      },
+      {
+        "lastTransitionTime": "2026-01-01T00:00:00Z",
+        "observedGeneration": 1,
+        "reason": "PendingApproval",
+        "status": "False",
+        "type": "Ready"
+      }
+    ],
+    "observedGeneration": 1,
+    "pending": {
+      "contentHash": "v1:sha256:951b21ae81c89af0bbf8b0f2580688f4fad00a0a216f22e2433f64cc44aa940a",
+      "expiresAt": "2026-01-01T00:00:00Z",
+      "generation": 1,
+      "spec": {
+        "allowedTools": [
+          "fetch",
+          "search"
+        ],
+        "dataCategory": "Intern",
+        "upstream": {
+          "app": "svc",
+          "url": "http://svc.team-a/mcp"
+        }
+      },
+      "submittedBy": {
+        "kind": "User",
+        "name": "A111111"
+      }
+    },
+    "route": {
+      "path": "/mcp/team-a/svc"
+    }
+  }
+}

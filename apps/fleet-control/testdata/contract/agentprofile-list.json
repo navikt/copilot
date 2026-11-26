@@ -1,0 +1,123 @@
+{
+  "apiVersion": "fleet.nav.no/v1alpha1",
+  "items": [
+    {
+      "apiVersion": "fleet.nav.no/v1alpha1",
+      "kind": "AgentProfile",
+      "metadata": {
+        "creationTimestamp": "2026-01-01T00:00:00Z",
+        "generation": 1,
+        "name": "assistant",
+        "namespace": "aksel-studio",
+        "resourceVersion": "1",
+        "uid": "1"
+      },
+      "spec": {
+        "dpia": {
+          "owner": "aksel-studio",
+          "reference": "PVK"
+        },
+        "grants": [
+          {
+            "allowedTools": [
+              "lookup"
+            ],
+            "maxRisk": "Read",
+            "serverRef": {
+              "group": "fleet.nav.no",
+              "kind": "MCPServer",
+              "name": "kodeverk",
+              "namespace": "team-b"
+            }
+          }
+        ],
+        "identity": {
+          "app": "studio-api",
+          "cluster": "dev-gcp",
+          "entraClientID": "7009f359-1451-429f-94d7-535d5c0c73c0"
+        },
+        "mode": "Delegated",
+        "quota": {
+          "dailyCalls": 2000,
+          "dailyCallsPerUser": 200,
+          "maxInFlight": 4,
+          "requestsPerMinute": 30
+        }
+      },
+      "status": {
+        "approvedAt": "2026-01-01T00:00:00Z",
+        "conditions": [
+          {
+            "lastTransitionTime": "2026-01-01T00:00:00Z",
+            "observedGeneration": 1,
+            "reason": "Approved",
+            "status": "True",
+            "type": "Published"
+          },
+          {
+            "lastTransitionTime": "2026-01-01T00:00:00Z",
+            "observedGeneration": 1,
+            "reason": "NothingPending",
+            "status": "False",
+            "type": "PendingApproval"
+          },
+          {
+            "lastTransitionTime": "2026-01-01T00:00:00Z",
+            "observedGeneration": 1,
+            "reason": "NotRevoked",
+            "status": "False",
+            "type": "Revoked"
+          },
+          {
+            "lastTransitionTime": "2026-01-01T00:00:00Z",
+            "observedGeneration": 1,
+            "reason": "NotExpired",
+            "status": "False",
+            "type": "Expired"
+          },
+          {
+            "lastTransitionTime": "2026-01-01T00:00:00Z",
+            "observedGeneration": 1,
+            "reason": "ClientIDMatchesApp",
+            "status": "True",
+            "type": "IdentityVerified"
+          },
+          {
+            "lastTransitionTime": "2026-01-01T00:00:00Z",
+            "observedGeneration": 1,
+            "reason": "Serving",
+            "status": "True",
+            "type": "Ready"
+          }
+        ],
+        "expiresAt": "2026-01-01T00:00:00Z",
+        "grants": [
+          {
+            "contentHash": "v1:sha256:83acee4016225857280cd11a99f1c7c387b64c8ccac1c2037deafba40207f9d7",
+            "granted": true,
+            "grantedAt": "2026-01-01T00:00:00Z",
+            "grantedBy": {
+              "kind": "User",
+              "name": "B444444"
+            },
+            "serverRef": {
+              "group": "fleet.nav.no",
+              "kind": "MCPServer",
+              "name": "kodeverk",
+              "namespace": "team-b"
+            }
+          }
+        ],
+        "identityVerifiedAt": "2026-01-01T00:00:00Z",
+        "observedGeneration": 1,
+        "publishedContentHash": "v1:sha256:bd8855ea5b1f875424cfce24ee4d8e15098fcde528a89f64b0ed33af66cee1a3",
+        "publishedGeneration": 1,
+        "submittedBy": {
+          "kind": "User",
+          "name": "A111111"
+        }
+      }
+    }
+  ],
+  "kind": "AgentProfileList"
+}

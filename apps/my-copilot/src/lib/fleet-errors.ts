@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { FleetControlError } from "@/lib/fleet-control";
+import { REASON_TEXT } from "@/lib/fleet-approval";
 
 export const fail = (error: string, status: number, detail?: string, fields?: Record<string, string>) =>
   NextResponse.json({ error, detail, fields }, { status });
@@ -16,6 +17,15 @@ const NO_PERSON = "the pending generation has no person as submitter; a person m
 const NO_OID = "the approver has no object id";
 
 const SELF_GRANT = "the submitter cannot grant access to their own profile";
+
+// The 403 reasons with their own message; any other 403 is NO_ACCESS.
+const FORBIDDEN_REASONS = ["NotPlatformTeam", "SubmitterNotPerson", "SelfApproval", "ApproverNoOid"];
+const LEGACY_403: Record<string, string> = {
+  [NOT_APPROVER]: "NotPlatformTeam",
+  [NO_PERSON]: "SubmitterNotPerson",
+  [SELF_GRANT]: "SelfApproval",
+  [NO_OID]: "ApproverNoOid",
+};
 
 /**
  * A 422 cause field as a message by the form field it belongs to; "" is the form as a whole.
@@ -70,27 +80,17 @@ export function failure(err: unknown, team: string, name: string, generation: nu
   const fce = err instanceof FleetControlError ? err : null;
   const status = fce?.status ?? 0;
   const detail = fce?.detail ?? "";
+  const ctx = { team, name, generation };
   if (status === 401) return fail("Du er logget ut. Last inn siden på nytt og logg inn.", 401);
   if (status === 403) {
-    const reason = fce?.reason;
-    const legacy = !reason || reason === "Forbidden";
-    if (reason === "NotPlatformTeam" || (legacy && detail === NOT_APPROVER))
-      return fail(`Team copilot godkjenner MCP-servere. Versjon ${generation} venter på dem.`, 403);
-    if (reason === "SubmitterNotPerson" || (legacy && detail === NO_PERSON))
-      return fail(`Ingen person sendte inn versjon ${generation}. Noen på ${team} må sende den inn på nytt.`, 403);
-    if (reason === "SelfApproval" || (legacy && detail === SELF_GRANT))
-      return fail(`Du sendte inn agentprofilen selv. En annen på ${team} må gi tilgang.`, 403);
-    if (reason === "ApproverNoOid" || (legacy && detail === NO_OID))
-      return fail("Fleet kjenner ikke igjen innloggingen din. Logg ut, logg inn og prøv igjen.", 403);
-    return fail(NO_ACCESS(team), 403);
+    const legacy = !fce?.reason || fce.reason === "Forbidden";
+    const reason = legacy ? LEGACY_403[detail] : fce?.reason;
+    const text = reason && FORBIDDEN_REASONS.includes(reason) ? REASON_TEXT[reason]?.(ctx) : undefined;
+    return fail(text ?? NO_ACCESS(team), 403);
   }
   if (status === 404) return fail(`Fant ikke ${what}, eller du har ikke tilgang.`, 404);
   if (status === 409) {
-    if (fce?.reason === "AlreadyExists")
-      return fail(
-        `Det finnes allerede en MCP-server som heter ${name} i ${team}. Velg et annet navn, eller åpne den som finnes.`,
-        409
-      );
+    if (fce?.reason === "AlreadyExists") return fail(REASON_TEXT.AlreadyExists!(ctx), 409);
     if (fce?.fields.includes("spec.registry.name"))
       return fail(
         "En annen MCP-server bruker allerede dette navnet i MCP-registeret. Send inn en ny versjon med et annet navn.",

@@ -11,6 +11,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { FleetControlError, fleetApi, fleetLoad, fleetProblem } from "./fleet-control";
+import { fakeFleetControl } from "@/test/fake-fleet-control";
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
 
@@ -82,14 +83,19 @@ describe("fleet-control client", () => {
 
   it("reads reason from a metav1.Status body and maps Conflict", async () => {
     vi.stubEnv("FLEET_CONTROL_URL", "http://fc");
-    const status = { apiVersion: "v1", kind: "Status", status: "Failure", code: 409, reason: "Conflict", message: "m" };
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => json(status, 409))
-    );
-    const err = await fleetApi.whoami().catch((e: unknown) => e);
-    expect(err).toMatchObject({ status: 409, reason: "Conflict" });
+    vi.stubGlobal("fetch", fakeFleetControl());
+    const err = await fleetApi.createServer("team-a", "svc", {}).catch((e: unknown) => e);
+    expect(err).toMatchObject({ status: 409, reason: "AlreadyExists", detail: 'mcpservers "svc" already exists' });
     expect(fleetProblem(err)).toBe("conflict");
+  });
+
+  it("reads the lists the pages show from the fake fleet-control", async () => {
+    vi.stubEnv("FLEET_CONTROL_URL", "http://fc");
+    vi.stubGlobal("fetch", fakeFleetControl());
+    const servers = await fleetApi.servers("team-a");
+    expect(servers.items[0].status.publishedGeneration).toBe(1);
+    const agents = await fleetApi.agents("aksel-studio");
+    expect(agents.items[0].status.grants?.[0].granted).toBe(true);
   });
 
   it("only HTTP 409 is a conflict, whatever the Status reason says", () => {
