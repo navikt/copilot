@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/navikt/copilot/apps/copilot-api/internal/api/admin"
 	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
 	"github.com/navikt/copilot/apps/copilot-api/internal/config"
 )
@@ -14,7 +15,7 @@ import (
 func TestAdminTrendRoutesNeedAdmin(t *testing.T) {
 	const group = "11111111-2222-3333-4444-555555555555"
 	t.Setenv(auth.AdminGroupEnv, group)
-	router := makeAPIRouter(&config.Config{}, newBigQueryHandlers(&mockBigQueryClient{}), nil, nil, nil, nil)
+	router := makeAPIRouter(&config.Config{}, nil, admin.New(admin.Deps{BQ: &adminQuerier{}}), nil, nil, nil, nil)
 	for _, path := range []string{"/api/v1/admin/billing/active-users", "/api/v1/admin/billing/high-consumers", "/api/v1/admin/billing/budget-days"} {
 		for _, tc := range []struct {
 			groups []string

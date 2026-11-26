@@ -1,4 +1,4 @@
-package main
+package copilot
 
 import (
 	"context"
@@ -18,20 +18,24 @@ import (
 
 func ptr[T any](v T) *T { return &v }
 
+// newBigQueryHandlers builds Handlers on bq alone, as the tests did before
+// the move out of package main.
+func newBigQueryHandlers(bq bqstore.BigQueryQuerier) *Handlers { return New(Deps{BQ: bq}) }
+
 // A month that has not happened yet must reach the page as null, not 0.
 func TestHandleCohortRetentionNullForFutureMonths(t *testing.T) {
 	h := newBigQueryHandlers(&mockBigQueryClient{cohortRetention: []bqstore.CohortRetention{
 		{CohortMonth: "2026-08", CohortSize: 40, M1: ptr(int64(70))},
 	}})
 	rec := httptest.NewRecorder()
-	h.handleCohortRetention(rec, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/cohort-retention", nil))
+	h.HandleCohortRetention(rec, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/cohort-retention", nil))
 	want := `[{"cohort_month":"2026-08","cohort_size":40,"m1":70,"m3":null,"m6":null}]`
 	if got := rec.Body.String(); got != want+"\n" && got != want {
 		t.Errorf("body: got %s, want %s", got, want)
 	}
 }
 
-// mockBigQueryClient implements BigQueryQuerier for testing
+// mockBigQueryClient implements bqstore.BigQueryQuerier for testing
 type mockBigQueryClient struct {
 	factAggregates       *bqstore.FactAggregates
 	dailyMetrics         []bqstore.EnterpriseMetrics
@@ -168,7 +172,7 @@ func TestHandleNavPilotTelemetry(t *testing.T) {
 
 	h := newBigQueryHandlers(&mockBigQueryClient{navPilotTelemetry: agg})
 	rec := httptest.NewRecorder()
-	h.handleNavPilotTelemetry(rec, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/mimir/telemetry", nil))
+	h.HandleNavPilotTelemetry(rec, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/mimir/telemetry", nil))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d", rec.Code)
 	}
@@ -185,7 +189,7 @@ func TestHandleUserSegments(t *testing.T) {
 		Intensity: bqstore.BuildChart([]bqstore.SegmentRow{{Month: "2026-08", A: 60, B: 57, C: 3}}, bqstore.IntensityBands),
 	}})
 	rec := httptest.NewRecorder()
-	h.handleUserSegments(rec, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/segments", nil))
+	h.HandleUserSegments(rec, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/segments", nil))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d", rec.Code)
 	}
@@ -203,7 +207,7 @@ func TestHandleUserSegments(t *testing.T) {
 
 	h = newBigQueryHandlers(&mockBigQueryClient{segmentsErr: errors.New("bq")})
 	rec = httptest.NewRecorder()
-	h.handleUserSegments(rec, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/segments", nil))
+	h.HandleUserSegments(rec, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/segments", nil))
 	if rec.Code != http.StatusInternalServerError {
 		t.Errorf("error status %d", rec.Code)
 	}
@@ -285,7 +289,7 @@ func TestTeamGrossOverviewHandler(t *testing.T) {
 		{"2026-13", http.StatusBadRequest},
 	} {
 		recorder := httptest.NewRecorder()
-		h.handleTeamGrossOverview(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/team-gross?month="+tc.month, nil))
+		h.HandleTeamGrossOverview(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/team-gross?month="+tc.month, nil))
 		if recorder.Code != tc.code {
 			t.Errorf("month %q: status %d, want %d", tc.month, recorder.Code, tc.code)
 		}
@@ -313,7 +317,7 @@ func TestTeamNetOverviewHandler(t *testing.T) {
 		{"2026-13", http.StatusBadRequest},
 	} {
 		recorder := httptest.NewRecorder()
-		h.handleTeamNetOverview(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/team-net?month="+tc.month, nil))
+		h.HandleTeamNetOverview(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/team-net?month="+tc.month, nil))
 		if recorder.Code != tc.code {
 			t.Errorf("month %q: status %d, want %d", tc.month, recorder.Code, tc.code)
 		}
@@ -332,7 +336,7 @@ func TestTeamNetOverviewHandler(t *testing.T) {
 func TestHandleMyTeamsRequiresResolvedIdentity(t *testing.T) {
 	h := newBigQueryHandlers(&mockBigQueryClient{userTeams: []string{"team-a"}})
 	recorder := httptest.NewRecorder()
-	h.handleMyTeams(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/my-teams", nil))
+	h.HandleMyTeams(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/my-teams", nil))
 	if recorder.Code != http.StatusUnauthorized {
 		t.Fatalf("status %d, want 401", recorder.Code)
 	}
@@ -340,7 +344,7 @@ func TestHandleMyTeamsRequiresResolvedIdentity(t *testing.T) {
 	recorder = httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/my-teams", nil)
 	request = request.WithContext(context.WithValue(request.Context(), auth.ResolvedIdentityContextKey, &auth.ResolvedIdentity{GitHubUsername: "alice"}))
-	h.handleMyTeams(recorder, request)
+	h.HandleMyTeams(recorder, request)
 	if recorder.Code != http.StatusOK || recorder.Body.String() != "[\"team-a\"]\n" {
 		t.Fatalf("status %d, body %s", recorder.Code, recorder.Body.String())
 	}
@@ -479,7 +483,7 @@ func TestHandleDailyMetrics(t *testing.T) {
 
 			req := httptest.NewRequest(tc.method, "/api/v1/copilot/usage/metrics"+tc.query, nil)
 			rec := httptest.NewRecorder()
-			h.handleDailyMetrics(rec, req)
+			h.HandleDailyMetrics(rec, req)
 
 			if rec.Code != tc.wantStatus {
 				t.Errorf("status: got %d, want %d", rec.Code, tc.wantStatus)
@@ -531,7 +535,7 @@ func TestHandleAdoptionSummary(t *testing.T) {
 
 			req := httptest.NewRequest(tc.method, "/api/v1/copilot/adoption/summary", nil)
 			rec := httptest.NewRecorder()
-			h.handleAdoptionSummary(rec, req)
+			h.HandleAdoptionSummary(rec, req)
 
 			if rec.Code != tc.wantStatus {
 				t.Errorf("status: got %d, want %d", rec.Code, tc.wantStatus)
@@ -551,7 +555,7 @@ func TestHandleAdoptionStaleness(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/adoption/staleness", nil)
 		rec := httptest.NewRecorder()
-		h.handleAdoptionStaleness(rec, req)
+		h.HandleAdoptionStaleness(rec, req)
 
 		if rec.Code != http.StatusOK {
 			t.Fatalf("status: got %d, want 200", rec.Code)
@@ -589,7 +593,7 @@ func TestHandleAdoptionStaleness(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/adoption/staleness", nil)
 		rec := httptest.NewRecorder()
-		h.handleAdoptionStaleness(rec, req)
+		h.HandleAdoptionStaleness(rec, req)
 
 		if rec.Code != http.StatusOK {
 			t.Fatalf("status: got %d, want 200", rec.Code)
@@ -609,7 +613,7 @@ func TestHandleAdoptionStaleness(t *testing.T) {
 		h := newBigQueryHandlers(&mockBigQueryClient{})
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/copilot/adoption/staleness", nil)
 		rec := httptest.NewRecorder()
-		h.handleAdoptionStaleness(rec, req)
+		h.HandleAdoptionStaleness(rec, req)
 
 		if rec.Code != http.StatusMethodNotAllowed {
 			t.Errorf("status: got %d, want 405", rec.Code)
@@ -621,7 +625,7 @@ func TestHandleAdoptionStaleness(t *testing.T) {
 		h := newBigQueryHandlers(mock)
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/adoption/staleness", nil)
 		rec := httptest.NewRecorder()
-		h.handleAdoptionStaleness(rec, req)
+		h.HandleAdoptionStaleness(rec, req)
 
 		if rec.Code != http.StatusInternalServerError {
 			t.Errorf("status: got %d, want 500", rec.Code)
@@ -635,7 +639,7 @@ func TestHandleTeamAdoption(t *testing.T) {
 		h := newBigQueryHandlers(mock)
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/adoption/teams", nil)
 		rec := httptest.NewRecorder()
-		h.handleTeamAdoption(rec, req)
+		h.HandleTeamAdoption(rec, req)
 
 		if rec.Code != http.StatusOK {
 			t.Errorf("status: got %d, want 200", rec.Code)
@@ -655,7 +659,7 @@ func TestHandleTeamAdoption(t *testing.T) {
 		h := newBigQueryHandlers(mock)
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/adoption/teams", nil)
 		rec := httptest.NewRecorder()
-		h.handleTeamAdoption(rec, req)
+		h.HandleTeamAdoption(rec, req)
 		if rec.Code != http.StatusInternalServerError {
 			t.Errorf("status: got %d, want 500", rec.Code)
 		}
@@ -668,203 +672,203 @@ func TestHandleNewStatsEndpoints(t *testing.T) {
 		name       string
 		mock       *mockBigQueryClient
 		req        *http.Request
-		handle     func(*BigQueryHandlers, http.ResponseWriter, *http.Request)
+		handle     func(*Handlers, http.ResponseWriter, *http.Request)
 		wantStatus int
 	}{
 		{
 			name:       "user metrics success",
 			mock:       &mockBigQueryClient{userMetrics: &bqstore.UserMetricsSummary{UserLogin: "octocat", DaysInPeriod: 7}},
 			req:        requestWithUsername("/api/v1/copilot/usage/user/octocat", "octocat"),
-			handle:     (*BigQueryHandlers).handleUserMetrics,
+			handle:     (*Handlers).HandleUserMetrics,
 			wantStatus: http.StatusOK,
 		},
 		{
 			name:       "user metrics not found",
 			mock:       &mockBigQueryClient{},
 			req:        requestWithUsername("/api/v1/copilot/usage/user/octocat", "octocat"),
-			handle:     (*BigQueryHandlers).handleUserMetrics,
+			handle:     (*Handlers).HandleUserMetrics,
 			wantStatus: http.StatusNotFound,
 		},
 		{
 			name:       "user metrics error",
 			mock:       &mockBigQueryClient{userMetricsErr: errors.New("bq")},
 			req:        requestWithUsername("/api/v1/copilot/usage/user/octocat", "octocat"),
-			handle:     (*BigQueryHandlers).handleUserMetrics,
+			handle:     (*Handlers).HandleUserMetrics,
 			wantStatus: http.StatusInternalServerError,
 		},
 		{
 			name:       "user metrics invalid username",
 			mock:       &mockBigQueryClient{},
 			req:        requestWithUsername("/api/v1/copilot/usage/user/bad", "bad/user"),
-			handle:     (*BigQueryHandlers).handleUserMetrics,
+			handle:     (*Handlers).HandleUserMetrics,
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:       "monthly trends success",
 			mock:       &mockBigQueryClient{monthlyTrends: []bqstore.MonthlyTrend{{Month: "2026-06", UniqueUsers: 10}}},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/trends", nil),
-			handle:     (*BigQueryHandlers).handleMonthlyTrends,
+			handle:     (*Handlers).HandleMonthlyTrends,
 			wantStatus: http.StatusOK,
 		},
 		{
 			name:       "monthly trends error",
 			mock:       &mockBigQueryClient{monthlyTrendsErr: errors.New("bq")},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/trends", nil),
-			handle:     (*BigQueryHandlers).handleMonthlyTrends,
+			handle:     (*Handlers).HandleMonthlyTrends,
 			wantStatus: http.StatusInternalServerError,
 		},
 		{
 			name:       "monthly billing success",
 			mock:       &mockBigQueryClient{monthlyBilling: []bqstore.MonthlyBillingUsage{{Month: "2026-06", Model: "gpt", SKU: "premium", GrossRequests: 2}}},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/billing/monthly", nil),
-			handle:     (*BigQueryHandlers).handleMonthlyBillingUsage,
+			handle:     (*Handlers).HandleMonthlyBillingUsage,
 			wantStatus: http.StatusOK,
 		},
 		{
 			name:       "monthly billing error",
 			mock:       &mockBigQueryClient{monthlyBillingErr: errors.New("bq")},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/billing/monthly", nil),
-			handle:     (*BigQueryHandlers).handleMonthlyBillingUsage,
+			handle:     (*Handlers).HandleMonthlyBillingUsage,
 			wantStatus: http.StatusInternalServerError,
 		},
 		{
 			name:       "billing model daily success",
 			mock:       &mockBigQueryClient{billingModelDaily: []bqstore.BillingModelDailyCost{{Day: "2026-06-01", Model: "gpt-5", NetAmount: 10.2}}},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/billing/model-daily?month=2026-06", nil),
-			handle:     (*BigQueryHandlers).handleBillingModelDaily,
+			handle:     (*Handlers).HandleBillingModelDaily,
 			wantStatus: http.StatusOK,
 		},
 		{
 			name:       "billing model daily invalid month",
 			mock:       &mockBigQueryClient{},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/billing/model-daily?month=2026/06", nil),
-			handle:     (*BigQueryHandlers).handleBillingModelDaily,
+			handle:     (*Handlers).HandleBillingModelDaily,
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:       "billing model daily invalid calendar month",
 			mock:       &mockBigQueryClient{},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/billing/model-daily?month=2026-13", nil),
-			handle:     (*BigQueryHandlers).handleBillingModelDaily,
+			handle:     (*Handlers).HandleBillingModelDaily,
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:       "billing model forecast success",
 			mock:       &mockBigQueryClient{billingForecast: &bqstore.BillingModelForecast{Month: "2026-06", ProjectedEOMNetAmount: 120}},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/billing/model-forecast?month=2026-06", nil),
-			handle:     (*BigQueryHandlers).handleBillingModelForecast,
+			handle:     (*Handlers).HandleBillingModelForecast,
 			wantStatus: http.StatusOK,
 		},
 		{
 			name:       "billing model forecast error",
 			mock:       &mockBigQueryClient{billingForecastErr: errors.New("bq")},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/billing/model-forecast?month=2026-06", nil),
-			handle:     (*BigQueryHandlers).handleBillingModelForecast,
+			handle:     (*Handlers).HandleBillingModelForecast,
 			wantStatus: http.StatusInternalServerError,
 		},
 		{
 			name:       "billing model forecast invalid calendar month",
 			mock:       &mockBigQueryClient{},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/billing/model-forecast?month=2026-13", nil),
-			handle:     (*BigQueryHandlers).handleBillingModelForecast,
+			handle:     (*Handlers).HandleBillingModelForecast,
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:       "weekly trends success",
 			mock:       &mockBigQueryClient{weeklyTrends: []bqstore.WeeklyTrend{{Week: "2026-W23", Interactions: 3}}},
 			req:        requestWithUsername("/api/v1/copilot/usage/user/octocat/weekly", "octocat"),
-			handle:     (*BigQueryHandlers).handleUserWeeklyTrends,
+			handle:     (*Handlers).HandleUserWeeklyTrends,
 			wantStatus: http.StatusOK,
 		},
 		{
 			name:       "weekly trends error",
 			mock:       &mockBigQueryClient{weeklyTrendsErr: errors.New("bq")},
 			req:        requestWithUsername("/api/v1/copilot/usage/user/octocat/weekly", "octocat"),
-			handle:     (*BigQueryHandlers).handleUserWeeklyTrends,
+			handle:     (*Handlers).HandleUserWeeklyTrends,
 			wantStatus: http.StatusInternalServerError,
 		},
 		{
 			name:       "cohorts success",
 			mock:       &mockBigQueryClient{cohorts: []bqstore.AdoptionCohortDay{{Day: validDate, Phase: 1, UserCount: 4}}},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/adoption/cohorts", nil),
-			handle:     (*BigQueryHandlers).handleAdoptionCohorts,
+			handle:     (*Handlers).HandleAdoptionCohorts,
 			wantStatus: http.StatusOK,
 		},
 		{
 			name:       "cohorts error",
 			mock:       &mockBigQueryClient{cohortsErr: errors.New("bq")},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/adoption/cohorts", nil),
-			handle:     (*BigQueryHandlers).handleAdoptionCohorts,
+			handle:     (*Handlers).HandleAdoptionCohorts,
 			wantStatus: http.StatusInternalServerError,
 		},
 		{
 			name:       "repository usage success",
 			mock:       &mockBigQueryClient{repositoryUsage: []bqstore.RepositoryUsage{{RepoName: "repo-a", RepoVisibility: "INTERNAL", PRCreatedByCopilot: 3}}},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/repositories", nil),
-			handle:     (*BigQueryHandlers).handleRepositoryUsage,
+			handle:     (*Handlers).HandleRepositoryUsage,
 			wantStatus: http.StatusOK,
 		},
 		{
 			name:       "repository usage error",
 			mock:       &mockBigQueryClient{repositoryUsageErr: errors.New("bq")},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/repositories", nil),
-			handle:     (*BigQueryHandlers).handleRepositoryUsage,
+			handle:     (*Handlers).HandleRepositoryUsage,
 			wantStatus: http.StatusInternalServerError,
 		},
 		{
 			name:       "client usage success",
 			mock:       &mockBigQueryClient{clientUsage: []bqstore.ClientUsage{{Client: "some_new_client", Requests: 12, Sessions: 3}}},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/clients", nil),
-			handle:     (*BigQueryHandlers).handleClientUsage,
+			handle:     (*Handlers).HandleClientUsage,
 			wantStatus: http.StatusOK,
 		},
 		{
 			name:       "client usage error",
 			mock:       &mockBigQueryClient{clientUsageErr: errors.New("bq")},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/clients", nil),
-			handle:     (*BigQueryHandlers).handleClientUsage,
+			handle:     (*Handlers).HandleClientUsage,
 			wantStatus: http.StatusInternalServerError,
 		},
 		{
 			name:       "credits per user success",
 			mock:       &mockBigQueryClient{creditsPerUser: []bqstore.CreditsPerUserMonth{{Month: "2026-06", Median: 40, Mean: 55, ActiveUsers: 600}}},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/credits-per-user", nil),
-			handle:     (*BigQueryHandlers).handleCreditsPerUserMonthly,
+			handle:     (*Handlers).HandleCreditsPerUserMonthly,
 			wantStatus: http.StatusOK,
 		},
 		{
 			name:       "credits per user error",
 			mock:       &mockBigQueryClient{creditsPerUserErr: errors.New("bq")},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/credits-per-user", nil),
-			handle:     (*BigQueryHandlers).handleCreditsPerUserMonthly,
+			handle:     (*Handlers).HandleCreditsPerUserMonthly,
 			wantStatus: http.StatusInternalServerError,
 		},
 		{
 			name:       "copilot prs success",
 			mock:       &mockBigQueryClient{copilotPRs: []bqstore.CopilotPRMonth{{Month: "2026-08", CreatedByCopilot: 12, ReviewedByCopilot: 300, Days: 31}}},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/copilot-prs", nil),
-			handle:     (*BigQueryHandlers).handleCopilotPRsMonthly,
+			handle:     (*Handlers).HandleCopilotPRsMonthly,
 			wantStatus: http.StatusOK,
 		},
 		{
 			name:       "copilot prs error",
 			mock:       &mockBigQueryClient{copilotPRsErr: errors.New("bq")},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/copilot-prs", nil),
-			handle:     (*BigQueryHandlers).handleCopilotPRsMonthly,
+			handle:     (*Handlers).HandleCopilotPRsMonthly,
 			wantStatus: http.StatusInternalServerError,
 		},
 		{
 			name:       "cohort retention success",
 			mock:       &mockBigQueryClient{cohortRetention: []bqstore.CohortRetention{{CohortMonth: "2026-08", CohortSize: 40, M1: ptr(int64(70))}}},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/cohort-retention", nil),
-			handle:     (*BigQueryHandlers).handleCohortRetention,
+			handle:     (*Handlers).HandleCohortRetention,
 			wantStatus: http.StatusOK,
 		},
 		{
 			name:       "cohort retention error",
 			mock:       &mockBigQueryClient{cohortRetentionErr: errors.New("bq")},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/cohort-retention", nil),
-			handle:     (*BigQueryHandlers).handleCohortRetention,
+			handle:     (*Handlers).HandleCohortRetention,
 			wantStatus: http.StatusInternalServerError,
 		},
 	}

@@ -1,6 +1,7 @@
-package main
+package public
 
 import (
+	"context"
 	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 
 	"encoding/json"
@@ -9,8 +10,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/navikt/copilot/apps/copilot-api/internal/config"
 )
 
 func fullAggregates() *bqstore.FactAggregates {
@@ -21,6 +20,17 @@ func fullAggregates() *bqstore.FactAggregates {
 		Families:    []bqstore.FamilyUsers{{Family: "GPT", Users: 385}, {Family: "Claude Opus", Users: 211}, {Family: "Claude Sonnet", Users: 121}, {Family: "Claude Haiku", Users: 11}, {Family: "Gemini", Users: 7}},
 		ActiveRepos: 1200, ActiveReposWithCustoms: 99,
 	}
+}
+
+// factQuerier answers GetFactAggregates; any other query panics on the
+// nil embedded interface.
+type factQuerier struct {
+	bqstore.BigQueryQuerier
+	aggregates *bqstore.FactAggregates
+}
+
+func (m *factQuerier) GetFactAggregates(context.Context) (*bqstore.FactAggregates, error) {
+	return m.aggregates, nil
 }
 
 func day(s string) time.Time {
@@ -109,9 +119,9 @@ func TestEveryTemplateRendersCleanly(t *testing.T) {
 }
 
 func TestPublicFactEndpoint(t *testing.T) {
-	router := makePublicRouter(&config.Config{}, nil, newBigQueryHandlers(&mockBigQueryClient{factAggregates: fullAggregates()}))
+	h := New(Deps{BQ: &factQuerier{aggregates: fullAggregates()}})
 	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/public/v1/fact", nil))
+	h.HandlePublicFact(rec, httptest.NewRequest(http.MethodGet, "/public/v1/fact", nil))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d", rec.Code)
 	}

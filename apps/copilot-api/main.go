@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"context"
 	"errors"
-	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -12,6 +11,11 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/api/admin"
+	"github.com/navikt/copilot/apps/copilot-api/internal/api/copilot"
+	"github.com/navikt/copilot/apps/copilot-api/internal/api/public"
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
@@ -70,7 +74,6 @@ func main() {
 	startMetricsCollector(config, githubClient)
 
 	// Initialize BigQuery client (optional - endpoints will error if not configured)
-	var bqHandlers *BigQueryHandlers
 	var cachedBQClient *bqstore.CachedBigQueryClient
 	var rawBQClient *bqstore.BigQueryClient
 	if config.GCPProjectID != "" {
@@ -87,7 +90,6 @@ func main() {
 			rawBQClient = bqClient
 			cacheTTL := time.Duration(config.CacheTTLHours) * time.Hour
 			cachedBQClient = bqstore.NewCachedBigQueryClient(bqClient, cacheTTL)
-			bqHandlers = newBigQueryHandlers(cachedBQClient)
 			slog.Info("BigQuery client initialized successfully", "cache_ttl", cacheTTL)
 		}
 	} else {
@@ -99,6 +101,8 @@ func main() {
 
 	// Initialize budget client (optional - requires the BUDGET_GITHUB_APP_* enterprise app)
 	var budgetHandlers *budget.BudgetHandlers
+	// Stays a nil interface without a budget client: a typed nil would not.
+	var globalBudget budget.GlobalBudgetGetter
 	billingToken, billingErr := budget.NewBillingTokenSource(config)
 	switch {
 	case billingErr != nil:
@@ -114,10 +118,25 @@ func main() {
 			defer metricsCollector.mu.RUnlock()
 			return metricsCollector.githubSeatsActive
 		})
-		if bqHandlers != nil {
-			bqHandlers.setBudgetClient(budgetClient)
-		}
+		globalBudget = budgetClient
 		slog.Info("Budget client initialized successfully")
+	}
+
+	var bqHandlers *copilot.Handlers
+	var adminHandlers *admin.Handlers
+	var publicHandlers *public.Handlers
+	if cachedBQClient != nil {
+		bqHandlers = copilot.New(copilot.Deps{
+			BQ:     cachedBQClient,
+			Budget: globalBudget,
+			Seats: func() int64 {
+				metricsCollector.mu.RLock()
+				defer metricsCollector.mu.RUnlock()
+				return metricsCollector.githubSeatsTotal
+			},
+		})
+		adminHandlers = admin.New(admin.Deps{BQ: cachedBQClient, Budget: globalBudget})
+		publicHandlers = public.New(public.Deps{BQ: cachedBQClient})
 	}
 
 	// Personal budget raises: Postgres (DB_URL from Nais) plus a write token.
@@ -196,7 +215,7 @@ func main() {
 
 	registerDevRoutes(mux, config, rawBQClient)
 	mux.Handle("/public/v1/", otelhttp.NewHandler(
-		loggingMiddleware(config, makePublicRouter(config, videoHandlers, bqHandlers)),
+		loggingMiddleware(config, makePublicRouter(config, videoHandlers, publicHandlers)),
 		"public-api",
 		otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
 			return r.Method + " " + r.URL.Path
@@ -205,7 +224,7 @@ func main() {
 
 	// Protected API endpoints — wrapped with OTel tracing
 	mux.Handle("/api/v1/", traceAPI(
-		loggingMiddleware(config, authMiddleware(identityMiddleware(makeAPIRouter(config, bqHandlers, ghHandlers, budgetHandlers, identityChain, raiseHandlers)))),
+		loggingMiddleware(config, authMiddleware(identityMiddleware(makeAPIRouter(config, bqHandlers, adminHandlers, ghHandlers, budgetHandlers, identityChain, raiseHandlers)))),
 	))
 
 	// copilot-survey looks up a nav-pilot user's Nav e-mail here. Not under

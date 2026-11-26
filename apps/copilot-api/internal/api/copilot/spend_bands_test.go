@@ -1,4 +1,4 @@
-package main
+package copilot
 
 import (
 	"encoding/json"
@@ -14,7 +14,7 @@ func TestSpendBandsHandlerSendsOnlyAggregates(t *testing.T) {
 	h := newBigQueryHandlers(&mockBigQueryClient{spendBands: bqstore.BuildSpendBands(
 		[]bqstore.SpendUserRow{{Month: "2026-09", Net: 1, Gross: 2}, {Month: "2026-09", Net: 1, Gross: 2}, {Month: "2026-09", Net: 1, Gross: 2}, {Month: "2026-09", Net: 1, Gross: 2}, {Month: "2026-09", Net: 1, Gross: 2}}, nil, "")})
 	rec := httptest.NewRecorder()
-	h.handleSpendBands(rec, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/spend-bands", nil))
+	h.HandleSpendBands(rec, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/spend-bands", nil))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d", rec.Code)
 	}

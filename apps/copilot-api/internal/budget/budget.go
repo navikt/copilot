@@ -166,6 +166,13 @@ func (c *BudgetClient) fetchAllBudgetPages(ctx context.Context) ([]BudgetEntry, 
 
 var ErrBudgetNotFound = errors.New("budget not found for user")
 
+// GlobalBudgetGetter abstracts the enterprise-wide credit budget lookup.
+// Used by usage-distribution histograms to scale credit buckets to the
+// actual per-user $ budget rather than a hardcoded ceiling.
+type GlobalBudgetGetter interface {
+	GetGlobalBudget(ctx context.Context) (*GlobalBudget, error)
+}
+
 // GlobalBudget aggregates AI credit consumption across all users this month.
 type GlobalBudget struct {
 	TotalConsumed float64 `json:"totalConsumed"`

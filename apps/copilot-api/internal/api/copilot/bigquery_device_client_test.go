@@ -1,4 +1,4 @@
-package main
+package copilot
 
 import (
 	"context"
@@ -16,18 +16,18 @@ func (m *mockBigQueryClient) GetEditorUsage(context.Context) ([]bqstore.EditorUs
 }
 
 func TestEditorUsageEmptyHandler(t *testing.T) {
-	h := &BigQueryHandlers{bqClient: &mockBigQueryClient{}}
+	h := &Handlers{bqClient: &mockBigQueryClient{}}
 	w := httptest.NewRecorder()
-	h.handleEditorUsage(w, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/editors", nil))
+	h.HandleEditorUsage(w, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/editors", nil))
 	if w.Code != http.StatusOK || strings.TrimSpace(w.Body.String()) != "[]" {
 		t.Fatalf("response: %d %s", w.Code, w.Body.String())
 	}
 }
 
 func TestEditorUsageHandlerError(t *testing.T) {
-	h := &BigQueryHandlers{bqClient: &mockBigQueryClient{editorUsageErr: errors.New("unavailable")}}
+	h := &Handlers{bqClient: &mockBigQueryClient{editorUsageErr: errors.New("unavailable")}}
 	w := httptest.NewRecorder()
-	h.handleEditorUsage(w, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/editors", nil))
+	h.HandleEditorUsage(w, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/editors", nil))
 	if w.Code != http.StatusInternalServerError {
 		t.Fatalf("status: %d", w.Code)
 	}

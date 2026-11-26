@@ -1,4 +1,4 @@
-package main
+package copilot
 
 import (
 	"encoding/json"
@@ -17,12 +17,12 @@ import (
 func TestAdoptionCohortsWeeklyKeepsSmallCells(t *testing.T) {
 	mon := civil.Date{Year: 2026, Month: 9, Day: 7}
 	tue := civil.Date{Year: 2026, Month: 9, Day: 8}
-	h := &BigQueryHandlers{bqClient: &mockBigQueryClient{cohorts: []bqstore.AdoptionCohortDay{
+	h := &Handlers{bqClient: &mockBigQueryClient{cohorts: []bqstore.AdoptionCohortDay{
 		{Day: mon, Phase: 0, UserCount: 50}, {Day: mon, Phase: 1, UserCount: 2},
 		{Day: tue, Phase: 0, UserCount: 50}, {Day: tue, Phase: 1, UserCount: 4},
 	}}}
 	rec := httptest.NewRecorder()
-	h.handleAdoptionCohorts(rec, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/adoption/cohorts", nil))
+	h.HandleAdoptionCohorts(rec, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/adoption/cohorts", nil))
 	var got []bqstore.AdoptionCohortWeek
 	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
 		t.Fatal(err)

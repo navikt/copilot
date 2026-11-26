@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/navikt/copilot/apps/copilot-api/internal/api/admin"
 	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
 	"github.com/navikt/copilot/apps/copilot-api/internal/config"
 )
@@ -14,7 +15,7 @@ import (
 func TestAdminMonthlyRouteRequiresAdmin(t *testing.T) {
 	const group = "11111111-2222-3333-4444-555555555555"
 	t.Setenv(auth.AdminGroupEnv, group)
-	router := makeAPIRouter(&config.Config{}, &BigQueryHandlers{bqClient: &mockBigQueryClient{}}, nil, nil, auth.NewIdentityResolverChain(), nil)
+	router := makeAPIRouter(&config.Config{}, nil, admin.New(admin.Deps{BQ: &adminQuerier{}}), nil, nil, auth.NewIdentityResolverChain(), nil)
 	for _, tc := range []struct {
 		groups []string
 		want   int

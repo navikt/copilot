@@ -1,39 +1,19 @@
 package budget
 
 import (
-	"encoding/json"
-	"fmt"
-	"log/slog"
 	"net/http"
 
+	"github.com/navikt/copilot/apps/copilot-api/internal/api/httpx"
 	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
 	"github.com/navikt/copilot/apps/copilot-api/internal/problem"
 )
 
-// shortcut: respondJSON and cacheControl are copies of the helpers in
-// package main; they move to a shared helpers package with the handler split (#2926).
 var (
 	noCacheControl = problem.NoCache
 	respondError   = problem.Respond
+	respondJSON    = httpx.RespondJSON
+	cacheControl   = httpx.CacheControl
 )
-
-func respondJSON(w http.ResponseWriter, data interface{}, status int) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		slog.Error("Failed to encode JSON response", "error", err)
-	}
-}
-
-func cacheControl(w http.ResponseWriter, duration int, public bool) {
-	var policy string
-	if public {
-		policy = fmt.Sprintf("public, max-age=%d, s-maxage=%d", duration, duration)
-	} else {
-		policy = fmt.Sprintf("private, max-age=%d", duration)
-	}
-	w.Header().Set("Cache-Control", policy)
-}
 
 // RegisterRaiseRoutes registers the personal budget raise routes. They answer
 // 503 themselves when Postgres or the write token is missing, so the rest of

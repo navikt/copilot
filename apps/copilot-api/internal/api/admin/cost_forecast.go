@@ -1,4 +1,4 @@
-package main
+package admin
 
 import (
 	"errors"
@@ -6,25 +6,27 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/navikt/copilot/apps/copilot-api/internal/api/httpx"
 	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 	"github.com/navikt/copilot/apps/copilot-api/internal/budget"
 	"github.com/navikt/copilot/apps/copilot-api/internal/cost"
+	"github.com/navikt/copilot/apps/copilot-api/internal/problem"
 )
 
-// handleCostForecast handles GET /api/v1/admin/billing/cost-forecast.
-func (h *BigQueryHandlers) handleCostForecast(w http.ResponseWriter, r *http.Request) {
+// HandleCostForecast handles GET /api/v1/admin/billing/cost-forecast.
+func (h *Handlers) HandleCostForecast(w http.ResponseWriter, r *http.Request) {
 	now := time.Now().UTC()
 	month := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
 	days, err := h.bqClient.GetCostDays(r.Context(), month.Format("2006-01"))
 	if err != nil {
 		slog.Error("Failed to fetch cost days", "error", err)
-		respondError(w, "internal_error", "Failed to fetch cost forecast", http.StatusInternalServerError)
+		problem.Respond(w, "internal_error", "Failed to fetch cost forecast", http.StatusInternalServerError)
 		return
 	}
 	users, err := h.bqClient.GetCostUserDays(r.Context(), month.Format("2006-01"))
 	if err != nil {
 		slog.Error("Failed to fetch cost user days", "error", err)
-		respondError(w, "internal_error", "Failed to fetch cost forecast", http.StatusInternalServerError)
+		problem.Respond(w, "internal_error", "Failed to fetch cost forecast", http.StatusInternalServerError)
 		return
 	}
 
@@ -74,6 +76,6 @@ func (h *BigQueryHandlers) handleCostForecast(w http.ResponseWriter, r *http.Req
 			out.YearForecast, out.YearEnd = cost.YearForecast(months, users, out.Models[0], month)
 		}
 	}
-	cacheControl(w, 900, false)
-	respondJSON(w, out, http.StatusOK)
+	httpx.CacheControl(w, 900, false)
+	httpx.RespondJSON(w, out, http.StatusOK)
 }

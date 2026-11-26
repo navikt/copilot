@@ -1,4 +1,4 @@
-package main
+package copilot
 
 import (
 	"context"
@@ -17,7 +17,7 @@ func (m *mockBigQueryClient) GetUsageQuality(context.Context) ([]bqstore.UsageQu
 }
 
 type qualityQueryMock struct {
-	BigQueryQuerier
+	bqstore.BigQueryQuerier
 	rows []bqstore.UsageQualityDay
 	err  error
 }
@@ -62,7 +62,7 @@ func TestUsageQualityHandler(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			rec := httptest.NewRecorder()
-			newBigQueryHandlers(tc.mock).handleUsageQuality(rec, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/quality", nil))
+			newBigQueryHandlers(tc.mock).HandleUsageQuality(rec, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/quality", nil))
 			if rec.Code != tc.status || !strings.Contains(rec.Body.String(), tc.body) {
 				t.Fatalf("%d %s", rec.Code, rec.Body.String())
 			}

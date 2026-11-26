@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -198,7 +199,7 @@ func TestAPIRoutesRequireAuth(t *testing.T) {
 	}
 
 	config := &config.Config{Environment: "prod"}
-	apiRouter := authMiddleware(makeAPIRouter(config, nil, nil, nil, auth.NewIdentityResolverChain(), nil))
+	apiRouter := authMiddleware(makeAPIRouter(config, nil, nil, nil, nil, auth.NewIdentityResolverChain(), nil))
 
 	// All /api/v1/ paths should require auth
 	paths := []string{
@@ -325,7 +326,7 @@ func TestUsernamePathsRedacted(t *testing.T) {
 // Every allowlisted pattern must be one the API router registers, or the
 // allowlist silently stops matching after a route is renamed.
 func TestOnBehalfOfRoutesAreRegistered(t *testing.T) {
-	mux := makeAPIRouter(&config.Config{}, nil, nil, nil, auth.NewIdentityResolverChain(), nil).(*http.ServeMux)
+	mux := makeAPIRouter(&config.Config{}, nil, nil, nil, nil, auth.NewIdentityResolverChain(), nil).(*http.ServeMux)
 	for _, pattern := range auth.OnBehalfOfRoutePatterns() {
 		method, path, _ := strings.Cut(pattern, " ")
 		req := httptest.NewRequest(method, strings.ReplaceAll(path, "{username}", "ola"), nil)
@@ -333,4 +334,103 @@ func TestOnBehalfOfRoutesAreRegistered(t *testing.T) {
 			t.Errorf("%q routes to %q", pattern, got)
 		}
 	}
+}
+
+// cliApp is copilot-cli's M2M token as copilot-api sees it.
+var cliApp = &auth.User{AZP: "copilot-cli-client-id", Idtyp: "app"}
+
+// TestRequireOwnershipIntegration exercises the full IdentityMiddleware +
+// requireOwnership path used by handleUserMetrics/handleUserWeeklyTrends/
+// handleUserDailyCredits (Phase 3 of the auth architecture migration — see
+// identity.go, identity_middleware.go). Unit-level coverage of the
+// individual resolvers and requireOwnership itself lives in identity_test.go;
+// this test verifies they compose correctly through the middleware chain.
+func TestRequireOwnershipIntegration(t *testing.T) {
+	newRequest := func(user *auth.User, onBehalfOf string) *http.Request {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/user/hans", nil)
+		req.Pattern = "GET /api/v1/copilot/usage/user/{username}"
+		if user != nil {
+			req = req.WithContext(context.WithValue(req.Context(), auth.UserContextKey, user))
+		}
+		if onBehalfOf != "" {
+			req.Header.Set("X-On-Behalf-Of", onBehalfOf)
+		}
+		return req
+	}
+
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		if auth.RequireOwnership(w, r, "hans") {
+			w.WriteHeader(http.StatusOK)
+		}
+	}
+
+	t.Run("copilot-cli azp with matching X-On-Behalf-Of succeeds", func(t *testing.T) {
+		chain := auth.NewIdentityResolverChain(auth.NewOnBehalfOfIdentityResolver(map[string]bool{"copilot-cli-client-id": true}))
+		mw := auth.IdentityMiddleware(chain, true)
+
+		rec := httptest.NewRecorder()
+		mw(http.HandlerFunc(handler)).ServeHTTP(rec, newRequest(cliApp, "hans"))
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status: got %d, want %d, body: %s", rec.Code, http.StatusOK, rec.Body.String())
+		}
+	})
+
+	t.Run("copilot-cli azp with mismatched X-On-Behalf-Of is denied", func(t *testing.T) {
+		chain := auth.NewIdentityResolverChain(auth.NewOnBehalfOfIdentityResolver(map[string]bool{"copilot-cli-client-id": true}))
+		mw := auth.IdentityMiddleware(chain, true)
+
+		rec := httptest.NewRecorder()
+		mw(http.HandlerFunc(handler)).ServeHTTP(rec, newRequest(cliApp, "someone-else"))
+
+		if rec.Code != http.StatusForbidden {
+			t.Errorf("status: got %d, want %d", rec.Code, http.StatusForbidden)
+		}
+	})
+
+	t.Run("copilot-cli azp with missing X-On-Behalf-Of is rejected", func(t *testing.T) {
+		chain := auth.NewIdentityResolverChain(auth.NewOnBehalfOfIdentityResolver(map[string]bool{"copilot-cli-client-id": true}))
+		mw := auth.IdentityMiddleware(chain, true)
+
+		rec := httptest.NewRecorder()
+		mw(http.HandlerFunc(handler)).ServeHTTP(rec, newRequest(cliApp, ""))
+
+		if rec.Code != http.StatusUnauthorized {
+			t.Errorf("status: got %d, want %d", rec.Code, http.StatusUnauthorized)
+		}
+	})
+
+	// A user token that carries X-On-Behalf-Of is refused, not resolved
+	// through SAML with the header ignored. A user never asserts someone else.
+	t.Run("user token with X-On-Behalf-Of is refused", func(t *testing.T) {
+		chain := auth.NewIdentityResolverChain(
+			auth.NewOnBehalfOfIdentityResolver(map[string]bool{"copilot-cli-client-id": true}),
+			auth.NewSAMLIdentityResolver(&mockGitHubClient{samlUsername: "hans"}),
+		)
+		mw := auth.IdentityMiddleware(chain, true)
+
+		req := newRequest(&auth.User{AZP: "my-copilot-client-id", Email: "hans@nav.no"}, "attacker")
+		rec := httptest.NewRecorder()
+		mw(http.HandlerFunc(handler)).ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("status: got %d, want %d, body: %s", rec.Code, http.StatusUnauthorized, rec.Body.String())
+		}
+	})
+
+	t.Run("non-copilot-cli azp falls back to SAML lookup", func(t *testing.T) {
+		chain := auth.NewIdentityResolverChain(
+			auth.NewOnBehalfOfIdentityResolver(map[string]bool{"copilot-cli-client-id": true}),
+			auth.NewSAMLIdentityResolver(&mockGitHubClient{samlUsername: "hans"}),
+		)
+		mw := auth.IdentityMiddleware(chain, true)
+
+		req := newRequest(&auth.User{AZP: "my-copilot-client-id", Email: "hans@nav.no"}, "")
+		rec := httptest.NewRecorder()
+		mw(http.HandlerFunc(handler)).ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status: got %d, want %d, body: %s", rec.Code, http.StatusOK, rec.Body.String())
+		}
+	})
 }
