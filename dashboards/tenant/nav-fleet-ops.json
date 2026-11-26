@@ -296,7 +296,7 @@
     {
       "type": "stat",
       "title": "Failed MCP calls/s",
-      "description": "Every outcome except ok, unauthorized, disabled and tool_denied, so upstream_<code> and upstream_error are included. This is broader than the SLO in #2972. The SLO counts as errors only store_error, upstream_token_error, over_capacity, sse_over_capacity, user_cap and user_sse_cap, and excludes unauthorized, disabled and tool_denied from the total.",
+      "description": "Every outcome except ok, unauthorized, disabled and tool_denied, so upstream_<code> and upstream_error are included. This is broader than the SLO in #2972. The SLO counts as errors only store_error, upstream_token_error, over_capacity and sse_over_capacity, and excludes unauthorized, disabled and tool_denied from the total.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -412,7 +412,7 @@
     {
       "type": "stat",
       "title": "Worst route error ratio (5 min)",
-      "description": "Highest 5-minute error ratio of any route, from the recording rule the SLO alerts use (#2972). Orange from 3 % and red from 7.2 %, the slow and fast burn thresholds for the 99.5 % target. Errors follow the SLO in #2972: gateway faults count as bad (store_error, upstream_token_error, over_capacity, sse_over_capacity, user_cap, user_sse_cap); unauthorized, disabled and tool_denied are left out of the total; upstream_<code> and upstream_error are not counted as bad. Target 99.5 % availability per route per month. The latency SLO (p95 below 1 s, SSE excluded) has no panel until #2973 adds an SSE label.",
+      "description": "Highest 5-minute error ratio of any route, from the recording rule the SLO alerts use (#2972). Orange from 3 % and red from 7.2 %, the slow and fast burn thresholds for the 99.5 % target. Errors follow the SLO in #2972: gateway faults count as bad (store_error, upstream_token_error, over_capacity, sse_over_capacity); unauthorized, disabled and tool_denied are left out of the total; upstream_<code> and upstream_error are not counted as bad. Target 99.5 % availability per route per month. The latency SLO (p95 below 1 s, SSE excluded) has no panel until #2973 adds an SSE label.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -552,7 +552,7 @@
     {
       "type": "stat",
       "title": "Availability (1 d) by route",
-      "description": "Share of counted MCP calls that succeeded over the last day, per route. Red below 97 %: an error ratio of 3 %, which is 6x burn, the slow alert's threshold on its own 1 d window. The fast alert (14.4x) uses 5 min and 1 h windows; see the fast burn panel. A route with fewer than 20 counted calls in a day shows no tile: too little traffic to judge. Errors follow the SLO in #2972: gateway faults count as bad (store_error, upstream_token_error, over_capacity, sse_over_capacity, user_cap, user_sse_cap); unauthorized, disabled and tool_denied are left out of the total; upstream_<code> and upstream_error are not counted as bad. Target 99.5 % availability per route per month. The latency SLO (p95 below 1 s, SSE excluded) has no panel until #2973 adds an SSE label.",
+      "description": "Share of counted MCP calls that succeeded over the last day, per route. Red below 97 %: an error ratio of 3 %, which is 6x burn, the slow alert's threshold on its own 1 d window. The fast alert (14.4x) uses 5 min and 1 h windows; see the fast burn panel. A route with fewer than 20 counted calls in a day shows no tile: too little traffic to judge. Errors follow the SLO in #2972: gateway faults count as bad (store_error, upstream_token_error, over_capacity, sse_over_capacity); unauthorized, disabled and tool_denied are left out of the total; upstream_<code> and upstream_error are not counted as bad. Target 99.5 % availability per route per month. The latency SLO (p95 below 1 s, SSE excluded) has no panel until #2973 adds an SSE label.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -676,7 +676,7 @@
     {
       "type": "timeseries",
       "title": "Fast burn (5 min and 1 h)",
-      "description": "Error ratio divided by the error budget (0.5 %), over the two windows FleetGatewayAvailabilityBurnFast uses. It fires when both are above 14.4x (dashed line). Errors follow the SLO in #2972: gateway faults count as bad (store_error, upstream_token_error, over_capacity, sse_over_capacity, user_cap, user_sse_cap); unauthorized, disabled and tool_denied are left out of the total; upstream_<code> and upstream_error are not counted as bad. Target 99.5 % availability per route per month. The latency SLO (p95 below 1 s, SSE excluded) has no panel until #2973 adds an SSE label.",
+      "description": "Error ratio divided by the error budget (0.5 %), over the two windows FleetGatewayAvailabilityBurnFast uses. It fires when both are above 14.4x (dashed line). Errors follow the SLO in #2972: gateway faults count as bad (store_error, upstream_token_error, over_capacity, sse_over_capacity); unauthorized, disabled and tool_denied are left out of the total; upstream_<code> and upstream_error are not counted as bad. Target 99.5 % availability per route per month. The latency SLO (p95 below 1 s, SSE excluded) has no panel until #2973 adds an SSE label.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -753,7 +753,7 @@
     {
       "type": "timeseries",
       "title": "Slow burn (6 h and 1 d)",
-      "description": "Error ratio divided by the error budget (0.5 %), over the two windows FleetGatewayAvailabilityBurnSlow uses. It fires when both are above 6x (dashed line). Errors follow the SLO in #2972: gateway faults count as bad (store_error, upstream_token_error, over_capacity, sse_over_capacity, user_cap, user_sse_cap); unauthorized, disabled and tool_denied are left out of the total; upstream_<code> and upstream_error are not counted as bad. Target 99.5 % availability per route per month. The latency SLO (p95 below 1 s, SSE excluded) has no panel until #2973 adds an SSE label.",
+      "description": "Error ratio divided by the error budget (0.5 %), over the two windows FleetGatewayAvailabilityBurnSlow uses. It fires when both are above 6x (dashed line). Errors follow the SLO in #2972: gateway faults count as bad (store_error, upstream_token_error, over_capacity, sse_over_capacity); unauthorized, disabled and tool_denied are left out of the total; upstream_<code> and upstream_error are not counted as bad. Target 99.5 % availability per route per month. The latency SLO (p95 below 1 s, SSE excluded) has no panel until #2973 adds an SSE label.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -1100,7 +1100,7 @@
     {
       "type": "stat",
       "title": "Failed MCP calls (5 min)",
-      "description": "Every outcome except ok, unauthorized, disabled and tool_denied, so upstream_<code> and upstream_error are included. This is broader than the SLO in #2972. The SLO counts as errors only store_error, upstream_token_error, over_capacity, sse_over_capacity, user_cap and user_sse_cap, and excludes unauthorized, disabled and tool_denied from the total.",
+      "description": "Every outcome except ok, unauthorized, disabled and tool_denied, so upstream_<code> and upstream_error are included. This is broader than the SLO in #2972. The SLO counts as errors only store_error, upstream_token_error, over_capacity and sse_over_capacity, and excludes unauthorized, disabled and tool_denied from the total.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -1579,7 +1579,7 @@
     {
       "type": "timeseries",
       "title": "Failed MCP calls by route and outcome",
-      "description": "Every outcome except ok, unauthorized, disabled and tool_denied, so upstream_<code> and upstream_error are included. This is broader than the SLO in #2972. The SLO counts as errors only store_error, upstream_token_error, over_capacity, sse_over_capacity, user_cap and user_sse_cap, and excludes unauthorized, disabled and tool_denied from the total.",
+      "description": "Every outcome except ok, unauthorized, disabled and tool_denied, so upstream_<code> and upstream_error are included. This is broader than the SLO in #2972. The SLO counts as errors only store_error, upstream_token_error, over_capacity and sse_over_capacity, and excludes unauthorized, disabled and tool_denied from the total.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -1846,14 +1846,14 @@
           "pluginVersion": "12.3.2",
           "targets": [
             {
-              "expr": "sum by (reason) (rate(fleet_gateway_http_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", code=\"503\", reason!=\"\"}[$__rate_interval]))",
+              "expr": "sum by (reason) (rate(fleet_gateway_http_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", code=~\"503|429\", reason!=\"\"}[$__rate_interval]))",
               "legendFormat": "{{reason}}",
               "refId": "A"
             }
           ],
           "title": "Load shedding by reason",
           "type": "timeseries",
-          "description": "503 with a reason: cap, user_cap, user_sse_cap, store_full, refresh_in_flight, disabled. Does not follow the route filter (no route label)."
+          "description": "503 or 429 with a reason: cap, user_cap (429), user_sse_cap (429), store_full, refresh_in_flight, disabled. Does not follow the route filter (no route label)."
         },
         {
           "datasource": {
@@ -2706,7 +2706,7 @@
           ],
           "title": "Requests by outcome (in the SLO total)",
           "type": "timeseries",
-          "description": "Outcomes in the SLO total: everything except unauthorized, disabled and tool_denied. Of these, only store_error, upstream_token_error, over_capacity, sse_over_capacity, user_cap and user_sse_cap are SLO errors (#2972); ok, upstream_<code> and upstream_error are not. Excluded outcomes are in the next panel."
+          "description": "Outcomes in the SLO total: everything except unauthorized, disabled and tool_denied. Of these, only store_error, upstream_token_error, over_capacity and sse_over_capacity are SLO errors (user_cap and user_sse_cap are 429s, not counted) (#2972); ok, upstream_<code> and upstream_error are not. Excluded outcomes are in the next panel."
         },
         {
           "datasource": {

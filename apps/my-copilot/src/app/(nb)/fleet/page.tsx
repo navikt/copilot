@@ -7,7 +7,8 @@ import { fullName, getUser } from "@/lib/auth";
 import { TEAM_COOKIE } from "@/lib/fleet-names";
 import { FleetFrame, fleetRobots } from "./frame";
 import { LinkText } from "./nav";
-import { FleetProblemAlert, KortFortalt, RegisterButton, ServerInbox, TeamSections, TeamStats } from "./fleet-ui";
+import { FleetProblemAlert, KortFortalt, RegisterButton, TeamSections, TeamStats } from "./fleet-ui";
+import { ServerInbox } from "./inbox";
 import { TeamChooser, UnknownTeam } from "./catalog";
 import { APPROVAL_RULE, PLATFORM_TEAM } from "@/lib/fleet-approval";
 

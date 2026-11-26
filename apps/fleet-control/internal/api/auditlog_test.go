@@ -120,9 +120,12 @@ func TestRealPostgresAuditActorKindAndClientID(t *testing.T) {
 		t.Fatal(err)
 	}
 	e.want(201, "POST", nsBase+"team-a/mcpservers", person("A111111"), serverJSON("team-a", "draft", "", "search"))
-	if _, err := createTestJob(ctx, e.db, "A111111", "team-a", CreateJobRequest{Kind: "k", Params: json.RawMessage("{}"), OnExpiry: "requeue", MaxAttempts: 3}); err != nil {
-		t.Fatal(err)
+	id, jobErr := createTestJob(ctx, e.db, "A111111", "team-a", CreateJobRequest{Kind: "k", Params: json.RawMessage("{}"), OnExpiry: "requeue", MaxAttempts: 3})
+	if jobErr != nil {
+		t.Fatal(jobErr)
 	}
+	liveProfile(t, e.db, "team-a", "studio", appClientID, "Read")
+	bindStudio(t, e.db, id)
 	if l, err := e.db.Claim(ctx, "rt-1", []string{"team-a"}, "tok-1", time.Minute); err != nil || l == nil {
 		t.Fatalf("claim: %v %v", l, err)
 	}

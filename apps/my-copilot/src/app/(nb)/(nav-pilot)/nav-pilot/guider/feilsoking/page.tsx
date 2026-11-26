@@ -113,9 +113,10 @@ nav-pilot mcp enable <navn> --all-tools     # alle, også dem serveren legger ti
           <BodyLong>
             Tilkoblet, men verktøyet mangler? <code className={code}>mcp list</code> sjekker oppsett og sandkassepolicy,
             ikke innlogging, live-tilkobling eller agentens verktøy. Både klientens verktøyvalg og agentens{" "}
-            <code className={code}>tools</code>-liste kan begrense tilgangen. Nav-pilot-agenten utelater Figma og Aksel.
-            Velg Aksel-agenten i Copilots agentvelger, og test et ekte <code className={code}>get_metadata</code>-kall i
-            en ny sesjon med den før du endrer proxy eller installerer på nytt.
+            <code className={code}>tools</code>-liste kan begrense tilgangen. Nav-pilot-agenten har ingen slik liste og
+            ser alle MCP-servere du har slått på. Kjør <code className={code}>nav-pilot sync</code> hvis du har en eldre
+            versjon av agenten, og test et ekte <code className={code}>get_metadata</code>-kall i en ny sesjon før du
+            endrer proxy eller installerer på nytt.
           </BodyLong>
           <LinkableHeading id="mcp-intellij" size="small" level="3">
             IntelliJ og verktøy utenfor sandkassen

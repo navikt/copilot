@@ -256,7 +256,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if xerr != nil {
 		slog.Warn("probe: token exchange failed", "app", audit.Sanitize(app), "error", xerr)
 		var missing *teamtoken.AccessMissingError
-		if errors.As(xerr, &missing) {
+		var targetApp *teamtoken.TargetAppError
+		if errors.As(xerr, &missing) || errors.As(xerr, &targetApp) {
 			fail(http.StatusBadGateway, "token_access_missing", kindAccess)
 		} else {
 			fail(http.StatusBadGateway, "token_exchange_failed", kindUnavailable)

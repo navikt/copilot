@@ -86,7 +86,7 @@ func TestGoldenLocalDisabledLeavesLaunchArgsAlone(t *testing.T) {
 	r := domain.ResolvedConfig{Model: id, AskUser: true}
 
 	wantCopilot := []string{"--agent", "nav-pilot", "--model", id}
-	if got := BuildCopilotArgs("cplt", r); !slices.Equal(got, wantCopilot) {
+	if got := withoutGitHubMCPTools(BuildCopilotArgs("cplt", r)); !slices.Equal(got, wantCopilot) {
 		t.Errorf("BuildCopilotArgs\n got: %q\nwant: %q", got, wantCopilot)
 	}
 	wantOpenCode := []string{"--model", id, "--agent", "nav-pilot"}

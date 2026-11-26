@@ -237,9 +237,10 @@ func expireLeases(ctx context.Context, tx pgx.Tx) (int, error) {
 	}
 	for _, e := range all {
 		var team, state string
-		if err := tx.QueryRow(ctx, `UPDATE runtime_jobs SET updated_at = now(), state = CASE
+		if err := tx.QueryRow(ctx, `UPDATE runtime_jobs j SET updated_at = now(), state = CASE
 				WHEN command = 'kill' THEN 'killed'
 				WHEN command = 'cancel' THEN 'cancelled'
+				WHEN NOT EXISTS (`+jobProfileLive+`) THEN 'cancelled'
 				WHEN on_expiry = 'requeue' AND attempts < max_attempts THEN 'queued'
 				ELSE 'failed' END
 			WHERE id = $1 RETURNING team, state`, e.job).Scan(&team, &state); err != nil {
@@ -298,6 +299,20 @@ func sweepIntervalFromEnv() (time.Duration, error) {
 	return d, nil
 }
 
+// jobProfileLive is true when the agent profile named in job j's spec is
+// still published at the generation the job was bound to, approved,
+// unrevoked and unexpired. A job without a profile or a bound generation
+// (rows from before v1alpha1) is never live.
+const jobProfileLive = liveProfileSQL + `r.namespace = j.submitted_spec->'agentProfile'->>'namespace' AND r.name = j.submitted_spec->'agentProfile'->>'name'
+	AND g.generation = j.agent_profile_generation`
+
+// jobLive reports whether job id's profile is live (jobProfileLive).
+func jobLive(ctx context.Context, tx pgx.Tx, id int64) (bool, error) {
+	var live bool
+	err := tx.QueryRow(ctx, `SELECT EXISTS (`+jobProfileLive+`) FROM runtime_jobs j WHERE j.id = $1`, id).Scan(&live)
+	return live, err
+}
+
 // errNoJob means nothing was claimable.
 var errNoJob = errors.New("no job")
 
@@ -334,6 +349,7 @@ func (d *DB) Claim(ctx context.Context, runtime string, teams []string, token st
 		err := tx.QueryRow(ctx, `SELECT id, team, attempts + 1 FROM runtime_jobs j
 			WHERE state = 'queued' AND team = ANY($1)
 			  AND NOT EXISTS (SELECT 1 FROM runtime_kill_switches k WHERE k.scope IN ('global', 'team:' || j.team))
+			  AND EXISTS (`+jobProfileLive+`)
 			ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED`, teams).Scan(&id, &team, &attempt)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return errNoJob
@@ -416,6 +432,22 @@ func (d *DB) Heartbeat(ctx context.Context, runtime, leaseID string, ttl time.Du
 		if switched {
 			cmd = cmdKill
 		}
+		if cmd == cmdContinue {
+			live, err := jobLive(ctx, tx, job)
+			if err != nil {
+				return err
+			}
+			if !live {
+				// Same as a cancel through SetJobCommand: delivered below, the sweeper ends the job.
+				cmd = cmdCancel
+				if _, err := tx.Exec(ctx, `UPDATE runtime_jobs SET command = 'cancel', updated_at = now() WHERE id = $1`, job); err != nil {
+					return err
+				}
+				if err := jobAudit(ctx, tx, caller{Kind: "Application", Ident: runtime}, "job_cancel", team, job, map[string]any{"before": "leased", "after": "leased", "reason": "agent profile is no longer live"}); err != nil {
+					return err
+				}
+			}
+		}
 		out.Command = cmd
 		if cmd == cmdKill {
 			if err := tx.QueryRow(ctx, `UPDATE runtime_leases SET ended_at = now() WHERE id = $1::uuid RETURNING ended_at`, leaseID).Scan(&out.LeaseExpiresAt); err != nil {
@@ -460,11 +492,15 @@ func (d *DB) Finish(ctx context.Context, runtime, leaseID string, ok bool, code,
 		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM runtime_kill_switches WHERE scope IN ('global', 'team:' || $1))`, team).Scan(&switched); err != nil {
 			return err
 		}
+		live, liveErr := jobLive(ctx, tx, job)
+		if liveErr != nil {
+			return liveErr
+		}
 		state := "failed"
 		switch {
 		case cmd == cmdKill || switched:
 			state = "killed"
-		case cmd == cmdCancel:
+		case cmd == cmdCancel || !live:
 			state = "cancelled"
 		case ok:
 			state = "succeeded"

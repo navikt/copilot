@@ -6,7 +6,8 @@ import { FleetControlError, fleetApi, fleetLoad, requireFleet } from "@/lib/flee
 import { Tag } from "@navikt/ds-react";
 import { FleetFrame, fleetRobots, teamNavLoader } from "../../../frame";
 import { LinkButton } from "../../../nav";
-import { FleetProblemAlert, ServerDetail, ServerHeader, ServerStatusTag } from "../../../fleet-ui";
+import { FleetProblemAlert, ServerStatusTag } from "../../../fleet-ui";
+import { ServerDetail, ServerHeader } from "../../../server-detail";
 import { EntryHeader, ServerReadOnly } from "../../../catalog";
 import { fleetGrafanaUrl } from "@/lib/fleet-grafana";
 import { PLATFORM_TEAM } from "@/lib/fleet-approval";
@@ -78,6 +79,8 @@ export default async function ServerPage({ params, searchParams }: Props) {
       action={
         "data" in result && !result.data.owner ? (
           <LinkButton href="#be-om-tilgang">Be eierteamet om tilgang</LinkButton>
+        ) : "data" in result && result.data.inTeam ? (
+          <LinkButton href={`/fleet/mcp-servere/${namespace}/${name}/endre`}>Endre</LinkButton>
         ) : undefined
       }
       description={
@@ -110,7 +113,6 @@ export default async function ServerPage({ params, searchParams }: Props) {
       ) : (
         <ServerDetail
           submitted={submitted}
-          gatewayUrl={process.env.FLEET_GATEWAY_URL}
           server={result.data.server}
           events={result.data.events}
           me={result.data.me}

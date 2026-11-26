@@ -98,7 +98,14 @@ export type CatalogEntry = {
   };
 };
 
-export type AuditEvent = { at: string; actor: Actor; action: string; generation?: number };
+export type AuditEvent = {
+  at: string;
+  actor: Actor;
+  action: string;
+  generation?: number;
+  /** Per action: rolled_back has from and reason, revoked has reason. */
+  detail?: { from?: number; reason?: string };
+};
 
 /** What a page shows instead of data: no access, or fleet-control is unavailable. */
 export type FleetProblem = "forbidden" | "conflict" | "unavailable";
@@ -217,6 +224,13 @@ export const fleetApi = {
     fleetGet<MCPServer>(`${ns(namespace)}/mcpservers/${seg(name)}/approval`, "POST", { generation, contentHash }),
   revokeServer: (namespace: string, name: string, reason: string, block: boolean) =>
     fleetGet<MCPServer>(`${ns(namespace)}/mcpservers/${seg(name)}/revocation`, "POST", { reason, block }),
+  // Owner team only; fleet-control decides whether toGeneration may be used again (#3071).
+  rollbackServer: (namespace: string, name: string, fromGeneration: number, toGeneration: number, reason: string) =>
+    fleetGet<MCPServer>(`${ns(namespace)}/mcpservers/${seg(name)}/rollback`, "POST", {
+      fromGeneration,
+      toGeneration,
+      reason,
+    }),
   // A new generation; it waits for a second person like the first one did.
   updateServer: (namespace: string, name: string, resourceVersion: string, spec: MCPServerSpec) =>
     fleetGet<MCPServer>(`${ns(namespace)}/mcpservers/${seg(name)}`, "PUT", {

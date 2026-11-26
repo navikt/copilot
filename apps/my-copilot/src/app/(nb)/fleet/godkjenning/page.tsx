@@ -7,7 +7,8 @@ import { TEAM_COOKIE, isName } from "@/lib/fleet-names";
 import { FleetFrame, fleetRobots, teamNavLoader } from "../frame";
 import { APPROVAL_RULE, PLATFORM_TEAM } from "@/lib/fleet-approval";
 import { LinkText } from "../nav";
-import { FleetProblemAlert, OwnerFilter, ServerInbox } from "../fleet-ui";
+import { FleetProblemAlert } from "../fleet-ui";
+import { OwnerFilter, ServerInbox } from "../inbox";
 
 export const metadata: Metadata = { title: "Til godkjenning – Fleet", robots: fleetRobots };
 

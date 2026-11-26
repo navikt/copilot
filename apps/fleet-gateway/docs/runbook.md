@@ -213,6 +213,8 @@ Prod reads routes from `pilot-routes.prod.yaml` today. This section moves it to 
 
 fleet-control seeds itself; no separate tool. The image carries `pilot-routes.prod.yaml` and `allowlist.json` (`apps/fleet-control/Dockerfile`), and `SEED_ROUTES_FILE` points at `pilot-routes.{{env}}.yaml`. `seedFromEnv` imports only when the database has no servers, so it never overwrites. `seed_test.go` parses both the dev and the prod file. After the first prod deploy, freeze `pilot-routes.prod.yaml`: route changes go through fleet-control. A change to the file after seeding does not reach the database.
 
+Decision (#2760): prod seeded once from the file on 2026-11-25 (4 servers) and is not seeded again. `pilot-routes.prod.yaml` is frozen from the switch on. New and changed routes go through fleet-control's write API with approval; only approved and published routes reach the snapshot. `TestProdRoutesFileFrozenAfterSwitch` (`routes_freeze_test.go`) fails CI when the file changes while `.nais/prod-gcp.yaml` has `routes_source: fleet-control`. The gateway still reads the file for one value: the primary resource, which a snapshot may not drop. A rollback that reverts `routes_source` in the same PR is allowed to edit the file.
+
 ### Shadow mode: compare before switching
 
 With `ROUTES_SOURCE=git` and `ROUTES_SHADOW_SOURCE=fleet-control` the gateway also polls fleet-control every 30 s. It validates the snapshot by the same rules as a real switch, never serves it, and compares it with the Git table. Upstreams compare in their `.svc.cluster.local` form (#2856); the comparison covers route, team, target, upstream, `enabled`, tools and `passAllTools`.
@@ -220,6 +222,17 @@ With `ROUTES_SOURCE=git` and `ROUTES_SHADOW_SOURCE=fleet-control` the gateway al
 - `fleet_gateway_routes_shadow_diff`: the number of routes that differ. No series until the first shadow snapshot.
 - `fleet_gateway_routes_shadow_failures_total`: failed or rejected shadow fetches. A failure never changes what the gateway serves.
 - Log line `fleet-control shadow diff` with the differing route paths, at the first snapshot and whenever the set changes.
+
+Evidence for the switch PR. CI cannot reach prod, so the proof is in Mimir and the pod logs. Every prod pod compares fleet-control's validated snapshot with `pilot-routes.prod.yaml` every 30 s:
+
+```promql
+# 0 on every pod for the whole watch window; any other value or a gap resets the clock
+max_over_time(fleet_gateway_routes_shadow_diff{namespace="copilot", k8s_cluster_name="prod"}[24h])
+# must be 0: a failed or rejected shadow fetch compares nothing
+increase(fleet_gateway_routes_shadow_failures_total{namespace="copilot", k8s_cluster_name="prod"}[24h])
+```
+
+Log line: `fleet-control shadow diff` with `differing_routes=0` and the `generation`. It is written at the first snapshot and whenever the set changes, so one line per pod after the last deploy means no change since. The line carries `differing_routes` (count), `routes` (the sorted differing route paths, one entry per route; a diff does not say which side has it) and `generation`. A non-empty `routes` is a stop, not a detail.
 
 Enable it with `routes_shadow_source: fleet-control`, and `fleet_control_audience` in the environment file. The values must not be combined with `routes_source: fleet-control`; the gateway refuses to start.
 
@@ -253,6 +266,19 @@ Corrections found in the run:
 5. Switch PR: replace `routes_shadow_source` with `routes_source: fleet-control`; the audience stays. Merge and watch the deploy job. Merged: ____ Rollout complete: ____
 6. Verify: `/ready` 200 on every pod, snapshot age under 120 s, no `fleet-control routes not updated` in the logs, and the post-deploy smoke on each prod route (PRM 200, then one tool call). Done: ____
 
+### When fleet-control is down (after the switch)
+
+From `fleet_control.go` and `main.go`; tests in `fleet_control_test.go` and `route_snapshot_store_test.go`.
+
+- **At startup, fleet-control down:** the pod loads the last snapshot it stored in Postgres, with the full live validation except the age bound, so it may be old. `fleet_gateway_routes_from_stored_snapshot` is 1 and the age gauge counts from the snapshot's `checked_at`, so `FleetGatewayRouteSnapshotStale` fires. No valid stored snapshot (none, corrupt, hash mismatch): no routes, `/mcp/*` 503 `temporarily_unavailable`, `/ready` 503 `no_route_snapshot`. The Git file's routes are never served in this mode (`TestStoredSnapshotServesWhenFleetControlDown`, `TestNoLiveNoStoredFailsClosed`, `TestRouteSyncNoSnapshotAtStartupFailsClosed`).
+- **At runtime, fleet-control down:** each failed poll keeps the current table and logs `fleet-control routes not updated, keeping current table`. There is no expiry: the last good snapshot serves until a new one is accepted. Staleness only alerts (`FleetGatewayRouteSyncFailing` after 15 min, `FleetGatewayRouteSnapshotStale`). A route revoked in fleet-control meanwhile keeps serving; close it with `GATEWAY_DISABLED_ROUTES` (manifest `disabled_routes` or `nais app set env`, see "Close one route after the switch"). `GATEWAY_DISABLED` is only for stop-everything.
+- **Rejected snapshot** (over `maxSnapshotBytes`, bad JSON, `schema_version` not 1, `checked_at` missing or more than 10 min from now, invalid route, primary resource dropped): treated like an outage, the current table stays and nothing is stored.
+- **A route the file does not have:** served once it is in an accepted snapshot. The gate is fleet-control's approval and publish step, not the gateway.
+
+### Close one route after the switch
+
+Use `GATEWAY_DISABLED_ROUTES` (see "Close one route" above): it stops a single route whatever the route source, so it works with `ROUTES_SOURCE=fleet-control` and holds across snapshot updates. Break-glass: `nais app set env fleet-gateway GATEWAY_DISABLED_ROUTES=/mcp/<namespace>/<name> -t copilot -e prod-gcp`. To keep it across deploys, set `disabled_routes` in `.nais/prod-gcp.yaml`. `GATEWAY_DISABLED=true` stays the stop-everything option. Editing `pilot-routes.prod.yaml` no longer affects prod.
+
 ### Roll back to the Git file (under 5 min)
 
 ```sh
@@ -260,7 +286,7 @@ nais app set env fleet-gateway ROUTES_SOURCE=git -t copilot -e prod-gcp
 kubectl --context prod-gcp -n copilot rollout status deploy/fleet-gateway
 ```
 
-The global kill-switch drill took 56 s in prod with the same command, so expect about 1 min. The setting does not survive the next deploy: revert the PR from step 5 at once. While the file is the source, routes registered or changed in fleet-control after seeding are not served; they stay in fleet-control and come back at the next switch. Before switching again, run the diff and decide per difference whether the file or fleet-control is right.
+The global kill-switch drill took 56 s in prod with the same command, so expect about 1 min. The setting does not survive the next deploy: revert the PR from step 5 at once. The revert restores `routes_shadow_source: fleet-control`, so shadow mode resumes and shows how far fleet-control and the file have drifted. While the file is the source, routes registered or changed in fleet-control after seeding are not served; they stay in fleet-control and come back at the next switch. Before switching again, run the diff and decide per difference whether the file or fleet-control is right.
 
 ## SLO
 
@@ -274,7 +300,8 @@ Proposed defaults (#2893), pending owner approval of the targets. Window: one ca
 
 **Availability** reads `fleet_gateway_mcp_requests_total{route,outcome}`; it is the only request counter with a route label. Only the gateway's own faults count as bad.
 
-- Bad: `store_error` (Postgres), `upstream_token_error` (token exchange), and the capacity outcomes `over_capacity`, `sse_over_capacity`, `user_cap`, `user_sse_cap`. Capacity counts because we set it (decided 2026-11-25). Mimir has only seen `upstream_token_error`, `user_cap` and `user_sse_cap` so far; the others are in the code (`proxy.go`) and have not occurred.
+- Bad: `store_error` (Postgres), `upstream_token_error` (token exchange), and the global capacity outcomes `over_capacity` and `sse_over_capacity`. Global capacity counts because we set it (decided 2026-11-25). Mimir has only seen `upstream_token_error` so far; the others are in the code (`proxy.go`) and have not occurred.
+- In the total but not bad: the per-user caps `user_cap` and `user_sse_cap`. They answer `429` with `Retry-After: 1`, so one busy user cannot burn the route's budget (decided 2026-11-26, after 8 `user_cap` answers fired FleetGatewayAvailabilityBurnFast). FleetGatewayUserCapsHit watches them instead.
 - Left out of the total: `unauthorized` (the OAuth handshake 401, by far the largest outcome), `disabled` (kill switch) and `tool_denied` (policy).
 - In the total but not bad: `ok`, `upstream_<code>` (the MCP server's own HTTP status, 4xx and 5xx), `upstream_error`, `upstream_unexpected_sse`, `stream_error` (200 already sent), and client errors (`bad_request`, `payload_too_large`, `response_too_large`, `upstream_access_missing` and the rest).
 
@@ -285,7 +312,7 @@ Recording rules in `.nais/app.yaml` hold the one definition that the alerts and 
 
 ```promql
 # fleet_gateway:slo_availability_errors:ratio_rate1h
-(sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity|user_cap|user_sse_cap"}[1h]))
+(sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity"}[1h]))
   or sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{outcome!~"unauthorized|disabled|tool_denied"}[1h])) * 0)
   / sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{outcome!~"unauthorized|disabled|tool_denied"}[1h]))
 ```
@@ -351,6 +378,14 @@ Break `fleet_gateway_mcp_requests_total` down by route and outcome, then read th
 ### FleetGatewaySustainedShedding
 
 `store_full`: count rows per kind in the session store and look for a client registering in a loop (see "Block one client"). `cap`: look for a slow upstream holding requests.
+
+### FleetGatewayUserCapsHit
+
+More than 20 `user_cap` or `user_sse_cap` answers in 15 minutes on one route. Users get `429` with `Retry-After: 1` when they hold more than `MCP_MAX_IN_FLIGHT_PER_USER` (default 8) requests or `MCP_MAX_SSE_PER_USER` (default 4) streams at once on one pod. Warning only: the client retries and the SLO does not count it.
+
+1. Find who: search the `audit mcp` lines for the route with outcome `user_cap` or `user_sse_cap`. One user or many?
+2. One user: usually a client or agent firing calls in parallel. Ask them to lower the parallelism; if it is abuse, see "Lock out one user".
+3. Many users, or a slow upstream: requests hold slots longer. Check the route's latency. If normal use needs more, raise `MCP_MAX_IN_FLIGHT_PER_USER` (or `MCP_MAX_SSE_PER_USER`) in the manifest; it stays capped by `MCP_MAX_IN_FLIGHT`.
 
 ### FleetGatewaySustainedRateLimiting
 

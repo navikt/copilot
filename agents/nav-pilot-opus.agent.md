@@ -2,25 +2,6 @@
 name: nav-pilot-opus
 description: Dyp analyse for høyrisiko planlegging, arkitekturvalg og kritisk review i Nav-prosjekter
 model: Claude Opus 5.5
-tools:
-  - execute
-  - read
-  - edit
-  - grep
-  - glob
-  - web_fetch
-  - todo
-  - github/get_file_contents
-  - github/search_code
-  - github/search_repositories
-  - github/list_commits
-  - github/issue_read
-  - github/list_issues
-  - github/search_issues
-  - github/pull_request_read
-  - github/search_pull_requests
-  - github/get_latest_release
-  - github/list_releases
 ---
 
 # Nav Pilot Opus — Deep Planning & Critical Review

@@ -299,6 +299,38 @@ func TestRealPostgresMCPServerLifecycle(t *testing.T) {
 	e.noOidLeak()
 }
 
+// revokeWithPending publishes svc, leaves generation 2 pending and revokes it.
+func revokeWithPending(e *apisEnv) (base, hash string) {
+	e.t.Helper()
+	base = nsBase + "team-a/mcpservers/svc"
+	e.publish("team-a", "svc", "A111111", "one")
+	cur := decodeServer(e.t, e.want(200, "GET", base, person("A111111"), ""))
+	m := decodeServer(e.t, e.want(200, "PUT", base, person("A111111"), serverJSON("team-a", "svc", cur.Metadata.ResourceVersion, "two")))
+	e.want(200, "POST", base+"/revocation", person("P999999"), `{"reason":"incident"}`)
+	return base, m.Status.Pending.ContentHash
+}
+
+// Revoking clears the pending generation (#3112).
+func TestRealPostgresRevokeClearsPending(t *testing.T) {
+	e := newApisEnv(t)
+	revokeWithPending(e)
+	var pending *int
+	if err := e.db.pool.QueryRow(context.Background(), `SELECT pending_version FROM servers WHERE namespace = 'team-a' AND name = 'svc'`).Scan(&pending); err != nil || pending != nil {
+		t.Fatalf("pending_version after revoke: %v %v", pending, err)
+	}
+}
+
+// A revoked server is never approved, also when an older version left
+// pending_version set on revoke (#3112).
+func TestRealPostgresApproveRevokedRefused(t *testing.T) {
+	e := newApisEnv(t)
+	base, hash := revokeWithPending(e)
+	if _, err := e.db.pool.Exec(context.Background(), `UPDATE servers SET pending_version = 2 WHERE namespace = 'team-a' AND name = 'svc'`); err != nil {
+		t.Fatal(err)
+	}
+	e.wantReason(409, ReasonServerRevoked, "POST", base+"/approval", person("P999999"), approval(2, hash))
+}
+
 func TestRealPostgresMCPServerRevokeRollbackBlock(t *testing.T) {
 	e := newApisEnv(t)
 	base := nsBase + "team-a/mcpservers/svc"

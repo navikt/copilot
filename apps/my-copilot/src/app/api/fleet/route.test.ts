@@ -74,6 +74,28 @@ describe("POST /api/fleet", () => {
     expect(JSON.parse(init.body)).toEqual({ generation: 3, contentHash: "h3" });
   });
 
+  it("rolls back with from, to and the reason, and maps fleet-control's refusal", async () => {
+    const body = { action: "rollback", namespace: "team-a", name: "docs", fromGeneration: "2", generation: "1" };
+    expect((await post({ ...body, reason: " " })).status).toBe(400);
+    expect(fetch).not.toHaveBeenCalled();
+    const res = await post({ ...body, reason: "feil i v2" });
+    await expect(res.json()).resolves.toEqual({ href: "/fleet/mcp-servere/team-a/docs" });
+    const [url, init] = fetch.mock.calls[0];
+    expect(url).toBe("http://fc/apis/fleet.nav.no/v1alpha1/namespaces/team-a/mcpservers/docs/rollback");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body)).toEqual({ fromGeneration: 2, toGeneration: 1, reason: "feil i v2" });
+    fetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ kind: "Status", reason: "RollbackTargetNotApproved", message: "x" }), {
+        status: 409,
+      })
+    );
+    const refused = await post({ ...body, reason: "feil i v2" });
+    expect(refused.status).toBe(409);
+    await expect(refused.json()).resolves.toMatchObject({
+      error: expect.stringMatching(/^Team copilot har ikke godkjent versjon 1\./),
+    });
+  });
+
   const spec = (over: Record<string, unknown> = {}) => ({
     dataCategory: "Intern",
     upstream: { app: "docs-app", url: "http://docs-app/mcp" },
@@ -178,16 +200,8 @@ describe("POST /api/fleet", () => {
     name: "docs",
     spec: { dataCategory: "Intern", upstream: { app: "docs", url: "x" }, allowedTools: ["search"] },
   };
-  // The edit form (ServerForm) still posts form fields.
-  const editForm = {
-    action: "edit",
-    namespace: "team-a",
-    name: "docs",
-    app: "docs",
-    url: "x",
-    tools: "search",
-    dataCategory: "Intern",
-  };
+  // The edit page sends the whole spec, like the wizard.
+  const editForm = { ...register, action: "edit" };
   const approve = { action: "approve", namespace: "team-a", name: "docs", generation: "3", contentHash: "h3" };
 
   it("tells a taken name apart from a conflicting edit", async () => {
@@ -234,9 +248,9 @@ describe("POST /api/fleet", () => {
     const pinned: string[] = JSON.parse(
       readFileSync(join(__dirname, "../../../../../fleet-control/internal/api/reasons.json"), "utf8")
     );
-    const used = [...readFileSync(join(__dirname, "route.ts"), "utf8").matchAll(/reason === "(\w+)"/g)].map(
-      (m) => m[1]
-    );
+    const used = [
+      ...readFileSync(join(__dirname, "../../../lib/fleet-errors.ts"), "utf8").matchAll(/reason === "(\w+)"/g),
+    ].map((m) => m[1]);
     expect(used.length).toBeGreaterThan(0);
     for (const r of used) if (r !== "Forbidden") expect(pinned).toContain(r);
   });
@@ -266,15 +280,22 @@ describe("POST /api/fleet", () => {
   });
 
   it("needs a data category, and sends none by default", async () => {
-    expect((await post({ ...editForm, resourceVersion: "7", dataCategory: "" })).status).toBe(400);
+    expect(
+      (await post({ ...editForm, resourceVersion: "7", spec: { ...register.spec, dataCategory: "" } })).status
+    ).toBe(400);
     expect((await post({ ...register, spec: { ...register.spec, dataCategory: undefined } })).status).toBe(400);
     expect(fetch).not.toHaveBeenCalled();
   });
 
   it("edits with PUT and the resourceVersion, which makes a new version", async () => {
-    const res = await post({ ...editForm, resourceVersion: "7", tools: "search read" });
+    fetch.mockResolvedValueOnce(Response.json(current));
+    const res = await post({
+      ...editForm,
+      resourceVersion: "7",
+      spec: { ...register.spec, allowedTools: ["search", "read"] },
+    });
     await expect(res.json()).resolves.toEqual({ href: "/fleet/mcp-servere/team-a/docs?sendt=1" });
-    const [url, init] = fetch.mock.calls[0];
+    const [url, init] = fetch.mock.calls[1];
     expect(url).toBe("http://fc/apis/fleet.nav.no/v1alpha1/namespaces/team-a/mcpservers/docs");
     expect(init.method).toBe("PUT");
     expect(JSON.parse(init.body)).toMatchObject({
@@ -282,7 +303,50 @@ describe("POST /api/fleet", () => {
       spec: { allowedTools: ["search", "read"], dataCategory: "Intern" },
     });
     expect((await post(editForm)).status).toBe(400);
-    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  // What fleet-control holds: fields the edit form does not show must survive an edit.
+  const current = {
+    metadata: { namespace: "team-a", name: "docs", resourceVersion: "7" },
+    spec: {
+      dataCategory: "Intern",
+      upstream: { app: "docs", url: "x" },
+      allowedTools: ["search", "read"],
+      readme: "old",
+      tools: [
+        { name: "search", description: "Søk" },
+        { name: "read", description: "Les" },
+      ],
+      defaultRisk: "read",
+      toolRisk: { search: "read", read: "propose" },
+      rosRef: "ROS-1",
+      registry: { version: "1.0.0" },
+    },
+    status: {},
+  };
+  const editTo = async (spec: Record<string, unknown>) => {
+    fetch.mockResolvedValueOnce(Response.json(current));
+    const res = await post({ ...editForm, resourceVersion: "7", spec });
+    expect(res.status).toBe(200);
+    const [url, init] = fetch.mock.calls[1];
+    expect(url).toBe("http://fc/apis/fleet.nav.no/v1alpha1/namespaces/team-a/mcpservers/docs");
+    expect(init.method).toBe("PUT");
+    return JSON.parse(init.body).spec;
+  };
+
+  it("sends the page's spec, and keeps registry from what fleet-control holds, never the client's", async () => {
+    expect(await editTo({ ...current.spec, readme: "new", registry: { version: "9.9.9" } })).toEqual({
+      ...current.spec,
+      readme: "new",
+    });
+  });
+
+  it("refuses a bad app name or a risk level for a tool that is not allowed, before any call", async () => {
+    const bad = (spec: Record<string, unknown>) => post({ ...editForm, resourceVersion: "7", spec });
+    expect((await bad({ ...register.spec, upstream: { app: "Bad_App", url: "x" } })).status).toBe(400);
+    expect((await bad({ ...register.spec, toolRisk: { other: "read" } })).status).toBe(400);
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   const grant = {
@@ -325,10 +389,12 @@ describe("POST /api/fleet", () => {
 
   it("maps a failed edit: stale resourceVersion is a conflict, a bad field is marked", async () => {
     const edit = { ...editForm, resourceVersion: "7" };
+    fetch.mockResolvedValueOnce(Response.json(current));
     fetch.mockResolvedValueOnce(status(409, "Conflict", "resourceVersion is stale", ["metadata.resourceVersion"]));
     let res = await post(edit);
     expect(res.status).toBe(409);
     await expect(res.json()).resolves.toMatchObject({ error: expect.stringMatching(/Noen andre har endret/) });
+    fetch.mockResolvedValueOnce(Response.json(current));
     fetch.mockResolvedValueOnce(status(422, "Invalid", "tools must be unique", ["spec.allowedTools"]));
     res = await post(edit);
     expect(res.status).toBe(422);

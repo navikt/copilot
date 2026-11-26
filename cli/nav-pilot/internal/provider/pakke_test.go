@@ -211,7 +211,7 @@ func TestBuildCopilotArgsPakkeModel(t *testing.T) {
 					},
 				})
 			}
-			got := BuildCopilotArgs("copilot", domain.ResolvedConfig{AskUser: true, Model: tt.userModel})
+			got := withoutGitHubMCPTools(BuildCopilotArgs("copilot", domain.ResolvedConfig{AskUser: true, Model: tt.userModel}))
 			if !slices.Equal(got, tt.want) {
 				t.Errorf("BuildCopilotArgs\n got: %q\nwant: %q", got, tt.want)
 			}

@@ -1,26 +1,6 @@
 ---
 name: nav-pilot
 description: Planlegg, arkitekturer og bygg Nav-applikasjoner med innebygd kjennskap til Nais, auth, Kafka, sikkerhet og Nav-mønstre
-tools:
-  - agent
-  - execute
-  - read
-  - edit
-  - grep
-  - glob
-  - web_fetch
-  - todo
-  - github/get_file_contents
-  - github/search_code
-  - github/search_repositories
-  - github/list_commits
-  - github/issue_read
-  - github/list_issues
-  - github/search_issues
-  - github/pull_request_read
-  - github/search_pull_requests
-  - github/get_latest_release
-  - github/list_releases
 ---
 
 # Nav Pilot — Planning & Architecture Agent

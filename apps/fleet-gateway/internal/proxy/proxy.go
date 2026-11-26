@@ -350,7 +350,7 @@ func (g *Handler) MCP(route routing.Route) http.HandlerFunc {
 			decisionReason = "user_cap"
 			httpx.MarkShed(w, "user_cap")
 			w.Header().Set("Retry-After", "1")
-			httpx.WriteJSON(w, http.StatusServiceUnavailable, map[string]string{
+			httpx.WriteJSON(w, http.StatusTooManyRequests, map[string]string{
 				"error":   "too_many_requests",
 				"message": "too many concurrent MCP requests for this user; retry shortly",
 			})
@@ -470,7 +470,7 @@ func (g *Handler) MCP(route routing.Route) http.HandlerFunc {
 				decisionReason = "user_sse_cap"
 				httpx.MarkShed(w, "user_sse_cap")
 				w.Header().Set("Retry-After", "1")
-				httpx.WriteJSON(w, http.StatusServiceUnavailable, map[string]string{
+				httpx.WriteJSON(w, http.StatusTooManyRequests, map[string]string{
 					"error":   "too_many_requests",
 					"message": "too many concurrent SSE streams for this user; retry shortly",
 				})

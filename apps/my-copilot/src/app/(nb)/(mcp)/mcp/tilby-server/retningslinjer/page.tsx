@@ -130,6 +130,7 @@ const SECTIONS: Section[] = [
       "Bare operatøren av gatewayen bruker `passAllTools`. Teamets rute bruker det ikke.",
       "Gi hvert verktøy et navn med tjeneste og ressurs, for eksempel `kodeverk_search`.",
       "Alle servere i gatewayen må stå i registeret.",
+      "Skriv i README at agenter med en `tools:`-liste må ta med `<server>/*`, ellers ser ikke modellen verktøyene. Listen i klienten er ingen sikring. Serveren og fleet-gateway håndhever tilgangen.",
     ],
     owasp: [owasp("MCP02"), owasp("MCP09")],
     spec: [{ label: "Tools: Tool Names", href: `${SPEC}/server/tools` }],

@@ -36,7 +36,7 @@ const (
 	defaultUpstreamTimeout                  = 60 * time.Second // MCP tool calls; headers and body each get this long
 	defaultMCPMaxInFlight                   = 16
 	defaultMCPMaxInFlightPerRoute           = 8
-	defaultMCPMaxInFlightPerUser            = 4
+	defaultMCPMaxInFlightPerUser            = 8
 	defaultMCPMaxSSE                        = 64 // ~40 KiB each: a 32 KiB read buffer plus the connection
 	defaultMCPMaxSSEPerUser                 = 4
 	defaultPendingCap                       = 4096

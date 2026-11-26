@@ -54,7 +54,7 @@ func pinnedReasons(t testing.TB) []string {
 
 // TestNoLiteralReasons makes every refusal use a constant from reasons.go.
 func TestNoLiteralReasons(t *testing.T) {
-	lit := regexp.MustCompile(`stErr\(http\.\w+, "|refuse\(http\.\w+, "|conflict\("[^"]*", "|reason: "`)
+	lit := regexp.MustCompile(`stErr\(http\.\w+, "|refuse\(http\.\w+, "|conflict\("[^"]*", "|reason: "|because\("`)
 	files, _ := filepath.Glob("*.go")
 	for _, name := range files {
 		if strings.HasSuffix(name, "_test.go") {
