@@ -5,13 +5,13 @@
     "creationTimestamp": "2026-01-01T00:00:00Z",
     "generation": 1,
     "name": "assistant",
-    "namespace": "aksel-studio",
+    "namespace": "team-c",
     "resourceVersion": "1",
     "uid": "1"
   },
   "spec": {
     "dpia": {
-      "owner": "aksel-studio",
+      "owner": "team-c",
       "reference": "PVK"
     },
     "grants": [
@@ -29,9 +29,9 @@
       }
     ],
     "identity": {
-      "app": "studio-api",
+      "app": "app-a",
       "cluster": "dev-gcp",
-      "entraClientID": "7009f359-1451-429f-94d7-535d5c0c73c0"
+      "entraClientID": "00000000-0000-4000-8000-000000000001"
     },
     "mode": "Delegated",
     "quota": {
@@ -106,7 +106,7 @@
       "generation": 1,
       "spec": {
         "dpia": {
-          "owner": "aksel-studio",
+          "owner": "team-c",
           "reference": "PVK"
         },
         "grants": [
@@ -124,9 +124,9 @@
           }
         ],
         "identity": {
-          "app": "studio-api",
+          "app": "app-a",
           "cluster": "dev-gcp",
-          "entraClientID": "7009f359-1451-429f-94d7-535d5c0c73c0"
+          "entraClientID": "00000000-0000-4000-8000-000000000001"
         },
         "mode": "Delegated",
         "quota": {

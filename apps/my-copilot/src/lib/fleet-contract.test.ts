@@ -41,7 +41,7 @@ describe("fleet-control contract", () => {
     expect(agentWaiting.status.grants?.[0]).toMatchObject({ granted: false, serverRef: { name: "kodeverk" } });
     expect(agentWaiting.status.grants?.[0].contentHash).toMatch(/^v1:sha256:/);
     expect(agent.spec.grants?.[0]).toMatchObject({ allowedTools: ["lookup"], maxRisk: "Read" });
-    expect(agent.spec.dpia).toMatchObject({ owner: "aksel-studio" });
+    expect(agent.spec.dpia).toMatchObject({ owner: "team-c" });
     expect(agent.status.grants?.[0]).toMatchObject({ granted: true, grantedBy: { name: "B444444" } });
     expect(agent.status.grants?.[0].grantedAt).toEqual(expect.any(String));
     expect(agent.status.expiresAt).toEqual(expect.any(String));

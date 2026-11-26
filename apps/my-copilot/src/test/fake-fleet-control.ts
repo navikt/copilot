@@ -15,8 +15,8 @@ export const FLEET_ROUTES: Record<string, [number, string]> = {
   [`GET ${NS}/team-a/mcpservers/svc`]: [200, "mcpserver-pending.json"],
   [`POST ${NS}/team-a/mcpservers`]: [409, "status-already-exists.json"],
   [`POST ${NS}/team-a/mcpservers/svc/approval`]: [200, "mcpserver-published.json"],
-  [`GET ${NS}/aksel-studio/agentprofiles`]: [200, "agentprofile-list.json"],
-  [`GET ${NS}/aksel-studio/agentprofiles/assistant`]: [200, "agentprofile-ready.json"],
+  [`GET ${NS}/team-c/agentprofiles`]: [200, "agentprofile-list.json"],
+  [`GET ${NS}/team-c/agentprofiles/assistant`]: [200, "agentprofile-ready.json"],
 };
 
 export function fakeFleetControl(routes = FLEET_ROUTES) {

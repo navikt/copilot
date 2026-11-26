@@ -94,7 +94,7 @@ describe("fleet-control client", () => {
     vi.stubGlobal("fetch", fakeFleetControl());
     const servers = await fleetApi.servers("team-a");
     expect(servers.items[0].status.publishedGeneration).toBe(1);
-    const agents = await fleetApi.agents("aksel-studio");
+    const agents = await fleetApi.agents("team-c");
     expect(agents.items[0].status.grants?.[0].granted).toBe(true);
   });
 

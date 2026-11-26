@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -43,6 +44,8 @@ func normalize(v any) any {
 
 func golden(t *testing.T, name, body string) {
 	t.Helper()
+	// The repo is public: swap the dev seed's client id and names for fake ones.
+	body = strings.NewReplacer(seedClientID, "00000000-0000-4000-8000-000000000001", "aksel-studio", "team-c", "studio-api", "app-a").Replace(body)
 	var v any
 	if err := json.Unmarshal([]byte(body), &v); err != nil {
 		t.Fatalf("%s: %v: %s", name, err, body)
