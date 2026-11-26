@@ -108,10 +108,12 @@ export function FleetNav({ team, teams = [], pending = 0, inCatalog = false }: F
           team: true,
         },
         { label: "Katalog", href: "/fleet/katalog", current: inCatalog || path === "/fleet/katalog" },
+        { label: "Vanlige spørsmål", href: "/mcp/tilby-server/vanlige-sporsmal" },
       ]
     : [
         { label: "Oversikt", href: "/fleet", current: path === "/fleet" },
         { label: "Katalog", href: "/fleet/katalog", current: inCatalog || path === "/fleet/katalog" },
+        { label: "Vanlige spørsmål", href: "/mcp/tilby-server/vanlige-sporsmal" },
       ];
   return (
     <nav aria-label="Fleet">

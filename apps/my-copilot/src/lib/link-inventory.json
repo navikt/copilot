@@ -212,6 +212,7 @@
   },
   "/fleet": {
     "sources": [
+      "apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/vanlige-sporsmal/page.tsx",
       "apps/my-copilot/src/app/(nb)/fleet/catalog.tsx",
       "apps/my-copilot/src/app/(nb)/fleet/frame.tsx",
       "apps/my-copilot/src/app/(nb)/fleet/nav.tsx",
@@ -588,6 +589,7 @@
     "sources": [
       "README.md",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/mcp-gjennom-cplt/page.tsx",
+      "apps/my-copilot/src/app/(nb)/fleet/agent.tsx",
       "apps/my-copilot/src/app/(nb)/mcp/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
       "apps/my-copilot/src/lib/nav-items.ts"
@@ -685,6 +687,7 @@
       "apps/my-copilot/src/app/(nb)/(mcp)/mcp/fleet-gateway/page.tsx",
       "apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/page.tsx",
       "apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/retningslinjer/page.tsx",
+      "apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/vanlige-sporsmal/page.tsx",
       "apps/my-copilot/src/app/(nb)/mcp/page.tsx",
       "apps/my-copilot/src/components/mcp-hero-diagram.tsx",
       "apps/my-copilot/src/lib/nav-items.ts",
@@ -718,6 +721,7 @@
     "sources": [
       "apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/page.tsx",
       "apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/retningslinjer/page.tsx",
+      "apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/vanlige-sporsmal/page.tsx",
       "apps/my-copilot/src/app/(nb)/fleet/server-form.tsx",
       "apps/my-copilot/src/app/(nb)/mcp/page.tsx",
       "apps/my-copilot/src/lib/nav-items.ts",
@@ -743,6 +747,22 @@
       "svar": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/retningslinjer/page.tsx"],
       "token": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/retningslinjer/page.tsx"],
       "verktoylister": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/retningslinjer/page.tsx"]
+    }
+  },
+  "/mcp/tilby-server/vanlige-sporsmal": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/page.tsx",
+      "apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/vanlige-sporsmal/page.tsx",
+      "apps/my-copilot/src/app/(nb)/fleet/nav.tsx",
+      "apps/my-copilot/src/lib/nav-items.ts"
+    ],
+    "anchors": {
+      "cluster": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/vanlige-sporsmal/page.tsx"],
+      "dev-fra-prod": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/vanlige-sporsmal/page.tsx"],
+      "etter-godkjenning": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/vanlige-sporsmal/page.tsx"],
+      "feiler": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/vanlige-sporsmal/page.tsx"],
+      "hent-verktoy": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/vanlige-sporsmal/page.tsx"],
+      "kort-fortalt": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/vanlige-sporsmal/page.tsx"]
     }
   },
   "/min-side/budsjett": {

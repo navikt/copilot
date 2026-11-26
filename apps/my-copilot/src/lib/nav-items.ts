@@ -83,6 +83,7 @@ export const MCP_SECTION: NavGroup[] = [
     items: [
       { label: "Veiledning", href: "/mcp/tilby-server" },
       { label: "Retningslinjer", href: "/mcp/tilby-server/retningslinjer" },
+      { label: "Vanlige spørsmål", href: "/mcp/tilby-server/vanlige-sporsmal" },
     ],
   },
   { label: "fleet-gateway", href: "/mcp/fleet-gateway" },
