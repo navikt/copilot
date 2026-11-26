@@ -343,6 +343,38 @@ func TestRoutesFitAllowsShrinking(t *testing.T) {
 	}
 }
 
+// Each team stays under its own cap, so only the global cap can refuse.
+func TestRoutesFitGlobalCapAcrossTeams(t *testing.T) {
+	teams := func(pad int) []model.Server {
+		var out []model.Server
+		for i := range 17 {
+			s := testServers(1)[0]
+			ns := fmt.Sprintf("team%d", i)
+			s.Namespace = ns
+			r := *s.Route
+			r.Path, r.Target, r.UpstreamURL = "/mcp/"+ns+"/s", "dev-gcp:"+ns+":s", "http://s."+ns+"/"+strings.Repeat("x", pad)
+			s.Route = &r
+			out = append(out, s)
+		}
+		return out
+	}
+	const pad = 60000
+	total, team, err := routesSize(teams(pad), "team0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if team > maxTeamRoutesBytes || total <= maxRoutesSnapshotBytes {
+		t.Fatalf("fixture must be under the team cap and over the global cap: team %d, total %d", team, total)
+	}
+	var ae *apiError
+	if err := routesFit(teams(pad+100), teams(pad), "team0"); err != nil {
+		t.Fatalf("shrinking an over-limit snapshot must pass: %v", err)
+	}
+	if err := routesFit(teams(pad), teams(pad+100), "team0"); !errors.As(err, &ae) || ae.code != http.StatusConflict || strings.Contains(err.Error(), "team limit") {
+		t.Fatalf("growing past the global cap must be refused by the global check: %v", err)
+	}
+}
+
 func TestRoutesFitRefusesOversizedSnapshot(t *testing.T) {
 	if err := routesFit(nil, testServers(20), "copilot"); err != nil {
 		t.Fatalf("small snapshot: %v", err)
