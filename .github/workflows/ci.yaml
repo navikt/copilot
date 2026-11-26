@@ -97,6 +97,10 @@ jobs:
             echo "::error::merge conflict markers left in the lines above"
             exit 1
           fi
+      # Public repo: no real UUIDs or Nav hostnames in test data (#3124).
+      - name: No unlisted IDs or hostnames in test data
+        if: steps.reuse.outputs.reuse != 'true'
+        run: scripts/testdata-scan.sh
       # v4.0.1+ is required for native merge_group support (v3 has none).
       # Each filter mirrors the component workflow's own on.pull_request.paths,
       # plus this workflow file so editing the gate re-tests everything.

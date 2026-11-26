@@ -131,6 +131,10 @@ for f in hooks/*.py; do
 done
 """
 
+[tasks."testdata:scan"]
+description = "Fail on UUIDs or Nav hostnames in test data that are not in .github/testdata-allowlist.txt"
+run = "sh scripts/testdata-scan.sh"
+
 # ─── Pricing ──────────────────────────────────────────────────────────────────
 
 [tasks."pricing:check"]
