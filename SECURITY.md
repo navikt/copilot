@@ -43,18 +43,20 @@ copilot-api serves an unauthenticated route group of its own, `/public/v1/`, reg
 - `GET /public/v1/videos/{id}`, metadata for one published video
 - `GET /public/v1/videos/{id}/play`, playback URL for the HLS master
 - `GET /public/v1/videos/{id}/captions`, caption track URL for one video
+- `GET /public/v1/fact`, the front page's «Dagens innsikt»: one finished sentence and a link, built from Nav-wide aggregates (rules in `internal/api/public/public_fact.go`)
 
 The group serves published entries from the video manifest only, and no Copilot, billing or user data. The handlers validate their own input: the feed rejects a `limit` outside 1-50 and a `cursor` that is not a non-negative integer, every id must match `^[a-z0-9][a-z0-9-]{1,63}$`, and the detail and play endpoints are rate limited to 60 requests per minute per client IP.
 
 ### Zone 2: protected (Azure AD auth required)
 
-Pages and API routes that show organization-level Copilot data (`PRIVATE_PAGE_PATHS` and `PRIVATE_API_PATHS` in `apps/my-copilot/src/proxy.ts`):
+Pages and API routes that show organization-level Copilot data (`PRIVATE_PAGE_PATHS` and `PRIVATE_API_PATHS` in `apps/my-copilot/src/lib/private-paths.ts`, re-exported by `src/proxy.ts`):
 
-- `/statistikk`, `/innsikt/team`, `/innsikt/forbruk`, `/innsikt/bruk`, `/innsikt/tilpasninger`, `/innsikt/trender`, usage and insight pages (BigQuery)
+- `/statistikk`, `/innsikt/team`, `/innsikt/forbruk`, `/innsikt/bruk`, `/innsikt/tilpasninger`, `/innsikt/nav-pilot`, `/innsikt/trender`, `/innsikt/undersokelser`, usage and insight pages (BigQuery)
 - `/admin`, admin page
 - `/adopsjon`, adoption metrics (BigQuery)
 - `/kostnad`, billing overview (GitHub API)
 - `/abonnement`, seat management (GitHub API, **mutating**)
+- `/min-side`, the user's own budget (`/min-side/budsjett`)
 - `/nav-pilot/undersokelse`, survey results
 - `/api/*` and `/statistikk/json`, all private API routes (including `/api/copilot` for seat management)
 
@@ -72,6 +74,9 @@ copilot-api endpoints that reach external services:
 - `GET /api/v1/copilot/usage/*`, BigQuery usage data
 - `GET /api/v1/copilot/adoption/*`, BigQuery adoption data
 - `GET /api/v1/copilot/customizations/*`, BigQuery customization data
+- `GET /api/v1/copilot/mimir/telemetry`, BigQuery nav-pilot telemetry
+- `GET|PUT|POST /api/v1/copilot/budget*`, budget and budget raises (raises are **mutating**)
+- `GET /api/v1/admin/billing/*`, admin billing views (admin only, `auth.RequireAdmin`)
 
 copilot-api validates the Azure AD JWT (signature, issuer, audience, expiry) and checks the `azp` claim against the pre-authorized apps list. It fails closed if that list is empty.
 
@@ -187,7 +192,7 @@ nav-pilot ──(GitHub token)──▶ copilot-cli ──(M2M token via Texas)�
 > `accessPolicy.inbound.rules` — no manual secret step). The token must also be
 > an app token (`idtyp=app` or the `access_as_application` role, with no
 > NAVident or e-mail). Trust is scoped to read-only `GET`s on the per-user
-> usage routes (`onBehalfOfRoutes` in `identity_onbehalfof.go`). A user token
+> usage routes (`onBehalfOfRoutes` in `internal/auth/identity_onbehalfof.go`). A user token
 > carrying the header gets 401. The header value is format-validated against
 > GitHub's username rules before being accepted. If copilot-cli is not
 > a pre-authorized inbound app the trust path stays disabled (fails closed).
@@ -243,12 +248,12 @@ Inbound is public via ingress, and Wonderwall enforces auth on the protected rou
 
 | Input | Validation | File |
 |-------|-----------|------|
-| GitHub username (path param) | Regex: `^[a-zA-Z0-9]([a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$` | `github_handlers.go` |
-| SAML identity (path param) | Non-empty, max 254 chars, no `/` | `github_handlers.go` |
-| Request body (POST /seats) | `http.MaxBytesReader` 1KB limit, JSON decode | `github_handlers.go` |
+| GitHub username (path param) | Regex: `^[a-zA-Z0-9]([a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$` | `internal/api/copilot/github_handlers.go` |
+| SAML identity (path param) | Non-empty, max 254 chars, no `/` | `internal/api/copilot/github_handlers.go` |
+| Request body (POST /seats) | `http.MaxBytesReader` 1KB limit, JSON decode | `internal/api/copilot/github_handlers.go` |
 | BigQuery `days` param | Integer, range 1–365 | `internal/api/copilot/bigquery_handlers.go` |
-| BigQuery table/view refs | Server-side only (from config, not user input) | `bigquery.go` |
-| BigQuery day filter | Parameterized query (`@days`) | `bigquery.go` |
+| BigQuery table/view refs | Server-side only (from config, not user input) | `internal/bigquery/bigquery.go` |
+| BigQuery day filter | Parameterized query (`@days`) | `internal/bigquery/bigquery.go` |
 
 ## Audit logging
 

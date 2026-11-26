@@ -38,10 +38,9 @@ See [`docs/VIDEO_HUD_ARCHITECTURE.md`](./docs/VIDEO_HUD_ARCHITECTURE.md#4-video-
 
 ## Integrations
 
-- **BigQuery**: Usage analytics are read from BigQuery (`copilot_metrics.usage_metrics`), populated by the [copilot-metrics](../copilot-metrics/) naisjob. This replaced the deprecated GitHub Copilot Metrics API.
-- **GitHub API**: Manages Copilot subscriptions and retrieves user details.
-  - Uses GitHub Copilot User Management API for seat assignments and billing
-  - All API requests include `X-GitHub-Api-Version: 2022-11-28` header for stability
+- **copilot-api**: my-copilot is a BFF with no BigQuery or GitHub credentials. Every data call goes to [copilot-api](../copilot-api/) (`COPILOT_API_URL`, default `http://copilot-api`) with an OBO token from Texas (`src/lib/backend-api.ts`).
+  - copilot-api reads usage analytics from BigQuery (`copilot_metrics.usage_metrics`), populated by the [copilot-metrics](../copilot-metrics/) naisjob. This replaced the deprecated GitHub Copilot Metrics API.
+  - copilot-api calls the GitHub Copilot User Management API for seat assignments and billing, with the `X-GitHub-Api-Version: 2022-11-28` header.
 - **Azure AD**: Uses Azure AD for authentication and authorization, ensuring that only authorized users can access the application.
 - **Next.js**: Built with Next.js 16 for server-side rendering and optimized performance.
 - **Aksel Design System**: Uses Nav's design system (`@navikt/ds-react`) with Tailwind CSS for styling.
@@ -59,8 +58,8 @@ See [`docs/VIDEO_HUD_ARCHITECTURE.md`](./docs/VIDEO_HUD_ARCHITECTURE.md#4-video-
 First, clone the repository:
 
 ```bash
-git clone https://github.com/nais/my-copilot.git
-cd my-copilot
+git clone https://github.com/navikt/copilot.git
+cd copilot/apps/my-copilot
 ```
 
 Install the dependencies:
@@ -85,30 +84,9 @@ AZURE_OPENID_CONFIG_JWKS_URI=your_azure_openid_config_jwks_uri
 AZURE_OPENID_CONFIG_ISSUER=your_azure_openid_config_issuer
 ```
 
-#### BigQuery Access (for usage analytics and adoption data)
+#### Data from copilot-api
 
-The stats/usage pages read from BigQuery. To access BigQuery locally:
-
-1. Authenticate with GCP:
-
-   ```bash
-   gcloud auth application-default login
-   ```
-
-2. Add BigQuery env vars to `.env.local`:
-
-   ```env
-   GCP_TEAM_PROJECT_ID=<your-nais-team-project-id>
-
-   # Copilot Metrics (usage data from copilot-metrics naisjob)
-   COPILOT_METRICS_DATASET=copilot_metrics
-   COPILOT_METRICS_TABLE=usage_metrics
-
-   # Copilot Adoption (repo scanning data from copilot-adoption naisjob)
-   COPILOT_ADOPTION_DATASET=copilot_adoption
-   ```
-
-   Find the project ID with `nais project list` or `gcloud projects list --filter="name:copilot"`.
+The stats and usage pages get their data from copilot-api, not from BigQuery directly. Run copilot-api locally (see [its README](../copilot-api/README.md)) and point `COPILOT_API_URL` at it in `.env.local`. With neither `NAIS_CLUSTER_NAME` nor `NAIS_TOKEN_EXCHANGE_ENDPOINT` set, `src/lib/backend-api.ts` treats the run as local development and calls copilot-api without an OBO token. The BigQuery variables (`GCP_TEAM_PROJECT_ID`, `COPILOT_METRICS_DATASET`, `COPILOT_ADOPTION_DATASET` and so on) belong to copilot-api.
 
 Run the development server:
 
@@ -142,7 +120,7 @@ Storybook runs on [http://localhost:6006](http://localhost:6006).
 
 `mise run dev` starts only the Next.js app. Storybook is started separately with the commands above.
 
-Video stories use real media URLs from the dev bucket (`copilot-videos-public-dev`) via fixtures in `src/components/storybook-video-fixtures.ts`.
+Video stories use real media URLs from the dev bucket (`copilot-videos-public-dev`) via fixtures in `src/components/video/stories/storybook-video-fixtures.ts`.
 Story structure and documentation conventions are documented in Storybook under `Video/Dokumentasjon/Storybook Guidelines`.
 
 ### Building and Testing
@@ -192,7 +170,7 @@ The command only adds entries. When a page moves, add a permanent redirect in `n
 
 ### Deployment
 
-This project uses GitHub Actions for CI/CD. The workflow is defined in `.github/workflows/build-deploy.yaml`. The application is deployed to the Nais platform.
+This project uses GitHub Actions for CI/CD. The workflow is `.github/workflows/my-copilot.yaml`, which calls the shared `.github/workflows/mise-build-deploy-nais.yaml`. The application is deployed to the Nais platform.
 
 ### Environment Variables
 
@@ -204,11 +182,8 @@ All environment variables are documented below, organized by integration:
 | `AZURE_APP_CLIENT_ID`                   | Yes      | —                             | Azure AD application client ID                        |
 | `AZURE_OPENID_CONFIG_JWKS_URI`          | Yes      | —                             | Azure AD JWKS endpoint for JWT validation             |
 | `AZURE_OPENID_CONFIG_ISSUER`            | Yes      | —                             | Azure AD issuer for JWT validation                    |
-| **BigQuery**                            |          |                               |                                                       |
-| `GCP_TEAM_PROJECT_ID`                   | Yes      | —                             | GCP project ID containing BigQuery datasets           |
-| `COPILOT_METRICS_DATASET`               | No       | `copilot_metrics`             | Dataset for usage metrics                             |
-| `COPILOT_METRICS_TABLE`                 | No       | `usage_metrics`               | Table for daily usage data                            |
-| `COPILOT_ADOPTION_DATASET`              | No       | `copilot_adoption`            | Dataset for repo adoption scan results                |
+| **copilot-api**                         |          |                               |                                                       |
+| `COPILOT_API_URL`                       | No       | `http://copilot-api`          | copilot-api base URL (BigQuery and GitHub data)       |
 | **Telemetry** (@nais/apm)               |          |                               |                                                       |
 | `NAIS_FRONTEND_TELEMETRY_COLLECTOR_URL` | No       | set by nais                   | Collector URL; unset on localhost, so nothing is sent |
 | **MCP Registry**                        |          |                               |                                                       |
@@ -236,16 +211,7 @@ azure:
 
 ## Metrics
 
-Exposed via `GET /metrics` in Prometheus format.
-
-| Metric                               | Type  | Labels | Description                             |
-| ------------------------------------ | ----- | ------ | --------------------------------------- |
-| `copilot_seats_total`                | Gauge | —      | Total Copilot seats in the organization |
-| `copilot_seats_active_this_cycle`    | Gauge | —      | Seats active in current billing cycle   |
-| `copilot_seats_inactive_this_cycle`  | Gauge | —      | Seats inactive in current billing cycle |
-| `copilot_seats_added_this_cycle`     | Gauge | —      | Seats added in current billing cycle    |
-| `copilot_seats_pending_invitation`   | Gauge | —      | Seats with pending invitations          |
-| `copilot_seats_pending_cancellation` | Gauge | —      | Seats pending cancellation              |
+my-copilot exposes `GET /metrics` for Prometheus (`prometheus.path` in `.nais/app.yaml`) with its own HTTP and runtime metrics. The `copilot_seats_*` gauges come from copilot-api, see [copilot-api's README](../copilot-api/README.md#monitoring).
 
 Grafana dashboards: [`dashboards/tenant/copilot-home.json`](../../dashboards/tenant/copilot-home.json) for a status overview with seats (users and cost live in my-copilot under `/admin/kostnad`) and [`dashboards/tenant/my-copilot-ops.json`](../../dashboards/tenant/my-copilot-ops.json) for health. See [`dashboards/README.md`](../../dashboards/README.md).
 
@@ -267,7 +233,7 @@ This matrix is implemented in `CLIENT_SUPPORT` in `src/lib/install-commands.ts` 
 
 ### References
 
-The customization detail drawer (`src/components/detail-drawer.tsx`) provides per-editor install instructions for all customization types. The following official references were used to build these instructions:
+The customization detail drawer (`src/components/detail-drawer/detail-drawer.tsx`) provides per-editor install instructions for all customization types. The following official references were used to build these instructions:
 
 ### VS Code
 
@@ -313,17 +279,17 @@ The customization detail drawer (`src/components/detail-drawer.tsx`) provides pe
 
 ## Customization Metadata
 
-Each customization in `.github/` has a sibling `metadata.json` file that provides catalog metadata (domain, tags, usage examples). These files are **never loaded by Copilot** — they're only consumed by the manifest generator.
+Each customization in the repo-root `agents/`, `instructions/`, `prompts/` and `skills/` directories has a sibling `metadata.json` file that provides catalog metadata (domain, tags, usage examples). These files are **never loaded by Copilot** — they're only consumed by the manifest generator.
 
 ### File placement
 
-| Type         | Pattern                                     | Example                       |
-| ------------ | ------------------------------------------- | ----------------------------- |
-| Agents       | `.github/agents/<name>.metadata.json`       | `aksel.metadata.json`         |
-| Instructions | `.github/instructions/<name>.metadata.json` | `nextjs-aksel.metadata.json`  |
-| Prompts      | `.github/prompts/<name>.metadata.json`      | `nais-manifest.metadata.json` |
-| Skills       | `.github/skills/<name>/metadata.json`       | `aksel-builder/metadata.json` |
-| MCP servers  | `examples` field in `allowlist.json`        | See mcp-registry README       |
+| Type         | Pattern                              | Example                       |
+| ------------ | ------------------------------------ | ----------------------------- |
+| Agents       | `agents/<name>.metadata.json`        | `aksel.metadata.json`         |
+| Instructions | `instructions/<name>.metadata.json`  | `nextjs-aksel.metadata.json`  |
+| Prompts      | `prompts/<name>.metadata.json`       | `nais-manifest.metadata.json` |
+| Skills       | `skills/<name>/metadata.json`        | `aksel-builder/metadata.json` |
+| MCP servers  | `examples` field in `allowlist.json` | See mcp-registry README       |
 
 ### Schema
 

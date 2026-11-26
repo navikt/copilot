@@ -31,7 +31,7 @@ See `internal/cli/config.go`, `config_cmd.go`, `config_setup.go`, `setup_autonom
 Files:
 - `config.go` — `Config` struct, `readConfig()`, `validateConfig()`, `loadConfigForLaunch()` (validate + warn/refuse at launch), `resolve()`, `CLIOverrides`, `ResolvedConfig`
 - `config_cmd.go` — `nav-pilot config` subcommands: `init`, `setup`, `show`, `path`, `get`, `set`, `unset`, `validate`, `explain`, `sandbox`
-- `config_setup.go` — Interactive first-run wizard (`maybeRunFirstRunSetup`, `runConfigSetup`, `writeSetupConfig`)
+- `config_setup.go` — First run and the setup wizard (`maybeRunFirstRunSetup`, `firstRunDefaults`, `runConfigSetup`, `writeSetupConfig`). A new install (no nav-pilot state) gets defaults without questions from `firstRunDefaults`: opencode when it is installed, logged in and tested, otherwise Copilot CLI; only with neither client installed does it ask whether to install opencode. An existing install without `config.toml` gets the interactive wizard, which `nav-pilot config setup` also runs
 - `setup_autonomy.go` — The wizard's two questions: how Copilot runs commands (`autonomy`, Copilot only) and what the agent may do with git (cplt's `git_guard.protect_default_branch_only`). The network question (cplt preset) is only in `nav-pilot config setup --advanced`
 
 ### Config fields
@@ -100,8 +100,8 @@ med `ToOpenCodeModel`: tom verdi, `auto` eller den gamle `github-copilot/auto`-a
 blir en modell den aktive agentpakken selv har erklært, hvis den har erklært en — ellers
 `""`, og da uteblir `--model`-flagget helt, og opencode løser sin egen standard, verifisert
 til å velge en modell kontoen faktisk har tilgang til. Bare Copilot-id-er (som
-`claude-opus-4.8`) prefikses til `github-copilot/<id>`. Konfigverdi for opencode må
-fortsatt være på `provider/model`-format.
+`claude-opus-4.8`) prefikses til `github-copilot/<id>`. Konfigverdien godtar begge formene, se
+per-klient-valideringen over.
 
 En "Custom…"-mulighet i velgeren lar brukeren skrive inn valgfri id med validering.
 `nav-pilot config explain model` lister opp de kjente id-ene per provider.
@@ -282,9 +282,9 @@ finnes — inkludert ferskhetsindikator og eventuelle konflikter.
 
 ## Avhengigheter
 
-Kun `charmbracelet/huh` (TUI-prompts) som direkte avhengighet. Alt annet er standardbiblioteket. Hold det slik — ikke legg til nye avhengigheter uten god grunn.
+Få og veletablerte direkte avhengigheter, se `go.mod`: `BurntSushi/toml` (konfig), `charmbracelet/{huh,bubbles,bubbletea,lipgloss,x/term}` (TUI), `zalando/go-keyring`, `santhosh-tekuri/jsonschema/v6`, `go.opentelemetry.io/otel*` (telemetri), `go.yaml.in/yaml/v3` og noen `golang.org/x`-pakker. Resten er standardbiblioteket. Ikke legg til nye avhengigheter uten god grunn.
 
-Ingen YAML-bibliotek. Frontmatter parses linjebasert. Ingen HTTP-rammeverk. Ingen DI-rammeverk.
+Frontmatter i artefakter parses linjebasert. `go.yaml.in/yaml/v3` brukes bare i `internal/provider/staged_launch.go`. Ingen HTTP-rammeverk. Ingen DI-rammeverk.
 
 ## Kommandomønster
 
@@ -854,7 +854,7 @@ Skriv informasjonsmeldinger til stdout, feilmeldinger til stderr.
 
 ### Exit-koder
 
-Definert som konstanter i `main.go`:
+Definert som konstanter i `internal/cli/cli.go`:
 
 ```go
 const (
@@ -862,6 +862,7 @@ const (
     ExitError            = 1  // generell feil
     ExitUpdatesAvailable = 1  // sync: oppdateringer tilgjengelig (stille, ingen feilmelding)
     ExitSyncFailed       = 2  // sync: sjekk feilet
+    ExitFrozen           = 3  // install --frozen: nekter, pinnen stemmer ikke med repoet
 )
 ```
 
@@ -888,7 +889,7 @@ if jsonOutput {
 }
 ```
 
-`outputJSON()` er definert i `sync.go` og bruker `json.NewEncoder(os.Stdout)` med innrykk.
+`outputJSON()` er definert i `internal/cli/jsonout.go` og bruker `json.NewEncoder(os.Stdout)` med innrykk.
 
 ### Feilhint (did-you-mean)
 
@@ -1085,7 +1086,7 @@ har drevet.
 
 > **Arbeidsområdet er ikke en ekte installasjon.** Det inneholder én agent
 > (personaen som testes) pluss alle instruksjonene. En ekte `install --repo`
-> gir i tillegg de 12 andre agentene, alle 32 skills og 7 prompts, og en
+> gir i tillegg de 11 andre agentene, alle 39 skills og 7 prompts (tall per november 2026), og en
 > samling gir enda et annet utvalg. Ingen ekte flyt gir «én agent pluss alle
 > instruksjoner». Utvalget er smalt med vilje, siden det er personaen som
 > testes, men det betyr at **de absolutte tallene harnessen rapporterer ikke er
@@ -1193,7 +1194,7 @@ nav-pilot legger **~6 900–8 000 tokens alltid-lastet kontekst** til hver sesjo
 
 To ting er allerede riktige, og bør ikke rotes med:
 
-- **Launch-injeksjon er null.** nav-pilot legger ikke til systemprompt, preamble eller policy-tekst, registrerer ingen MCP-server ved oppstart og installerer ingen hooks. MCP-servere legges bare til når du ber om det med `nav-pilot mcp enable`. Den setter flagg og env-variabler og exec-er klienten.
+- **Launch-injeksjon er null.** nav-pilot legger ikke til systemprompt, preamble eller policy-tekst, og registrerer ingen MCP-server ved oppstart. Hooks (redaksjon, loop guard, gates) installeres av `nav-pilot install`, og i OpenCode kobler oppstarten dem inn gjennom en plugin ([docs/opencode-hooks.md](docs/opencode-hooks.md)). De legger ingen tekst til i prompten. MCP-servere legges bare til når du ber om det med `nav-pilot mcp enable`. Den setter flagg og env-variabler og exec-er klienten.
 - **Per-turn-overhead er null.** nav-pilot avslutter inn i `exec`; ingenting re-injiseres per tur.
 - **Progressive disclosure virker.** Skills koster bare header til de invokeres; prompts og ikke-persona-agenter koster ingenting før bruk. `buildLeanAGENTSmd` er grunnen til at OpenCode-siden ligger på 8k og ikke 34k.
 
@@ -1264,7 +1265,7 @@ gh (GitHub CLI), age (FiloSottile), gum (Charmbracelet), gitleaks og Hugo.
 
 | Område | Vurdering | Forklaring |
 |---|---|---|
-| Minimale avhengigheter | ✅ Beste praksis | 1 direkte avhengighet (huh) — gh har 30+, gum 15. Lav forsyningskjederisiko |
+| Minimale avhengigheter | ✅ Beste praksis | Få, veletablerte direkte avhengigheter (se `go.mod`) — gh har 30+. Lav forsyningskjederisiko |
 | Sikkerhet (filer) | ✅ Beste i klassen | Symlink-sjekk, atomiske skrivinger, stivalidering — bedre enn gh og de fleste andre |
 | Testbar arkitektur | ✅ Eksemplarisk | `run()` returnerer error, overridbare globale variabler, `t.TempDir()` |
 | NO_COLOR-støtte | ✅ clig.dev-standard | Respekterer `NO_COLOR`-miljøvariabelen |
@@ -1273,7 +1274,7 @@ gh (GitHub CLI), age (FiloSottile), gum (Charmbracelet), gitleaks og Hugo.
 | Dry-run-mønster | ✅ clig.dev-anbefalt | `--dry-run` er en av de mest anbefalte flaggene |
 | Scope-abstraksjon | ✅ Gjennomtenkt | `InstallScope` er en ren abstraksjon — uvanlig godt for et lite verktøy |
 | Hjelptekst | ✅ God struktur | Viser kommandoer, flagg og eksempler — følger clig.dev "lead with examples" |
-| Flat pakkestruktur | ✅ Riktig for størrelse | age, gum og andre småverktøy gjør det samme — nested pakker er for store verktøy |
+| Pakkestruktur | ✅ Riktig for størrelse | `main.go` kaller `internal/cli`; resten ligger i egne pakker under `internal/` |
 | Interaktiv modus | ✅ Moderne | Faller tilbake til TUI ved ingen argumenter (som `npm init`) — clig.dev-kompatibelt |
 
 ### Sammenligningstabell
@@ -1286,7 +1287,7 @@ gh (GitHub CLI), age (FiloSottile), gum (Charmbracelet), gitleaks og Hugo.
 | Hjelp | `-h`/`--help` fungerer, eksempler inkludert | A |
 | Underkommandoer | Ren dispatch, ingen flagg-eksplosjon | A |
 | Output-moduser | `--json` på alle kommandoer | A |
-| Exit-koder | Dokumenterte konstanter (0/1/2) | A |
+| Exit-koder | Dokumenterte konstanter (0/1/2/3) | A |
 | Miljøvariabler | NO_COLOR respektert, COPILOT_* brukt | A- |
 | Fremtidssikring | Stabile flaggnavn, additive endringer | A |
 
@@ -1298,13 +1299,13 @@ Noen avvik fra industripraksis er bevisste valg:
 
 1. **Manuell flagg-parsing i stedet for Cobra/Kong** — Gir full kontroll, null implisitt oppførsel, enklere å forstå. Bytt bare hvis vi passerer ~15 kommandoer.
 
-2. **Ingen YAML-bibliotek for frontmatter** — Linjebasert parsing er enklere, raskere, og unngår en avhengighet. Fungerer for vårt begrensede bruk.
+2. **Linjebasert frontmatter-parsing** — Enklere og raskere enn et YAML-bibliotek for vårt begrensede bruk. `go.yaml.in/yaml/v3` brukes bare der oppstarten må skrive om YAML.
 
-3. **Én pakke (package main)** — Hele kodebasen kan leses på under en time. Ikke splitt i internal/pkg med mindre det blir nødvendig.
+3. **`internal/`-pakker** — Koden startet som én `package main` og er siden delt i pakker under `internal/` (`cli`, `artifacts`, `provider`, `source`, `telemetry` med flere).
 
-4. **Farger via ANSI i stedet for lipgloss** — 30 linjer i output.go er nok. lipgloss er overkill for fem fargehjelper-funksjoner.
+4. **lipgloss for TUI** — Konfig-TUI og interaktiv modus bruker `charmbracelet/lipgloss`.
 
-5. **Ingen konfigurasjonsfil** — CLI-flagg og miljøvariabler er nok for et verktøy som kjøres sjelden. Konfigfiler legger til kompleksitet.
+5. **Konfigfil i TOML** — `~/.nav-pilot/config.toml` (`internal/cli/config.go`), med CLI-flagg og miljøvariabler som overstyring.
 
 ## Ytelse
 
