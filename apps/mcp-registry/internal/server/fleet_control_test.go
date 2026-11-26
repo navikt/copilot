@@ -153,7 +153,10 @@ func TestFleetControlFailsClosed(t *testing.T) {
 		},
 		"malformed json": func(_ *testing.T, f *fakeFleetControl) { f.body = "not an object" },
 		"oversized": func(_ *testing.T, f *fakeFleetControl) {
-			f.body = map[string]any{"schema_version": 1, "generation": 2, "pad": strings.Repeat("x", maxSnapshotBytes)}
+			// valid snapshot (newer generation, real servers): only the size guard rejects it
+			b := regSnap(2, allowlistEntries(t, 3))
+			b["pad"] = strings.Repeat("x", maxSnapshotBytes)
+			f.body = b
 		},
 	}
 	for name, breakIt := range cases {
@@ -291,13 +294,23 @@ func TestFleetControlReloadsDoNotInterleave(t *testing.T) {
 func TestShadowServesAllowlistAndReportsDiff(t *testing.T) {
 	f := newFakeFleetControl(t)
 	s := fleetStore(t, f)
-	s.Fleet.shadow = true
+	t.Setenv("REGISTRY_SOURCE", "shadow")
+	var err error
+	if s.Fleet, err = FleetControlFromEnv(); err != nil {
+		t.Fatal(err)
+	}
+	if !s.Fleet.shadow {
+		t.Fatal("REGISTRY_SOURCE=shadow did not set shadow mode")
+	}
 	file := serverNames(t, s)
 	if err := s.Reload(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	if got := serverNames(t, s); !slices.Equal(got, file) {
 		t.Fatalf("shadow changed the served servers: %v, want %v", got, file)
+	}
+	if f.requests.Load() == 0 || s.Fleet.lastSuccess.IsZero() {
+		t.Fatal("shadow did not fetch a snapshot successfully")
 	}
 	if got := testutil.ToFloat64(fleetControlShadowDiff.WithLabelValues("only_allowlist")); int(got) != len(file)-2 {
 		t.Fatalf("only_allowlist = %v, want %d", got, len(file)-2)
@@ -328,5 +341,19 @@ func TestSnapshotAgeTracksLastGoodFetch(t *testing.T) {
 	}
 	if age := testutil.ToFloat64(fleetControlSnapshotAge); age > 5 {
 		t.Fatalf("age after good fetch = %v, want near 0", age)
+	}
+}
+
+// A body cut at the limit also fails to parse, so only the error text proves
+// the size guard (not the parser) rejected it.
+func TestFleetControlOversizedHitsSizeGuard(t *testing.T) {
+	f := newFakeFleetControl(t)
+	s := fleetStore(t, f)
+	b := regSnap(2, allowlistEntries(t, 3))
+	b["pad"] = strings.Repeat("x", maxSnapshotBytes)
+	f.body = b
+	_, _, err := s.Fleet.fetch(t.Context(), s.parseStatic)
+	if err == nil || !strings.Contains(err.Error(), "too large") {
+		t.Fatalf("err = %v, want snapshot too large", err)
 	}
 }
