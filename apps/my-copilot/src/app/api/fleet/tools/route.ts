@@ -10,6 +10,13 @@ import { DiscoveryError, type DiscoveryFailure, discoverTools } from "@/lib/flee
  * address is built here from team and app, never taken from the client. The
  * client adds the checklist and nais.yaml snippet for "access".
  */
+/**
+ * Path from the registered address. No query, fragment, "..", "//" or non-ASCII:
+ * fleet-gateway's ValidateUpstreamURL refuses query and fragment, the rest keeps it a plain path.
+ */
+const PATH = /^\/[A-Za-z0-9._~\/-]{0,255}$/;
+const isPath = (p: string) => PATH.test(p) && !p.includes("..") && !p.includes("//");
+
 const fail = (error: string, kind: string, status: number) => NextResponse.json({ error, kind }, { status });
 
 // Short and actionable; the client always offers typing the tools in by hand.
@@ -32,13 +39,15 @@ export async function POST(request: Request) {
   if (!(await getUser(false)) || !token) return fail(MESSAGES.auth[0], "auth", 401);
   if (!isSameOrigin(request.headers))
     return fail("Vi kunne ikke bekrefte at skjemaet kom fra denne siden. Last inn siden på nytt.", "origin", 403);
-  const b = (await request.json().catch(() => null)) as { namespace?: unknown; app?: unknown } | null;
+  const b = (await request.json().catch(() => null)) as { namespace?: unknown; app?: unknown; path?: unknown } | null;
   const ns = typeof b?.namespace === "string" ? b.namespace : "";
   const app = typeof b?.app === "string" ? b.app.trim() : "";
+  const path = (typeof b?.path === "string" && b.path.trim()) || "/mcp";
   if (!isName(ns) || !isName(app)) return fail("Velg team og app først.", "invalid", 400);
+  if (!isPath(path)) return fail("Stien i adressen er ugyldig. Bruk for eksempel /mcp.", "invalid", 400);
   try {
-    // The form fleet-gateway's probe accepts; it resolves it to <app>.<team>.svc.cluster.local.
-    return NextResponse.json({ tools: await discoverTools(token, ns, `http://${app}.${ns}`) });
+    // Host from team and app only; fleet-gateway resolves it to <app>.<team>.svc.cluster.local.
+    return NextResponse.json({ tools: await discoverTools(token, ns, `http://${app}.${ns}${path}`) });
   } catch (err) {
     const kind = err instanceof DiscoveryError ? err.kind : "unavailable";
     const [msg, status] = MESSAGES[kind];

@@ -39,7 +39,7 @@ import {
   type WizardState,
   type WizardTool,
 } from "@/lib/fleet-wizard";
-import { FleetTable, ToolDiscovery } from "../fleet-ui";
+import { FleetTable, ToolDiscovery, pathOf } from "../fleet-ui";
 import { DATA_HREF, EFFECT, LEVELS_HREF } from "@/lib/mcp-labels";
 import { linkClass } from "@/components/nav-pilot/doc-page";
 
@@ -274,6 +274,7 @@ export function RegisterWizard({ teams, team, apps, requireRos, discoveryEnabled
                 <ToolDiscovery
                   namespace={s.team}
                   app={s.app}
+                  path={pathOf(s.url.trim())}
                   // The team ticks; destructive tools start unticked. Annotations never decide access.
                   onTools={(tools) =>
                     set({

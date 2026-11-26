@@ -34,9 +34,25 @@ describe("POST /api/fleet/tools", () => {
     const res = await post({ namespace: "team-a", app: "docs", url: "http://evil.team-b/mcp" });
     expect(res.status).toBe(200);
     // The client's url is ignored.
-    expect(discover).toHaveBeenCalledWith("t", "team-a", "http://docs.team-a");
+    expect(discover).toHaveBeenCalledWith("t", "team-a", "http://docs.team-a/mcp");
     await expect(res.json()).resolves.toEqual({ tools: [{ name: "a", suggestedRisk: "read", destructive: false }] });
   });
+
+  it("keeps the path, never the host, from the client", async () => {
+    discover.mockResolvedValue([]);
+    await post({ namespace: "team-a", app: "docs", path: "/mcp/gw" });
+    expect(discover).toHaveBeenLastCalledWith("t", "team-a", "http://docs.team-a/mcp/gw");
+    await post({ namespace: "team-a", app: "docs", path: "/" });
+    expect(discover).toHaveBeenLastCalledWith("t", "team-a", "http://docs.team-a/");
+  });
+
+  it.each(["mcp", "/../x", "//evil.no/mcp", "/a?b", "/a#b", "/møte", "/" + "a".repeat(256), "/a@b"])(
+    "refuses the path %s before any call",
+    async (path) => {
+      expect((await post({ namespace: "team-a", app: "docs", path })).status).toBe(400);
+      expect(discover).not.toHaveBeenCalled();
+    }
+  );
 
   it("refuses without a login, from another origin, or without team and address, before any call", async () => {
     auth.token = null;

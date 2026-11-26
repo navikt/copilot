@@ -88,7 +88,7 @@ describe("RegisterWizard", () => {
       "/mcp/referanse#mcp-compliance"
     );
     const body = JSON.parse(fetch.mock.calls[0][1].body);
-    expect(body).toEqual({ namespace: "team-a", app: expect.any(String) });
+    expect(body).toEqual({ namespace: "team-a", app: expect.any(String), path: "/mcp" });
   });
 
   it("shows a missing route as a warning, without the snippet, and allows typing tools", async () => {

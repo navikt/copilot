@@ -885,6 +885,7 @@ describe("ServerForm discovery (edit)", () => {
     expect(JSON.parse((fetch.mock.calls[0] as unknown as [string, RequestInit])[1].body as string)).toEqual({
       namespace: "team-a",
       app: "docs-mcp",
+      path: "/mcp",
     });
   });
 

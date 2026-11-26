@@ -1571,6 +1571,9 @@ export function AccessPolicy({ app }: { app?: string }) {
   );
 }
 
+/** The path of an address, or "" (the route then uses /mcp). Never the host. */
+export const pathOf = (url?: string) => (url && URL.canParse(url) ? new URL(url).pathname : "");
+
 export type FoundTool = { name: string; description?: string; suggestedRisk: Risk; destructive: boolean };
 type Discovery =
   { state: "idle" | "busy" } | { state: "ok"; count: number } | { state: "error"; kind: string; message: string };
@@ -1585,11 +1588,13 @@ const RETRY = "Fleet kunne ikke hente verktøyene akkurat nå. Prøv igjen om li
 export function ToolDiscovery({
   namespace,
   app,
+  path,
   onTools,
   onManual,
 }: {
   namespace: string;
   app: string;
+  path: string;
   onTools: (tools: FoundTool[]) => void;
   onManual: () => void;
 }) {
@@ -1600,7 +1605,7 @@ export function ToolDiscovery({
       const res = await fetch("/api/fleet/tools", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ namespace, app }),
+        body: JSON.stringify({ namespace, app, path }),
       });
       const out = (await res.json().catch(() => ({}))) as { tools?: FoundTool[]; error?: string; kind?: string };
       if (!res.ok || !out.tools) {
@@ -1757,6 +1762,7 @@ export function ServerForm({
           <ToolDiscovery
             namespace={server.metadata.namespace}
             app={spec?.upstream?.app ?? ""}
+            path={pathOf(spec?.upstream?.url)}
             onTools={(tools) => {
               // Destructive tools stay out of the field; the team adds them by hand if they belong.
               if (toolsRef.current)
