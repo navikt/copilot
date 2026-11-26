@@ -53,12 +53,9 @@ export async function POST(request: Request) {
   } catch (err) {
     const kind = err instanceof DiscoveryError ? err.kind : "unavailable";
     if (kind === "notincluster")
-      return fail(
-        `Fant ikke appen i ${cluster()}. Fleet på denne siden når bare apper i ${cluster()}.`,
-        kind,
-        502,
-        { other: otherFleet() }
-      );
+      return fail(`Fant ikke appen i ${cluster()}. Fleet på denne siden når bare apper i ${cluster()}.`, kind, 502, {
+        other: otherFleet(),
+      });
     const [msg, status] = MESSAGES[kind];
     return fail(msg, kind, status);
   }

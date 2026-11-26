@@ -18,23 +18,14 @@ export type DiscoveredTool = { name: string; description?: string; suggestedRisk
  * (422, address outside the team).
  */
 export type DiscoveryFailure =
-    | "off"
-  | "unavailable"
-  | "auth"
-  | "access"
-  | "member"
-  | "target"
-  | "noroute"
-  | "notincluster"
-  | "toolarge"
-  | "invalid";
+  "off" | "unavailable" | "auth" | "access" | "member" | "target" | "noroute" | "notincluster" | "toolarge" | "invalid";
 const KINDS = new Set<string>(["unavailable", "auth", "access", "noroute", "notincluster", "toolarge", "invalid"]);
 
 /** The other cluster's /fleet: each fleet-gateway reaches only apps in its own cluster (#3116). */
 export function otherFleet(cluster = process.env.NAIS_CLUSTER_NAME ?? ""): { cluster: string; href: string } {
   return cluster.startsWith("dev-")
-    ? { cluster: "prod-gcp", href: "https://min-copilot.ansatt.nav.no/fleet" }
-    : { cluster: "dev-gcp", href: "https://min-copilot.ansatt.dev.nav.no/fleet" };
+    ? { cluster: "prod-gcp", href: "https://ki-utvikling.nav.no/fleet" }
+    : { cluster: "dev-gcp", href: "https://ki-utvikling.ekstern.dev.nav.no/fleet" };
 }
 
 export class DiscoveryError extends Error {

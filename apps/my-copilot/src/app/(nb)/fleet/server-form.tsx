@@ -58,7 +58,9 @@ export function AccessPolicy({ app }: { app?: string }) {
 export const pathOf = (url?: string) => (url && URL.canParse(url) ? new URL(url).pathname : "");
 
 type Discovery =
-  { state: "idle" | "busy" } | { state: "ok"; count: number } | { state: "error"; kind: string; message: string; other?: { cluster: string; href: string } };
+  | { state: "idle" | "busy" }
+  | { state: "ok"; count: number }
+  | { state: "error"; kind: string; message: string; other?: { cluster: string; href: string } };
 
 const RETRY = "Fleet kunne ikke hente verktøyene akkurat nå. Prøv igjen om litt.";
 

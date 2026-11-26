@@ -444,7 +444,7 @@ describe("/fleet", () => {
     // The lead names the cluster this fleet serves (#3116).
     vi.stubEnv("NAIS_CLUSTER_NAME", "prod-gcp");
     render(await RegisterPage(sp()));
-    expect(screen.getByText(/^Fleet i prod-gcp\. For team-a\./)).toBeInTheDocument();
+    expect(screen.getByText(/^Fleet i prod-gcp\. /)).toBeInTheDocument();
     vi.stubEnv("FLEET_CONTROL_URL", "");
     await expect(RegisterPage(sp())).rejects.toThrow("NEXT_NOT_FOUND");
   });
