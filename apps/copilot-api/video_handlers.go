@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/config"
 )
 
 type VideoHandlers struct {
@@ -19,7 +21,7 @@ type VideoHandlers struct {
 	playRateLimiter  *videoPlayRateLimiter
 }
 
-func newVideoHandlers(config *Config) *VideoHandlers {
+func newVideoHandlers(config *config.Config) *VideoHandlers {
 	manifestSource := strings.TrimSpace(config.VideoManifestURL)
 	if manifestSource == "" {
 		manifestSource = strings.TrimSpace(config.VideoManifestPath)

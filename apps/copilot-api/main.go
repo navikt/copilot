@@ -17,11 +17,13 @@ import (
 
 	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
 
+	"github.com/navikt/copilot/apps/copilot-api/internal/budget"
+	"github.com/navikt/copilot/apps/copilot-api/internal/config"
 	"github.com/navikt/copilot/apps/copilot-api/internal/github"
 )
 
 func main() {
-	config := loadConfig()
+	config := config.Load()
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: config.LogLevel,
@@ -96,8 +98,8 @@ func main() {
 	}
 
 	// Initialize budget client (optional - requires the BUDGET_GITHUB_APP_* enterprise app)
-	var budgetHandlers *BudgetHandlers
-	billingToken, billingErr := newBillingTokenSource(config)
+	var budgetHandlers *budget.BudgetHandlers
+	billingToken, billingErr := budget.NewBillingTokenSource(config)
 	switch {
 	case billingErr != nil:
 		slog.Error("Budget app unavailable - budget endpoint will be unavailable", "error", billingErr)
@@ -106,8 +108,12 @@ func main() {
 	case githubClient == nil:
 		slog.Warn("GitHub client unavailable - budget endpoint will be unavailable (see GitHub client initialization error above)")
 	default:
-		budgetClient := newBudgetClient(billingToken, config.GitHubEnterprise)
-		budgetHandlers = newBudgetHandlers(budgetClient)
+		budgetClient := budget.NewBudgetClient(billingToken, config.GitHubEnterprise)
+		budgetHandlers = budget.NewBudgetHandlers(budgetClient, func() int64 {
+			metricsCollector.mu.RLock()
+			defer metricsCollector.mu.RUnlock()
+			return metricsCollector.githubSeatsActive
+		})
 		if bqHandlers != nil {
 			bqHandlers.setBudgetClient(budgetClient)
 		}
@@ -115,20 +121,20 @@ func main() {
 	}
 
 	// Personal budget raises: Postgres (DB_URL from Nais) plus a write token.
-	var seats seatLookup
+	var seats budget.SeatLookup
 	if githubClient != nil {
 		seats = githubClient
 	}
-	var teams teamSource
+	var teams budget.TeamSource
 	if cachedBQClient != nil {
 		teams = cachedBQClient
 	}
-	raiseHandlers, err := newBudgetRaiseHandlersFromConfig(config, seats, teams)
+	raiseHandlers, err := budget.NewBudgetRaiseHandlersFromConfig(config, seats, teams)
 	if err != nil {
 		slog.Error("Budget raises disabled", "error", err)
 	}
 	if budgetHandlers != nil {
-		budgetHandlers.raises = raiseHandlers
+		budgetHandlers.SetRaises(raiseHandlers)
 	}
 
 	// Build the IdentityResolver chain (see identity.go) that determines "who
@@ -239,7 +245,7 @@ func main() {
 	defer stop()
 
 	if raiseHandlers != nil {
-		go raiseHandlers.runReconciler(sigCtx, cmp.Or(config.BudgetReconcileInterval, 5*time.Minute))
+		go raiseHandlers.RunReconciler(sigCtx, cmp.Or(config.BudgetReconcileInterval, 5*time.Minute))
 	}
 
 	go func() {
@@ -272,7 +278,7 @@ func main() {
 // misconfigured deployment. The explicit ENABLE_DEV_QUERY opt-in ensures an
 // unauthenticated raw-SQL endpoint can never appear because an env var went
 // missing.
-func registerDevRoutes(mux *http.ServeMux, config *Config, rawBQClient *bqstore.BigQueryClient) {
+func registerDevRoutes(mux *http.ServeMux, config *config.Config, rawBQClient *bqstore.BigQueryClient) {
 	if rawBQClient == nil || config.Environment != "local" || !config.EnableDevQuery {
 		return
 	}

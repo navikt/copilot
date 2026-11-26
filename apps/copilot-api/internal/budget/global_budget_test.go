@@ -1,4 +1,4 @@
-package main
+package budget
 
 import (
 	"encoding/json"
@@ -9,7 +9,7 @@ import (
 func TestGlobalBudgetEnterpriseAICredits(t *testing.T) {
 	amount := 5.0
 	// A fresh cache stands in for the GitHub API.
-	c := newBudgetClient(staticToken("token"), "nav")
+	c := NewBudgetClient(staticToken("token"), "nav")
 	c.cachedAt = time.Now()
 	c.cachedData = []BudgetEntry{
 		{BudgetScope: "enterprise", BudgetProductSKU: "actions", BudgetAmount: 99},
@@ -18,7 +18,7 @@ func TestGlobalBudgetEnterpriseAICredits(t *testing.T) {
 		{BudgetScope: "user", BudgetProductSKU: "ai_credits", BudgetAmount: 400, ConsumedAmount: &amount},
 	}
 
-	b, err := c.getGlobalBudget(t.Context())
+	b, err := c.GetGlobalBudget(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/navikt/copilot/apps/copilot-api/internal/budget"
+	"github.com/navikt/copilot/apps/copilot-api/internal/config"
 	"github.com/navikt/copilot/apps/copilot-api/internal/github"
 )
 
@@ -78,12 +80,12 @@ copilot_seats_pending_cancellation %d
 		w.Header().Set("Content-Type", "text/plain; version=0.0.4")
 		w.Header().Set("Cache-Control", "no-store")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(metrics + samlNameIDMetrics() + budgetReconcileMetrics() + httpMetricsText()))
+		w.Write([]byte(metrics + samlNameIDMetrics() + budget.BudgetReconcileMetrics() + httpMetricsText()))
 	})
 }
 
 // startMetricsCollector starts the background metrics collection
-func startMetricsCollector(config *Config, client *github.Client) {
+func startMetricsCollector(config *config.Config, client *github.Client) {
 	// Collect immediately on startup (if configured)
 	if client != nil {
 		slog.Info("Running initial GitHub metrics collection")

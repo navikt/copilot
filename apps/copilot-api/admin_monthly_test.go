@@ -7,13 +7,14 @@ import (
 	"testing"
 
 	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
+	"github.com/navikt/copilot/apps/copilot-api/internal/config"
 )
 
 // The route must sit behind requireAdmin: Nav's bill is for admins only.
 func TestAdminMonthlyRouteRequiresAdmin(t *testing.T) {
 	const group = "11111111-2222-3333-4444-555555555555"
-	t.Setenv(adminGroupEnv, group)
-	router := makeAPIRouter(&Config{}, &BigQueryHandlers{bqClient: &mockBigQueryClient{}}, nil, nil, auth.NewIdentityResolverChain(), nil)
+	t.Setenv(auth.AdminGroupEnv, group)
+	router := makeAPIRouter(&config.Config{}, &BigQueryHandlers{bqClient: &mockBigQueryClient{}}, nil, nil, auth.NewIdentityResolverChain(), nil)
 	for _, tc := range []struct {
 		groups []string
 		want   int

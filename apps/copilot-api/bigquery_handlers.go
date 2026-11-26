@@ -1,13 +1,33 @@
 package main
 
 import (
+	"context"
 	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 	"log/slog"
 	"math"
 	"net/http"
 	"sort"
 	"strconv"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/budget"
 )
+
+// globalBudgetGetter abstracts the enterprise-wide credit budget lookup.
+// Used by usage-distribution histograms to scale credit buckets to the
+// actual per-user $ budget rather than a hardcoded ceiling.
+type globalBudgetGetter interface {
+	GetGlobalBudget(ctx context.Context) (*budget.GlobalBudget, error)
+}
+
+// usdPerAICredit is GitHub Copilot's billing conversion rate: 1 AI credit = $0.01 USD.
+// Source: apps/my-copilot/src/lib/model-pricing.ts (auto-generated from GitHub docs).
+const usdPerAICredit = 0.01
+
+// defaultPerUserBudgetCredits is used as a fallback when the budget client is
+// unavailable or errors, so the usage-distribution endpoint degrades gracefully
+// instead of failing outright. As of 2026-07 this matches the $400/user/month
+// enterprise default (400 / 0.01 = 40,000 credits).
+const defaultPerUserBudgetCredits = 40000
 
 // BigQueryHandlers wraps handlers that use BigQuery
 type BigQueryHandlers struct {

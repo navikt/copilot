@@ -15,6 +15,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
 	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
+	"github.com/navikt/copilot/apps/copilot-api/internal/config"
 	"github.com/navikt/copilot/apps/copilot-api/internal/problem"
 )
 
@@ -134,7 +135,7 @@ func TestRespondError(t *testing.T) {
 }
 
 func TestLoggingMiddleware(t *testing.T) {
-	config := &Config{
+	config := &config.Config{
 		LoggedEndpoints: map[string]bool{
 			"/api/v1/": true,
 		},
@@ -196,7 +197,7 @@ func TestAPIRoutesRequireAuth(t *testing.T) {
 		})
 	}
 
-	config := &Config{Environment: "prod"}
+	config := &config.Config{Environment: "prod"}
 	apiRouter := authMiddleware(makeAPIRouter(config, nil, nil, nil, auth.NewIdentityResolverChain(), nil))
 
 	// All /api/v1/ paths should require auth
@@ -240,7 +241,7 @@ func TestSAMLPathNeverLoggedOrTraced(t *testing.T) {
 	t.Cleanup(func() { slog.SetDefault(prev) })
 
 	email := "ola.nordmann@nav.no"
-	config := &Config{LoggedEndpoints: map[string]bool{"/api/v1/": true}}
+	config := &config.Config{LoggedEndpoints: map[string]bool{"/api/v1/": true}}
 	h := loggingMiddleware(config, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 	for _, p := range []string{"/api/v1/copilot/saml/" + email, "/api/v1/copilot/SAML/" + email, "/api/v1/ȺȺȺȺȺȺȺȺȺȺ/saml/" + email} {
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -283,7 +284,7 @@ func TestUsernamePathsRedacted(t *testing.T) {
 
 	exp := tracetest.NewInMemoryExporter()
 	tp := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exp))
-	config := &Config{LoggedEndpoints: map[string]bool{"/api/v1/": true}}
+	config := &config.Config{LoggedEndpoints: map[string]bool{"/api/v1/": true}}
 	var got []string
 	h := traceAPI(loggingMiddleware(config, http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		got = append(got, r.URL.Path)
@@ -324,7 +325,7 @@ func TestUsernamePathsRedacted(t *testing.T) {
 // Every allowlisted pattern must be one the API router registers, or the
 // allowlist silently stops matching after a route is renamed.
 func TestOnBehalfOfRoutesAreRegistered(t *testing.T) {
-	mux := makeAPIRouter(&Config{}, nil, nil, nil, auth.NewIdentityResolverChain(), nil).(*http.ServeMux)
+	mux := makeAPIRouter(&config.Config{}, nil, nil, nil, auth.NewIdentityResolverChain(), nil).(*http.ServeMux)
 	for _, pattern := range auth.OnBehalfOfRoutePatterns() {
 		method, path, _ := strings.Cut(pattern, " ")
 		req := httptest.NewRequest(method, strings.ReplaceAll(path, "{username}", "ola"), nil)

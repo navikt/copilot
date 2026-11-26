@@ -1,4 +1,4 @@
-package main
+package budget
 
 import (
 	"context"
@@ -11,6 +11,8 @@ import (
 	"net/url"
 	"sync"
 	"time"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/config"
 )
 
 const (
@@ -65,7 +67,7 @@ type BudgetClient struct {
 	cachedData []BudgetEntry
 }
 
-func newBudgetClient(token func(context.Context) (string, error), enterprise string) *BudgetClient {
+func NewBudgetClient(token func(context.Context) (string, error), enterprise string) *BudgetClient {
 	return &BudgetClient{
 		httpClient: &http.Client{Timeout: 15 * time.Second},
 		token:      token,
@@ -78,10 +80,10 @@ func staticToken(tok string) func(context.Context) (string, error) {
 	return func(context.Context) (string, error) { return tok, nil }
 }
 
-// newBillingTokenSource returns the token source for enterprise billing reads:
+// NewBillingTokenSource returns the token source for enterprise billing reads:
 // the budget app, or the classic PAT only when BILLING_PAT_FALLBACK=true. The
 // PAT is never a silent fallback; nil means budget endpoints are unavailable.
-func newBillingTokenSource(cfg *Config) (func(context.Context) (string, error), error) {
+func NewBillingTokenSource(cfg *config.Config) (func(context.Context) (string, error), error) {
 	if cfg.BillingPATFallback && cfg.GitHubBillingToken != "" {
 		slog.Warn("Billing reads use GITHUB_BILLING_TOKEN because BILLING_PAT_FALLBACK=true; remove the flag once the budget GitHub App works")
 		return staticToken(cfg.GitHubBillingToken), nil
@@ -162,24 +164,7 @@ func (c *BudgetClient) fetchAllBudgetPages(ctx context.Context) ([]BudgetEntry, 
 	return nil, fmt.Errorf("budget pagination exceeded %d pages", maxPages)
 }
 
-var errBudgetNotFound = errors.New("budget not found for user")
-
-// globalBudgetGetter abstracts the enterprise-wide credit budget lookup.
-// Used by usage-distribution histograms to scale credit buckets to the
-// actual per-user $ budget rather than a hardcoded ceiling.
-type globalBudgetGetter interface {
-	getGlobalBudget(ctx context.Context) (*GlobalBudget, error)
-}
-
-// usdPerAICredit is GitHub Copilot's billing conversion rate: 1 AI credit = $0.01 USD.
-// Source: apps/my-copilot/src/lib/model-pricing.ts (auto-generated from GitHub docs).
-const usdPerAICredit = 0.01
-
-// defaultPerUserBudgetCredits is used as a fallback when the budget client is
-// unavailable or errors, so the usage-distribution endpoint degrades gracefully
-// instead of failing outright. As of 2026-07 this matches the $400/user/month
-// enterprise default (400 / 0.01 = 40,000 credits).
-const defaultPerUserBudgetCredits = 40000
+var ErrBudgetNotFound = errors.New("budget not found for user")
 
 // GlobalBudget aggregates AI credit consumption across all users this month.
 type GlobalBudget struct {
@@ -192,9 +177,9 @@ type GlobalBudget struct {
 	EnterpriseBudget float64 `json:"-"`
 }
 
-// getGlobalBudget aggregates AI credit consumption across all budget entries.
+// GetGlobalBudget aggregates AI credit consumption across all budget entries.
 // Returns total consumed, per-user default budget, and count of active users.
-func (c *BudgetClient) getGlobalBudget(ctx context.Context) (*GlobalBudget, error) {
+func (c *BudgetClient) GetGlobalBudget(ctx context.Context) (*GlobalBudget, error) {
 	entries, err := c.getEnterpriseBudgets(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get enterprise budgets: %w", err)
@@ -219,7 +204,7 @@ func (c *BudgetClient) getGlobalBudget(ctx context.Context) (*GlobalBudget, erro
 	}
 
 	if perUserBudget == 0 && totalConsumed == 0 && enterpriseBudget == 0 {
-		return nil, errBudgetNotFound
+		return nil, ErrBudgetNotFound
 	}
 
 	return &GlobalBudget{
@@ -258,7 +243,7 @@ func (c *BudgetClient) getUserBudget(ctx context.Context, username string) (*Use
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, errBudgetNotFound
+		return nil, ErrBudgetNotFound
 	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("user budget API returned %d", resp.StatusCode)
@@ -270,7 +255,7 @@ func (c *BudgetClient) getUserBudget(ctx context.Context, username string) (*Use
 	}
 
 	if result.EffectiveBudget == nil {
-		return nil, errBudgetNotFound
+		return nil, ErrBudgetNotFound
 	}
 
 	// Determine if this is an override budget by checking if the returned scope is "user"

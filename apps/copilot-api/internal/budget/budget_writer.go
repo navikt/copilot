@@ -1,4 +1,4 @@
-package main
+package budget
 
 import (
 	"bytes"
@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/navikt/copilot/apps/copilot-api/internal/config"
 	"github.com/navikt/copilot/apps/copilot-api/internal/github"
 )
 
@@ -53,7 +54,7 @@ var errNoWriteToken = errors.New("budget write token not configured")
 // decision 2026-11-23; a dedicated app replaces it after New Year). The values
 // come from a separate Nais secret with BUDGET_ prefixed names, because
 // copilot-api's GITHUB_APP_* already hold the org app. Unset: nil, raises 503.
-func newBudgetTokenSource(cfg *Config) (func(context.Context) (string, error), error) {
+func newBudgetTokenSource(cfg *config.Config) (func(context.Context) (string, error), error) {
 	if cfg.BudgetAppID == "" && cfg.BudgetAppPrivateKey == "" && cfg.BudgetAppInstallationID == "" {
 		return nil, nil
 	}

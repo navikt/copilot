@@ -1,4 +1,4 @@
-package main
+package budget
 
 import (
 	"context"
@@ -28,6 +28,7 @@ import (
 
 	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
 
+	"github.com/navikt/copilot/apps/copilot-api/internal/config"
 	"github.com/navikt/copilot/apps/copilot-api/internal/github"
 )
 
@@ -165,15 +166,15 @@ func migrateBudget(ctx context.Context, pool *pgxpool.Pool) error {
 	return nil
 }
 
-type seatLookup interface {
+type SeatLookup interface {
 	GetCopilotSeat(ctx context.Context, username string) (*github.CopilotSeat, error)
 }
 
-type budgetRaiseHandlers struct {
+type BudgetRaiseHandlers struct {
 	store        *budgetStore
 	writer       *budgetWriter // nil: no write token, raises answer 503
-	seats        seatLookup    // nil: licence check impossible, raises answer 503
-	teams        teamSource    // nil: only «annet» is selectable
+	seats        SeatLookup    // nil: licence check impossible, raises answer 503
+	teams        TeamSource    // nil: only «annet» is selectable
 	mode         string        // off | dry_run | on (F18)
 	defaultUSD   int
 	loc          *time.Location
@@ -187,14 +188,14 @@ type budgetRaiseHandlers struct {
 	midReconcile func()         // test hook: runs inside reconcileUser's tx, after the version check
 }
 
-func newBudgetRaiseHandlers(cfg *Config, writer *budgetWriter, seats seatLookup) (*budgetRaiseHandlers, error) {
+func newBudgetRaiseHandlers(cfg *config.Config, writer *budgetWriter, seats SeatLookup) (*BudgetRaiseHandlers, error) {
 	loc, err := time.LoadLocation(cfg.BudgetTimeZone)
 	if err != nil {
 		return nil, fmt.Errorf("BUDGET_TIME_ZONE: %w", err)
 	}
-	h := &budgetRaiseHandlers{
+	h := &BudgetRaiseHandlers{
 		store: &budgetStore{dsn: cfg.BudgetDatabaseURL}, writer: writer, seats: seats,
-		mode: parseBudgetWrites(cfg.BudgetWrites), defaultUSD: cfg.BudgetDefaultUSD, loc: loc,
+		mode: config.ParseBudgetWrites(cfg.BudgetWrites), defaultUSD: cfg.BudgetDefaultUSD, loc: loc,
 		open: cfg.BudgetRaisesOpen, testUsers: cfg.BudgetTestUsers, now: time.Now,
 		limiter: &loginLimiter{per: budgetRatePerMin, window: time.Minute, seen: map[string]*loginWindow{}},
 	}
@@ -245,7 +246,7 @@ func callerLogin(r *http.Request) (string, bool) {
 }
 
 // wrap answers 503 when the feature is not configured and applies the rate limit.
-func (h *budgetRaiseHandlers) wrap(next func(*budgetRaiseHandlers, http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
+func (h *BudgetRaiseHandlers) wrap(next func(*BudgetRaiseHandlers, http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if h == nil {
 			respondError(w, "budget_writes_unavailable", "Budget raises are not configured", http.StatusServiceUnavailable)
@@ -280,9 +281,9 @@ func decodeStrict(w http.ResponseWriter, r *http.Request, v any) bool {
 	return true
 }
 
-// teamSource lists GitHub org teams (owner decision on #2704: the charged team
+// TeamSource lists GitHub org teams (owner decision on #2704: the charged team
 // is a GitHub team slug, not Teamkatalogen). CachedBigQueryClient implements it.
-type teamSource interface {
+type TeamSource interface {
 	GetGitHubTeams(ctx context.Context) ([]bqstore.GitHubTeam, error)
 	GetRosterTeams(ctx context.Context, login string) ([]string, error)
 }
@@ -291,7 +292,7 @@ type teamSource interface {
 // «annet/ukjent». If the team source is down, only «annet» is offered and
 // accepted (fails closed), and known is false: membership is unknown, which
 // is not the same as having left a team.
-func (h *budgetRaiseHandlers) budgetTeams(ctx context.Context, login string) (teams []bqstore.GitHubTeam, known bool) {
+func (h *BudgetRaiseHandlers) budgetTeams(ctx context.Context, login string) (teams []bqstore.GitHubTeam, known bool) {
 	teams = []bqstore.GitHubTeam{{Slug: budgetTeamOther, Name: "Annet/ukjent"}}
 	if h.teams == nil {
 		return teams, false
@@ -323,7 +324,7 @@ func (h *budgetRaiseHandlers) budgetTeams(ctx context.Context, login string) (te
 
 // myTeams reads the caller's roster teams; known is false when membership
 // could not be read.
-func (h *budgetRaiseHandlers) myTeams(ctx context.Context, login string) (mine []string, known bool) {
+func (h *BudgetRaiseHandlers) myTeams(ctx context.Context, login string) (mine []string, known bool) {
 	if h.teams == nil {
 		return nil, false
 	}
@@ -338,7 +339,7 @@ func (h *budgetRaiseHandlers) myTeams(ctx context.Context, login string) (mine [
 // validTeam reports whether slug is selectable now, from the roster alone
 // (display names are not needed to validate); known is false when membership
 // could not be read (then only «annet» is valid).
-func (h *budgetRaiseHandlers) validTeam(ctx context.Context, login, slug string) (valid, known bool) {
+func (h *BudgetRaiseHandlers) validTeam(ctx context.Context, login, slug string) (valid, known bool) {
 	if slug == budgetTeamOther {
 		return true, true
 	}
@@ -346,7 +347,7 @@ func (h *budgetRaiseHandlers) validTeam(ctx context.Context, login, slug string)
 	return slices.Contains(mine, slug), known
 }
 
-func (h *budgetRaiseHandlers) isValidTeam(ctx context.Context, login, slug string) bool {
+func (h *BudgetRaiseHandlers) isValidTeam(ctx context.Context, login, slug string) bool {
 	ok, _ := h.validTeam(ctx, login, slug)
 	return ok
 }
@@ -362,7 +363,7 @@ type budgetProfile struct {
 	LeftTeamID string `json:"leftTeamId,omitempty"`
 }
 
-func (h *budgetRaiseHandlers) handleOptions(w http.ResponseWriter, r *http.Request, login string) {
+func (h *BudgetRaiseHandlers) handleOptions(w http.ResponseWriter, r *http.Request, login string) {
 	teams, _ := h.budgetTeams(r.Context(), login)
 	respondJSON(w, map[string]any{
 		"roles": budgetRoles, "categories": budgetCategories, "expectedValues": budgetExpectedValues,
@@ -383,7 +384,7 @@ func readProfile(ctx context.Context, q interface {
 	return p, err
 }
 
-func (h *budgetRaiseHandlers) handleGetProfile(w http.ResponseWriter, r *http.Request, login string) {
+func (h *BudgetRaiseHandlers) handleGetProfile(w http.ResponseWriter, r *http.Request, login string) {
 	pool, err := h.store.get(r.Context())
 	if err != nil {
 		dbUnavailable(w, err)
@@ -409,7 +410,7 @@ func (h *budgetRaiseHandlers) handleGetProfile(w http.ResponseWriter, r *http.Re
 	respondJSON(w, p, http.StatusOK)
 }
 
-func (h *budgetRaiseHandlers) handlePutProfile(w http.ResponseWriter, r *http.Request, login string) {
+func (h *BudgetRaiseHandlers) handlePutProfile(w http.ResponseWriter, r *http.Request, login string) {
 	var in struct {
 		TeamID string `json:"teamId"`
 		Role   string `json:"role"`
@@ -466,7 +467,7 @@ func scanRaise(row pgx.Row) (raiseView, error) {
 	return v, err
 }
 
-func (h *budgetRaiseHandlers) listRaises(ctx context.Context, login string, month *time.Time) ([]raiseView, error) {
+func (h *BudgetRaiseHandlers) listRaises(ctx context.Context, login string, month *time.Time) ([]raiseView, error) {
 	pool, err := h.store.get(ctx)
 	if err != nil {
 		return nil, err
@@ -492,13 +493,13 @@ func (h *budgetRaiseHandlers) listRaises(ctx context.Context, login string, mont
 const budgetGetRaisesTimeout = time.Second
 
 // monthRaises is the raises part of GET /budget, under its own short deadline.
-func (h *budgetRaiseHandlers) monthRaises(ctx context.Context, login string, month time.Time) ([]raiseView, error) {
+func (h *BudgetRaiseHandlers) monthRaises(ctx context.Context, login string, month time.Time) ([]raiseView, error) {
 	ctx, cancel := context.WithTimeout(ctx, budgetGetRaisesTimeout)
 	defer cancel()
 	return h.listRaises(ctx, login, &month)
 }
 
-func (h *budgetRaiseHandlers) handleListRaises(w http.ResponseWriter, r *http.Request, login string) {
+func (h *BudgetRaiseHandlers) handleListRaises(w http.ResponseWriter, r *http.Request, login string) {
 	out, err := h.listRaises(r.Context(), login, nil)
 	if err != nil {
 		dbUnavailable(w, err)
@@ -524,7 +525,7 @@ func idempotencyKey(w http.ResponseWriter, r *http.Request) (string, bool) {
 	return key, true
 }
 
-func (h *budgetRaiseHandlers) handleRaise(w http.ResponseWriter, r *http.Request, login string) {
+func (h *BudgetRaiseHandlers) handleRaise(w http.ResponseWriter, r *http.Request, login string) {
 	key, ok := idempotencyKey(w, r)
 	if !ok {
 		return
@@ -566,7 +567,7 @@ func validFreeText(s string) bool {
 	return !strings.ContainsFunc(s, func(r rune) bool { return unicode.IsControl(r) && r != '\n' && r != '\r' && r != '\t' })
 }
 
-func (h *budgetRaiseHandlers) handleAdminOverride(w http.ResponseWriter, r *http.Request, actor string) {
+func (h *BudgetRaiseHandlers) handleAdminOverride(w http.ResponseWriter, r *http.Request, actor string) {
 	key, ok := idempotencyKey(w, r)
 	if !ok {
 		return
@@ -607,7 +608,7 @@ const budgetWriteTimeout = 45 * time.Second
 // written to GitHub before the raise row exists, and only budget IDs from
 // budget_github are ever patched (F6, F8). No pool connection is held across
 // a GitHub call.
-func (h *budgetRaiseHandlers) raise(w http.ResponseWriter, r *http.Request, actor, target string, in raiseInput, key string, admin bool) {
+func (h *BudgetRaiseHandlers) raise(w http.ResponseWriter, r *http.Request, actor, target string, in raiseInput, key string, admin bool) {
 	ctx := r.Context()
 	dry := h.mode == "dry_run"
 	// Before opening, only test users get a budget written, admin override
@@ -828,7 +829,7 @@ type raisePlan struct {
 
 // reserve does every database check and inserts the raise row in one short
 // transaction under a per-user advisory lock (F9 across replicas).
-func (h *budgetRaiseHandlers) reserve(ctx context.Context, pool *pgxpool.Pool, rv reservation) (raisePlan, string, error) {
+func (h *BudgetRaiseHandlers) reserve(ctx context.Context, pool *pgxpool.Pool, rv reservation) (raisePlan, string, error) {
 	var plan raisePlan
 	var code string
 	var wrote bool // only a reservation that changed rows bumps the version
@@ -1007,7 +1008,7 @@ func recordOwnBudget(ctx context.Context, tx pgx.Tx, login string, month time.Ti
 
 // write PATCHes our budget or POSTs a new one, records it and reads it back.
 // ctx is detached from the request.
-func (h *budgetRaiseHandlers) write(ctx context.Context, pool *pgxpool.Pool, target string, plan raisePlan, month, expires time.Time) (ownID string, status int, unknown bool, err error) {
+func (h *BudgetRaiseHandlers) write(ctx context.Context, pool *pgxpool.Pool, target string, plan raisePlan, month, expires time.Time) (ownID string, status int, unknown bool, err error) {
 	for _, id := range plan.gone { // ours, but GitHub no longer lists it: gone
 		if err := lockedTx(ctx, pool, target, writes(func(tx pgx.Tx) error {
 			if _, err := tx.Exec(ctx, "UPDATE budget_github SET deleted_at = now() WHERE github_budget_id = $1", id); err != nil {
@@ -1076,7 +1077,7 @@ var errReadBackUnavailable = errors.New("budget read-back unavailable")
 
 // verify reads the budget back (chapter 7 step 5). The list is the only place
 // with expires_at, and a raise without our expiry would never end (R1).
-func (h *budgetRaiseHandlers) verify(ctx context.Context, login, id string, amount int, expires time.Time) error {
+func (h *BudgetRaiseHandlers) verify(ctx context.Context, login, id string, amount int, expires time.Time) error {
 	list, _, err := h.writer.listUser(ctx, login)
 	if err != nil {
 		return errors.Join(errReadBackUnavailable, err)
@@ -1092,9 +1093,9 @@ func (h *budgetRaiseHandlers) verify(ctx context.Context, login, id string, amou
 	return fmt.Errorf("budget %s not listed after write", id)
 }
 
-// newBudgetRaiseHandlersFromConfig builds the raise handlers. A missing token
+// NewBudgetRaiseHandlersFromConfig builds the raise handlers. A missing token
 // leaves writer nil (raises 503); a broken token config is an error.
-func newBudgetRaiseHandlersFromConfig(cfg *Config, seats seatLookup, teams teamSource) (*budgetRaiseHandlers, error) {
+func NewBudgetRaiseHandlersFromConfig(cfg *config.Config, seats SeatLookup, teams TeamSource) (*BudgetRaiseHandlers, error) {
 	tok, err := newBudgetTokenSource(cfg)
 	if err != nil {
 		return nil, err
@@ -1103,7 +1104,7 @@ func newBudgetRaiseHandlersFromConfig(cfg *Config, seats seatLookup, teams teamS
 	if tok != nil {
 		writer = &budgetWriter{httpClient: &http.Client{Timeout: 15 * time.Second}, baseURL: "https://api.github.com", enterprise: cfg.GitHubEnterprise, token: tok, budgetType: cfg.BudgetGitHubBudgetType}
 	}
-	slog.Info("Budget raises configured", "writes", parseBudgetWrites(cfg.BudgetWrites), "write_token", tok != nil, "database", cfg.BudgetDatabaseURL != "")
+	slog.Info("Budget raises configured", "writes", config.ParseBudgetWrites(cfg.BudgetWrites), "write_token", tok != nil, "database", cfg.BudgetDatabaseURL != "")
 	h, err := newBudgetRaiseHandlers(cfg, writer, seats)
 	if h != nil {
 		h.teams = teams
@@ -1112,7 +1113,7 @@ func newBudgetRaiseHandlersFromConfig(cfg *Config, seats seatLookup, teams teamS
 }
 
 // ownsBudget backs budgetWriter.owns: an ID is ours only if budget_github has it.
-func (h *budgetRaiseHandlers) ownsBudget(ctx context.Context, id string) (bool, error) {
+func (h *BudgetRaiseHandlers) ownsBudget(ctx context.Context, id string) (bool, error) {
 	pool, err := h.store.get(ctx)
 	if err != nil {
 		return false, err
@@ -1138,7 +1139,7 @@ type ownership struct {
 	before  int
 }
 
-func (h *budgetRaiseHandlers) readOwnership(ctx context.Context, tx pgx.Tx, login string, list *ghUserBudgets) (ownership, error) {
+func (h *BudgetRaiseHandlers) readOwnership(ctx context.Context, tx pgx.Tx, login string, list *ghUserBudgets) (ownership, error) {
 	var own ownership
 	ours := map[string]bool{}
 	rows, err := tx.Query(ctx, "SELECT github_budget_id FROM budget_github WHERE github_login = $1 AND deleted_at IS NULL", login)
@@ -1183,7 +1184,7 @@ func (h *budgetRaiseHandlers) readOwnership(ctx context.Context, tx pgx.Tx, logi
 // settleStale reconciles stuck pending raises against the GitHub list, under
 // the caller's lock: applied if GitHub holds our budget for it (adopting an
 // identical unrecorded one), failed otherwise. Audited, no GitHub write.
-func (h *budgetRaiseHandlers) settleStale(ctx context.Context, tx pgx.Tx, login string, stale []staleRow, own *ownership) error {
+func (h *BudgetRaiseHandlers) settleStale(ctx context.Context, tx pgx.Tx, login string, stale []staleRow, own *ownership) error {
 	for _, p := range stale {
 		status := "failed"
 		// Its own month and expiry, not this request's: it may be last month's.
@@ -1225,7 +1226,7 @@ const budgetPendingAlertAge = time.Hour
 // budgetPendingAlertAge as of the last reconcile pass (#2718).
 var budgetRaisesStuckPending atomic.Int64
 
-func budgetReconcileMetrics() string {
+func BudgetReconcileMetrics() string {
 	return fmt.Sprintf("\n# HELP copilot_api_budget_raises_stuck_pending Number of budget raises stuck in pending for more than one hour\n# TYPE copilot_api_budget_raises_stuck_pending gauge\ncopilot_api_budget_raises_stuck_pending %d\n",
 		budgetRaisesStuckPending.Load())
 }
@@ -1236,7 +1237,7 @@ func budgetReconcileMetrics() string {
 // never writes to GitHub, and with BUDGET_WRITES other than on it does
 // nothing. Safe with several replicas: the lock and the version check mean a
 // user is settled once; the other pass finds nothing pending.
-func (h *budgetRaiseHandlers) reconcileStuck(ctx context.Context) (int, error) {
+func (h *BudgetRaiseHandlers) reconcileStuck(ctx context.Context) (int, error) {
 	if h.mode != "on" || h.writer == nil {
 		return 0, nil
 	}
@@ -1284,13 +1285,13 @@ func (h *budgetRaiseHandlers) reconcileStuck(ctx context.Context) (int, error) {
 // userLock returns the stripe for login. Two logins may share a stripe and
 // then wait on each other briefly; the Postgres advisory lock serialises
 // across replicas anyway.
-func (h *budgetRaiseHandlers) userLock(login string) *sync.Mutex {
+func (h *BudgetRaiseHandlers) userLock(login string) *sync.Mutex {
 	f := fnv.New32a()
 	f.Write([]byte(login))
 	return &h.userLocks[f.Sum32()%uint32(len(h.userLocks))]
 }
 
-func (h *budgetRaiseHandlers) reconcileUser(ctx context.Context, pool *pgxpool.Pool, login string) (int, error) {
+func (h *BudgetRaiseHandlers) reconcileUser(ctx context.Context, pool *pgxpool.Pool, login string) (int, error) {
 	mu := h.userLock(login)
 	mu.Lock()
 	defer mu.Unlock()
@@ -1345,8 +1346,8 @@ func (h *budgetRaiseHandlers) reconcileUser(ctx context.Context, pool *pgxpool.P
 	return settled, nil
 }
 
-// runReconciler runs reconcileStuck every interval until ctx ends.
-func (h *budgetRaiseHandlers) runReconciler(ctx context.Context, interval time.Duration) {
+// RunReconciler runs reconcileStuck every interval until ctx ends.
+func (h *BudgetRaiseHandlers) RunReconciler(ctx context.Context, interval time.Duration) {
 	t := time.NewTicker(interval)
 	defer t.Stop()
 	for {

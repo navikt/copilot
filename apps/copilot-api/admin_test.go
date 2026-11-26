@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
+	"github.com/navikt/copilot/apps/copilot-api/internal/config"
 )
 
 // TestAdminRoutesGuarded walks every registered admin route.
@@ -15,7 +16,7 @@ import (
 func TestAdminRoutesGuarded(t *testing.T) {
 	const group = "11111111-2222-3333-4444-555555555555"
 	// nil BigQuery handlers: an admin who gets through sees the 503 stub.
-	router := makeAPIRouter(&Config{}, nil, nil, nil, nil, nil)
+	router := makeAPIRouter(&config.Config{}, nil, nil, nil, nil, nil)
 	cases := []struct {
 		name string
 		env  string
@@ -36,7 +37,7 @@ func TestAdminRoutesGuarded(t *testing.T) {
 	for _, tc := range cases {
 		for _, p := range paths {
 			t.Run(tc.name+" "+p, func(t *testing.T) {
-				t.Setenv(adminGroupEnv, tc.env)
+				t.Setenv(auth.AdminGroupEnv, tc.env)
 				req := httptest.NewRequest(http.MethodGet, p, nil)
 				req = req.WithContext(context.WithValue(req.Context(), auth.UserContextKey, tc.user))
 				rec := httptest.NewRecorder()
@@ -66,13 +67,13 @@ func TestRequireAdmin(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Setenv(adminGroupEnv, tc.env)
+			t.Setenv(auth.AdminGroupEnv, tc.env)
 			req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/x", nil)
 			if tc.user != nil {
 				req = req.WithContext(context.WithValue(req.Context(), auth.UserContextKey, tc.user))
 			}
 			rec := httptest.NewRecorder()
-			requireAdmin(ok).ServeHTTP(rec, req)
+			auth.RequireAdmin(ok).ServeHTTP(rec, req)
 			if rec.Code != tc.want {
 				t.Fatalf("got %d, want %d", rec.Code, tc.want)
 			}
@@ -82,8 +83,8 @@ func TestRequireAdmin(t *testing.T) {
 
 func TestOldAdminPathsGone(t *testing.T) {
 	const group = "11111111-2222-3333-4444-555555555555"
-	t.Setenv(adminGroupEnv, group)
-	router := makeAPIRouter(&Config{}, nil, nil, nil, nil, nil)
+	t.Setenv(auth.AdminGroupEnv, group)
+	router := makeAPIRouter(&config.Config{}, nil, nil, nil, nil, nil)
 	for _, p := range []string{
 		"/api/v1/copilot/billing/admin-monthly",
 		"/api/v1/copilot/billing/admin-active-users",

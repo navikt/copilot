@@ -11,18 +11,19 @@ import (
 	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 
 	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
+	"github.com/navikt/copilot/apps/copilot-api/internal/budget"
 )
 
 // mockBudgetGetter implements globalBudgetGetter for testing resolveBudgetCredits.
 type mockBudgetGetter struct {
-	budget *GlobalBudget
+	budget *budget.GlobalBudget
 	err    error
 }
 
 // cliApp is copilot-cli's M2M token as copilot-api sees it.
 var cliApp = &auth.User{AZP: "copilot-cli-client-id", Idtyp: "app"}
 
-func (m *mockBudgetGetter) getGlobalBudget(_ context.Context) (*GlobalBudget, error) {
+func (m *mockBudgetGetter) GetGlobalBudget(_ context.Context) (*budget.GlobalBudget, error) {
 	return m.budget, m.err
 }
 
@@ -145,17 +146,17 @@ func TestResolveBudgetCredits(t *testing.T) {
 		},
 		{
 			name:         "zero per-user budget falls back to default",
-			budgetClient: &mockBudgetGetter{budget: &GlobalBudget{PerUserBudget: 0}},
+			budgetClient: &mockBudgetGetter{budget: &budget.GlobalBudget{PerUserBudget: 0}},
 			want:         defaultPerUserBudgetCredits,
 		},
 		{
 			name:         "negative per-user budget falls back to default",
-			budgetClient: &mockBudgetGetter{budget: &GlobalBudget{PerUserBudget: -10}},
+			budgetClient: &mockBudgetGetter{budget: &budget.GlobalBudget{PerUserBudget: -10}},
 			want:         defaultPerUserBudgetCredits,
 		},
 		{
 			name:         "valid budget converts USD to credits",
-			budgetClient: &mockBudgetGetter{budget: &GlobalBudget{PerUserBudget: 400}},
+			budgetClient: &mockBudgetGetter{budget: &budget.GlobalBudget{PerUserBudget: 400}},
 			want:         40000,
 		},
 	}

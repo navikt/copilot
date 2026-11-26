@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/config"
 )
 
 func fullAggregates() *bqstore.FactAggregates {
@@ -107,7 +109,7 @@ func TestEveryTemplateRendersCleanly(t *testing.T) {
 }
 
 func TestPublicFactEndpoint(t *testing.T) {
-	router := makePublicRouter(&Config{}, nil, newBigQueryHandlers(&mockBigQueryClient{factAggregates: fullAggregates()}))
+	router := makePublicRouter(&config.Config{}, nil, newBigQueryHandlers(&mockBigQueryClient{factAggregates: fullAggregates()}))
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/public/v1/fact", nil))
 	if rec.Code != http.StatusOK {
