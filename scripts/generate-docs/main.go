@@ -1,5 +1,5 @@
 // generate-docs reads .github/ customization files and regenerates
-// the markdown tables in docs/README.{agents,instructions,prompts,skills}.md.
+// the markdown tables in docs/README.{agents,instructions,skills}.md.
 //
 // Usage:
 //
@@ -35,7 +35,6 @@ func main() {
 	errors := 0
 	errors += processAgents(root)
 	errors += processInstructions(root)
-	errors += processPrompts(root)
 	errors += processSkills(root)
 
 	if errors > 0 {
@@ -230,48 +229,6 @@ func processInstructions(root string) int {
 	}
 
 	table := "| Instruction | Description | VS Code |\n| ----------- | ----------- | ------- |\n"
-	table += strings.Join(rows, "\n")
-
-	return updateDoc(docPath, table)
-}
-
-func processPrompts(root string) int {
-	dir := filepath.Join(root, "prompts")
-	docPath := filepath.Join(root, "docs", "README.prompts.md")
-
-	entries, err := filepath.Glob(filepath.Join(dir, "*.prompt.md"))
-	if err != nil {
-		fatal("cannot glob prompts: %v", err)
-	}
-	sort.Strings(entries)
-
-	var rows []string
-	for _, entry := range entries {
-		fname := filepath.Base(entry)
-		stem := strings.TrimSuffix(fname, ".prompt.md")
-
-		metaPath := filepath.Join(dir, stem+".metadata.json")
-		meta := readMetadata(metaPath)
-		if meta.Excluded {
-			continue
-		}
-
-		fm := parseFrontmatter(entry)
-		name := fm["name"]
-		desc := fm["description"]
-		if name == "" {
-			name = stem
-		}
-
-		badge := installBadge("prompt", "chat-prompt", "prompts/"+fname)
-		desc = escapeTableCell(desc)
-
-		row := fmt.Sprintf("| **#%s**<br/>[View File](../prompts/%s) | %s | %s |",
-			name, fname, desc, badge)
-		rows = append(rows, row)
-	}
-
-	table := "| Prompt | Description | VS Code |\n| ------ | ----------- | ------- |\n"
 	table += strings.Join(rows, "\n")
 
 	return updateDoc(docPath, table)

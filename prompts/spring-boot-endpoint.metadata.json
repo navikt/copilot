@@ -1,7 +1,0 @@
-{
-  "domain": "backend",
-  "tags": ["spring-boot", "kotlin", "rest", "endpoint", "scaffold"],
-  "examples": [
-    "#spring-boot-endpoint Lag et CRUD-endpoint for vedtak med PostgreSQL"
-  ]
-}

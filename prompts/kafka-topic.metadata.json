@@ -1,7 +1,0 @@
-{
-  "domain": "backend",
-  "tags": ["nais", "kafka", "rapids-rivers", "infrastructure"],
-  "examples": [
-    "#kafka-topic Legg til et topic for sykmeldingshendelser"
-  ]
-}

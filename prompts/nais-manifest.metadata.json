@@ -1,7 +1,0 @@
-{
-  "domain": "platform",
-  "tags": ["nais", "kubernetes", "deployment", "infrastructure"],
-  "examples": [
-    "#nais-manifest Generer et manifest for dp-soknad i prod-gcp"
-  ]
-}

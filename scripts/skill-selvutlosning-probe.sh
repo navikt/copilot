@@ -52,8 +52,11 @@ done
 command -v copilot >/dev/null || { echo "ingen copilot CLI" >&2; exit 2; }
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BODY="$REPO_ROOT/prompts/$SUBJECT.prompt.md"
-[[ -f "$BODY" ]] || { echo "fant ikke $BODY" >&2; exit 2; }
+# Prompt-filene ble fjernet i #604; proben leser dem fra siste revisjon som hadde dem.
+PROMPTS_REV="f6ea71da4b8e90092ba2ccd7d8302282314be124"
+BODY="$(mktemp)"; trap 'rm -f "$BODY"' EXIT
+git -C "$REPO_ROOT" show "$PROMPTS_REV:prompts/$SUBJECT.prompt.md" >"$BODY" 2>/dev/null \
+  || { echo "fant ikke prompts/$SUBJECT.prompt.md i $PROMPTS_REV" >&2; exit 2; }
 
 case "$SUBJECT" in
 aksel-component)

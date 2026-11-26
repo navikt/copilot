@@ -1,6 +1,25 @@
 # Nav-Pilot Changelog
 
-Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
+Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner og samlinger.
+
+## 2026-12-01
+
+### Prompt-filene er fjernet (brytende endring)
+
+- **`nav-pilot sync --apply` sletter prompt-filene nav-pilot har installert.** De sju prompt-filene i `navikt/copilot` er borte, og innholdet hører hjemme i skills (#604). Neste sync fjerner dem fra `.github/prompts/` og sier én gang for hver fil hvilken skill du bruker i stedet:
+
+  | Prompt | Bruk i stedet |
+  | ------ | ------------- |
+  | `aksel-component` | skillen `aksel-builder` |
+  | `golang-service` | skillen `api-design` |
+  | `kafka-topic` | skillen `kafka` |
+  | `ktor-endpoint` | skillen `ktor-scaffold` |
+  | `nais-manifest` | skillen `nais` |
+  | `nextjs-api-route` | skillen `api-design` |
+  | `spring-boot-endpoint` | skillen `spring-boot-scaffold` |
+
+- **Bare filene nav-pilot installerte, slettes.** Prompt-filer du har skrevet selv, blir liggende. Har du endret en av de installerte, lagres din versjon som `<fil>.orig` før sync fjerner den.
+- **Agentpakker kan fortsatt ha prompts.** Det er bare `navikt/copilot` som slutter å levere dem.
 
 ## 2026-11-26
 

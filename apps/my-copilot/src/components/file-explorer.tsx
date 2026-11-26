@@ -62,14 +62,6 @@ const FILE_TREE: FileEntry[] = [
     when: "Automatisk i .github/workflows/*.yml",
   },
   {
-    name: "prompts/nais-manifest.prompt.md",
-    type: "prompt",
-    description: "Generer Nais-manifest fra mal",
-    detail:
-      "En forhåndsdefinert prompt du kan kjøre fra Copilot. Stiller spørsmål om appen din og genererer et komplett .nais/nais.yaml-manifest.",
-    when: "Når du velger prompten i Copilots prompt-meny",
-  },
-  {
     name: ".nav-pilot-state.json",
     type: "config",
     description: "Installert tilstand (for sync og uninstall)",

@@ -374,3 +374,40 @@ func mergeRetired(a, b []retiredOrphan) []retiredOrphan {
 	sort.Slice(a, func(i, j int) bool { return a[i].Path < a[j].Path })
 	return a
 }
+
+// replacementsByLocal maps an installed path (relative to the scope root, as
+// the state file records it) to the artifact the source names as its
+// replacement. The ordinary deletion pass uses it to say, once, what to use
+// instead of a file it removes (#604).
+func replacementsByLocal(scope *InstallScope, sourceDir string, pakke *agentpakke.Manifest) map[string]string {
+	m := loadRetired(sourceDir)
+	if m == nil || len(m.Replacements) == 0 {
+		return nil
+	}
+	var layout *agentpakke.Layout
+	if pakke != nil {
+		layout = pakke.Layout
+	}
+	out := map[string]string{}
+	for srcPath, repl := range m.Replacements {
+		kind, file := kindForPath(srcPath, layout)
+		if kind == nil {
+			continue
+		}
+		if rel, err := filepath.Rel(scope.RootDir, scope.DstPath(kind.Dir, file)); err == nil {
+			out[filepath.ToSlash(rel)] = repl
+		}
+	}
+	return out
+}
+
+// replacementNote is the suffix a removal line carries when the source names a
+// replacement, or "" when it does not.
+func replacementNote(repl map[string]string, p string) string {
+	for q := strings.TrimSuffix(p, "/"); q != "." && q != "/" && q != ""; q = path.Dir(q) {
+		if r := repl[q]; r != "" {
+			return "; use the " + domain.SafeText(r, 120) + " skill instead"
+		}
+	}
+	return ""
+}

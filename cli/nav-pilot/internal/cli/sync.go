@@ -848,6 +848,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 	}
 
 	// Apply deletions
+	replacements := replacementsByLocal(scope, src.Dir, src.Pakke)
 	deleted := 0
 	var deletedSuccessPaths []string
 	for _, p := range deletedPaths {
@@ -875,7 +876,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 			continue
 		}
 		afterArtifactRemoved(scope, localFull, jsonOutput)
-		fmt.Printf("  %s %s %s\n", red("-"), p, dim("(deleted)"))
+		fmt.Printf("  %s %s %s\n", red("-"), p, dim("(deleted"+replacementNote(replacements, p)+")"))
 		deleted++
 		deletedSuccessPaths = append(deletedSuccessPaths, p)
 	}

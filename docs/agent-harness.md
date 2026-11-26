@@ -8,7 +8,7 @@ En *harness* er summen av mekanismer som styrer en kodingsagent mot ønsket atfe
 
 | | Computational | Inferential |
 |---|---|---|
-| **Guide** (feedforward, styrer *før* handling) | Lintere, typesjekk, codemods, CLI-verktøy | Instruksjonsfiler, agenter, skills, prompts |
+| **Guide** (feedforward, styrer *før* handling) | Lintere, typesjekk, codemods, CLI-verktøy | Instruksjonsfiler, agenter, skills |
 | **Sensor** (feedback, korrigerer *etter* handling) | Tester, CI-sjekker, helsesjekk | Code review-agenter, arkitekturreview |
 
 En moden harness dekker alle fire kvadranter og kobler dem sammen i automatiserte feedback-løkker.
@@ -49,7 +49,6 @@ AI-basert veiledning som former LLM-ens atferd gjennom naturlig språk. De er in
 |-----------|--------|------------|---------------|
 | `.github/copilot-instructions.md` | 1 global | Pre-session (Copilot leser automatisk) | Automatisk |
 | `instructions/*.instructions.md` | 16 filer | In-session (pattern-matchet til filtype) | Automatisk |
-| `prompts/*.prompt.md` | 7 maler | In-session (bruker velger) | Manuell |
 | `AGENTS.md` | 1 global | Pre-session (Copilot leser automatisk) | Automatisk |
 | `agents/*.agent.md` | 13 agenter | In-session (bruker nevner `@agent`) | Manuell |
 | `skills/*/SKILL.md` | 32 skills | In-session (agent delegerer) | Halvautomatisk |
@@ -109,7 +108,7 @@ Hvor i utviklerflyten harnessen griper inn:
 | Stadium | Computational | Inferential |
 |---------|--------------|-------------|
 | **Pre-session** | `mise.toml`-orkestrering, nav-pilot-installer, EditorConfig | AGENTS.md, `copilot-instructions.md` (automatisk lest av Copilot) |
-| **In-session** | Prettier/ESLint auto-fix | 16 instructions (pattern-matchet), 13 agenter + 32 skills on-demand, 7 prompt-maler |
+| **In-session** | Prettier/ESLint auto-fix | 16 instructions (pattern-matchet), 13 agenter + 32 skills on-demand |
 | **Pre-commit** | `ratchet:pin`, `docs:check`, `skills:lint` (manuelt) | `@code-review-agent` / `@security-champion-agent` (manuelt) |
 | **CI (post-commit)** | `mise check` + per-app workflows (format, lint, test, build) → PR-blokkering | Ingen agentbaserte sensors; menneskelig review er utenfor teknisk harness |
 | **Post-deploy** | Nais helsesjekker, readiness-prober | Ingen agentbasert feedback |
