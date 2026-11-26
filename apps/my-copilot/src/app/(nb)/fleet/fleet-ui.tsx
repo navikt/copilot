@@ -31,16 +31,17 @@ import { type TagVariant, agentStatus, categoryLabel, date, serverShortNext, ser
 
 export const linkClass = "text-blue-600 hover:underline";
 
-const ACTIONS: Record<string, string> = {
+export const ACTIONS: Record<string, string> = {
   draft_submitted: "Utkast sendt inn",
   approved_published: "Godkjent og publisert",
-  revoked: "Trukket tilbake",
+  revoked: "Avpublisert",
   rolled_back: "Rullet tilbake",
+  auto_published: "Publisert uten godkjenning",
   agent_profile_submitted: "Utkast sendt inn",
   agent_profile_access_granted: "Tilgang gitt",
   agent_profile_published: "Profilen godkjent",
-  agent_profile_revoked: "Trukket tilbake",
-  agent_profile_access_revoked: "Tilgang trukket tilbake",
+  agent_profile_revoked: "Avpublisert",
+  agent_profile_access_revoked: "Tilgang fjernet",
   metadata_updated: "Etiketter endret",
   // From before v1alpha1, still in the history of older profiles.
   agent_profile_drafted: "Utkast opprettet",
@@ -514,10 +515,15 @@ export function ConfirmForm({
   heading,
   question,
   confirm,
+  confirmModal = confirm,
+  variant = "danger",
   busy,
   children,
   fields,
 }: {
+  /** The button in the Modal, when the opening one ends in «…». */
+  confirmModal?: string;
+  variant?: "danger" | "secondary";
   /** Inputs asked for in the Modal, such as the reason. They belong to the form through form={id}. */
   fields?: (formId: string) => ReactNode;
   onSubmit: (e: FormEvent<HTMLFormElement>) => void;
@@ -536,7 +542,7 @@ export function ConfirmForm({
         {children}
         <Button
           type="button"
-          variant="danger"
+          variant={variant}
           loading={busy}
           className="w-full md:w-auto"
           onClick={() => setOpen(true)}
@@ -554,14 +560,14 @@ export function ConfirmForm({
         <Modal.Footer>
           <Button
             type="button"
-            variant="danger"
+            variant={variant === "danger" ? "danger" : "primary"}
             onClick={() => {
               if (!form.current?.reportValidity()) return;
               form.current.requestSubmit();
               setOpen(false);
             }}
           >
-            {confirm}
+            {confirmModal}
           </Button>
           <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
             Avbryt

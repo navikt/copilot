@@ -180,7 +180,7 @@ export function AgentTable({ t }: { t: TeamData }) {
 /** What the owner team has done with one grant. Another team's view of the profile leaves out who granted access. */
 function grantGiven(grants: NonNullable<AgentProfile["status"]["grants"]>, ref: ServerRef): string {
   const st = grants.find((s) => refKey(s.serverRef) === refKey(ref));
-  if (["AccessRevoked", "ServerRevoked"].includes(st?.reason ?? "")) return "tilgang trukket tilbake";
+  if (["AccessRevoked", "ServerRevoked"].includes(st?.reason ?? "")) return "tilgang fjernet";
   if (st?.granted)
     return ["tilgang gitt", st.grantedBy && `av ${st.grantedBy.name}`, st.grantedAt && date(st.grantedAt)]
       .filter(Boolean)
@@ -193,7 +193,7 @@ function GrantTag({ given }: { given: string }) {
   const wait = given === "ikke gitt tilgang";
   return (
     <Tag size="small" className="whitespace-nowrap" variant={ok ? "success" : wait ? "warning" : "neutral"}>
-      {ok ? "I bruk" : wait ? "Venter på eierteamet" : "Trukket tilbake"}
+      {ok ? "I bruk" : wait ? "Venter på eierteamet" : "Avpublisert"}
     </Tag>
   );
 }

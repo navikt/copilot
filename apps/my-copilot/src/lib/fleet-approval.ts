@@ -28,12 +28,13 @@ export const REASON_TEXT: Record<string, ((c: ReasonContext) => string) | null> 
   ConsoleUnavailable: null,
   ContentBlocked: null,
   ContentHashMismatch: null,
-  ContentRefused: null,
+  ContentRefused: (c) =>
+    `Versjon ${c.generation} har samme innhold som en versjon som er avpublisert eller sperret. Velg en annen versjon.`,
   Expired: null,
-  FromGenerationMismatch: null,
-  GenerationBlocked: null,
+  FromGenerationMismatch: () => "Den publiserte versjonen er endret siden du åpnet siden. Last inn siden på nytt.",
+  GenerationBlocked: (c) => `Versjon ${c.generation} er sperret og kan ikke brukes igjen.`,
   GenerationNotPending: null,
-  GenerationRevoked: null,
+  GenerationRevoked: (c) => `Versjon ${c.generation} er avpublisert og kan ikke brukes igjen.`,
   GrantNotInGeneration: null,
   GrantRevokedSinceApproval: null,
   Invalid: null,
@@ -59,9 +60,12 @@ export const REASON_TEXT: Record<string, ((c: ReasonContext) => string) | null> 
   ReasonRequired: null,
   RegistryNameNotYours: null,
   RegistryNameTaken: null,
-  RollbackRevoked: null,
-  RollbackTargetNotApproved: null,
-  RollbackTargetNotEligible: null,
+  RollbackRevoked: () =>
+    "MCP-serveren er avpublisert. Bruk «Publiser igjen» og send inn en ny versjon. Den må godkjennes av team copilot.",
+  RollbackTargetNotApproved: (c) =>
+    `Team copilot har ikke godkjent versjon ${c.generation}. Du kan bare bruke versjoner team copilot har godkjent.`,
+  RollbackTargetNotEligible: (c) =>
+    `Versjon ${c.generation} kan ikke brukes igjen. Du kan bare velge en eldre versjon som har vært publisert.`,
   RosRequired: null,
   SelfApproval: (c) => `Du sendte inn agentprofilen selv. En annen på ${c.team} må gi tilgang.`,
   ServerRevoked: null,

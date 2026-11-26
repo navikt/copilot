@@ -300,13 +300,16 @@ describe("/fleet", () => {
 
   it("shows an MCP server with its route, who acts next and its history", async () => {
     render(await ServerPage(params("team-a", "docs")));
-    expect(screen.getByText(/må godkjenne versjon 3/)).toBeInTheDocument();
+    expect(screen.getByText("Neste steg: Venter på team copilot.")).toBeInTheDocument();
     expect(screen.getAllByText("/mcp/team-a/docs").length).toBeGreaterThan(0);
-    // Server: the curl test for the published route, and Nødtiltak for revocation.
+    // Server: the curl test for the published route, the versions, and unpublishing at the bottom.
     expect(screen.getByRole("heading", { name: "Test MCP-endpointet" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Nødtiltak" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Avpubliser MCP-serveren" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Versjon 3 venter" })).toBeInTheDocument();
-    expect(screen.getByText("Historikk")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Versjoner" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Kopier adressen i fleet-gateway" })).toBeInTheDocument();
+    expect(screen.queryByText("Historikk")).toBeNull();
+    expect(screen.queryByText("Detaljer")).toBeNull();
   });
 
   it("renders the untrusted readme without raw HTML, unsafe links or images, and shows tool descriptions", async () => {
@@ -389,7 +392,7 @@ describe("/fleet", () => {
     render(await ServerPage(params("team-a", "docs")));
     expect(screen.getByRole("button", { name: "Godkjenn versjon 3" })).toBeInTheDocument();
     expect(document.querySelector('input[name="contentHash"]')).toHaveValue("h3");
-    expect(screen.getByRole("button", { name: "Trekk tilbake" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Avpubliser…" })).toBeInTheDocument();
     expect(screen.getByRole("table", { name: /versjonen som venter/ })).toBeInTheDocument();
     stub({ [`${API}/namespaces/team-a/mcpservers/docs`]: server(true) });
     const { container } = render(await ServerPage(params("team-a", "docs")));
@@ -427,7 +430,7 @@ describe("/fleet", () => {
     // Table on a wide screen, changed fields as a list on a phone.
     expect(screen.getAllByText("1.2.0")).toHaveLength(2);
     expect(screen.getAllByText("streamable-http https://x")).toHaveLength(2);
-    expect(screen.queryByRole("button", { name: "Trekk tilbake" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Avpubliser…" })).toBeNull();
   });
 
   it("shows the registration wizard with the person's teams", async () => {
@@ -445,8 +448,8 @@ describe("/fleet", () => {
   it("shows that a revoked MCP server with a new draft waits for approval", async () => {
     stub({ [`${API}/namespaces/team-a/mcpservers/docs`]: server(true) });
     render(await ServerPage(params("team-a", "docs")));
-    expect(screen.getByText("Trukket tilbake, ny versjon venter")).toBeInTheDocument();
-    expect(screen.getByText(/må godkjenne versjon 3 før MCP-serveren blir publisert igjen/)).toBeInTheDocument();
+    expect(screen.getByText("Avpublisert, ny versjon venter")).toBeInTheDocument();
+    expect(screen.getByText("Neste steg: Venter på team copilot.")).toBeInTheDocument();
   });
 
   it("is 404 for an MCP server that is not in the catalogue", async () => {
@@ -460,7 +463,7 @@ describe("/fleet", () => {
     expect(screen.getByText("/mcp/team-b/saker")).toBeInTheDocument();
     expect(screen.getByText("hent_sak")).toBeInTheDocument();
     expect(screen.getByText(/Henter én sak\./)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Godkjenn|Trekk tilbake|Endre/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Godkjenn|Avpubliser|Endre/ })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Be eierteamet om tilgang" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Nais Console" })).toHaveAttribute(
       "href",
@@ -561,7 +564,7 @@ describe("/fleet", () => {
       }),
     });
     render(await AgentPage(params("aksel", "studio")));
-    expect(screen.getByText("tilgang trukket tilbake")).toBeInTheDocument();
+    expect(screen.getByText("tilgang fjernet")).toBeInTheDocument();
     expect(screen.queryByText(/Venter på:/)).not.toBeInTheDocument();
     expect(screen.getByText(/1\s000 kall i døgnet/)).toBeInTheDocument();
   });
@@ -590,14 +593,14 @@ describe("/fleet", () => {
   it("asks in a Modal before revoking", async () => {
     render(await ServerPage(params("team-a", "docs")));
     const before = vi.mocked(fetch).mock.calls.length;
-    fireEvent.click(screen.getByRole("button", { name: "Trekk tilbake" }));
-    const dialog = screen.getByRole("dialog", { name: "Trekk tilbake docs?" });
+    fireEvent.click(screen.getByRole("button", { name: "Avpubliser…" }));
+    const dialog = screen.getByRole("dialog", { name: "Avpublisere docs?" });
     expect(vi.mocked(fetch).mock.calls.length).toBe(before);
     // The reason is asked for in the Modal and still belongs to the form.
     const reason = within(dialog).getByRole("textbox", { name: /Begrunnelse/ });
     expect(document.getElementById(reason.getAttribute("form")!)?.tagName).toBe("FORM");
     fireEvent.change(reason, { target: { value: "lekker data" } });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Trekk tilbake" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Avpubliser" }));
     await vi.waitFor(() => expect(vi.mocked(fetch).mock.calls.length).toBe(before + 1));
     const sent = JSON.parse(String((vi.mocked(fetch).mock.calls.at(-1)![1] as RequestInit).body));
     expect(sent).toMatchObject({ action: "revoke", name: "docs", reason: "lekker data" });
@@ -608,9 +611,13 @@ describe("/fleet", () => {
     delete (revoked.status as { pending?: unknown }).pending;
     stub({ [`${API}/namespaces/team-a/mcpservers/docs`]: revoked });
     render(await ServerPage(params("team-a", "docs")));
-    expect(screen.getByText(/Endre MCP-serveren og send inn en ny versjon/)).toBeInTheDocument();
+    expect(screen.getByText("Neste steg: Send inn en ny versjon.")).toBeInTheDocument();
     expect(screen.queryByText(/Ingen\. MCP-serveren/)).toBeNull();
-    expect(screen.getByRole("heading", { name: "Endre MCP-serveren" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Publiser igjen" })).toHaveAttribute(
+      "href",
+      "/fleet/mcp-servere/team-a/docs/endre"
+    );
+    expect(screen.queryByRole("heading", { name: "Avpubliser MCP-serveren" })).toBeNull();
   });
 
   it("posts «gi tilgang» with the profile, the MCP server and the grant's hash", async () => {
@@ -640,11 +647,21 @@ describe("/fleet", () => {
     expect(screen.getByText(/Vi fikk ikke hentet agentprofilene/)).toBeInTheDocument();
   });
 
-  it("shows the edit form and no rollback only to the owner team", async () => {
+  it("links «Endre» to the edit page only for the owner team", async () => {
     render(await ServerPage(params("team-a", "docs")));
-    expect(screen.getByRole("heading", { name: "Endre MCP-serveren" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Rull tilbake/ })).toBeNull();
-    expect(screen.getByText(/ruller dere tilbake appen i Nais/)).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Endre" })[0]).toHaveAttribute(
+      "href",
+      "/fleet/mcp-servere/team-a/docs/endre"
+    );
+    expect(screen.queryByText(/Kommer i Fleet/)).toBeNull();
+    cleanup();
+    // Nothing waits: no «Neste steg» line.
+    const live = server();
+    delete (live.status as { pending?: unknown }).pending;
+    stub({ [`${API}/namespaces/team-a/mcpservers/docs`]: live });
+    render(await ServerPage(params("team-a", "docs")));
+    expect(screen.queryByText(/Neste steg/)).toBeNull();
+    cleanup();
     stub({ [`${API}/whoami`]: { name: "A123456", teams: ["plattform"] } });
     const { container } = render(await ServerPage(params("team-a", "docs")));
     expect(container.querySelector('a[href$="/endre"]')).toBeNull();
@@ -705,12 +722,69 @@ describe("/fleet", () => {
     const { container } = render(await ServerPage(params("team-a", "docs")));
     const order = [...container.querySelectorAll("h2")].map((h) => h.textContent?.trim());
     const at = (t: string) => order.indexOf(t);
-    for (const t of ["Hva endres", "Test MCP-endpointet", "Nødtiltak", "Detaljer", "Historikk", "Endre MCP-serveren"])
+    for (const t of ["Hva endres", "Test MCP-endpointet", "Versjoner", "Avpubliser MCP-serveren"])
       expect(at(t), t).toBeGreaterThanOrEqual(0);
     expect(at("Hva endres")).toBeLessThan(at("Test MCP-endpointet"));
-    expect(at("Test MCP-endpointet")).toBeLessThan(at("Nødtiltak"));
-    expect(at("Nødtiltak")).toBeLessThan(at("Detaljer"));
-    expect(at("Historikk")).toBeLessThan(at("Endre MCP-serveren"));
+    expect(at("Test MCP-endpointet")).toBeLessThan(at("Versjoner"));
+    expect(order.at(-1)).toBe("Avpubliser MCP-serveren");
+  });
+
+  const versions = (extra: unknown[] = []) => ({
+    [`${API}/namespaces/team-a/mcpservers/docs/history`]: {
+      items: [
+        ...extra,
+        { at: T, actor: { name: "A123456" }, action: "draft_submitted", generation: 3 },
+        { at: T, actor: { name: "B654321" }, action: "approved_published", generation: 2 },
+        { at: T, actor: { name: "A123456" }, action: "draft_submitted", generation: 2 },
+        { at: T, actor: { name: "A123456" }, action: "auto_published", generation: 1 },
+      ],
+    },
+  });
+
+  it("lists published versions and offers «Bruk denne versjonen» only on older approved ones", async () => {
+    stub(versions());
+    render(await ServerPage(params("team-a", "docs")));
+    const list = screen.getByRole("list", { name: "Versjoner" });
+    const rows = within(list).getAllByRole("listitem");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveTextContent("Versjon 2");
+    expect(rows[0]).toHaveTextContent("I bruk");
+    expect(rows[0]).toHaveTextContent("Godkjent og publisert");
+    expect(within(rows[0]).queryByRole("button", { name: "Bruk denne versjonen" })).toBeNull();
+    expect(within(rows[1]).getByRole("button", { name: "Bruk denne versjonen" })).toBeInTheDocument();
+    cleanup();
+    // Never to a version that was unpublished, and never on a server that is not live.
+    stub(versions([{ at: T, actor: { name: "A1" }, action: "revoked", generation: 1 }]));
+    render(await ServerPage(params("team-a", "docs")));
+    expect(screen.queryByRole("button", { name: "Bruk denne versjonen" })).toBeNull();
+    cleanup();
+    stub({ ...versions(), [`${API}/namespaces/team-a/mcpservers/docs`]: server(true) });
+    render(await ServerPage(params("team-a", "docs")));
+    expect(screen.queryByRole("button", { name: "Bruk denne versjonen" })).toBeNull();
+    cleanup();
+    // Only the owner team rolls back.
+    stub({ ...versions(), [`${API}/whoami`]: { name: "B654321", teams: ["copilot"] } });
+    render(await ServerPage(params("team-a", "docs")));
+    expect(screen.queryByRole("button", { name: "Bruk denne versjonen" })).toBeNull();
+  });
+
+  it("rolls back with the reason, from the published version to the chosen one", async () => {
+    stub(versions());
+    render(await ServerPage(params("team-a", "docs")));
+    const before = vi.mocked(fetch).mock.calls.length;
+    fireEvent.click(screen.getByRole("button", { name: "Bruk denne versjonen" }));
+    const dialog = screen.getByRole("dialog", { name: "Bruke versjon 1 igjen?" });
+    fireEvent.change(within(dialog).getByRole("textbox", { name: /Begrunnelse/ }), { target: { value: "feil i v2" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Bruk denne versjonen" }));
+    await vi.waitFor(() => expect(vi.mocked(fetch).mock.calls.length).toBe(before + 1));
+    const sent = JSON.parse(String((vi.mocked(fetch).mock.calls.at(-1)![1] as RequestInit).body));
+    expect(sent).toMatchObject({
+      action: "rollback",
+      name: "docs",
+      fromGeneration: "2",
+      generation: "1",
+      reason: "feil i v2",
+    });
   });
 
   it("renders without the badge when the badge call is slow, after the short timeout", async () => {

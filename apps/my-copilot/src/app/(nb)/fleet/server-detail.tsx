@@ -20,6 +20,7 @@ import {
   Show,
   Stack,
   Table,
+  Tag,
   Textarea,
   VStack,
 } from "@navikt/ds-react";
@@ -29,17 +30,8 @@ import remarkGfm from "remark-gfm";
 import { hasCondition } from "@/lib/fleet-names";
 import type { AgentProfile, AuditEvent, MCPServer, MCPServerSpec } from "@/lib/fleet-control";
 import { APPROVAL_RULE, APPROVER, CHANGE_RULE, ownVersionText, waitingText } from "@/lib/fleet-approval";
-import {
-  ActionError,
-  ConfirmForm,
-  Detaljer,
-  FleetTable,
-  Historikk,
-  SubmittedAlert,
-  linkClass,
-  useFleetPost,
-} from "./fleet-ui";
-import { categoryLabel, serverNextStep } from "./fleet-status";
+import { ACTIONS, ActionError, ConfirmForm, FleetTable, SubmittedAlert, linkClass, useFleetPost } from "./fleet-ui";
+import { categoryLabel, date, serverShortNext } from "./fleet-status";
 import { Initials, WaitingForAccess } from "./inbox";
 import { AccessPolicy } from "./server-form";
 
@@ -72,8 +64,9 @@ export function ServerDetail({
   return (
     <VStack gap="space-24">
       {submitted && <SubmittedAlert server={server} />}
-      <BodyLong>Neste steg: {serverNextStep(server)}</BodyLong>
-      <ServerActions server={server} me={me} myName={myName} owner={owner} approver={approver} part="approve" />
+      {/* Only when something waits, as in the list (#3121); version numbers stay in the approval box. */}
+      {serverShortNext(server) && <BodyLong>Neste steg: {serverShortNext(server)}.</BodyLong>}
+      <ServerActions server={server} me={me} myName={myName} approver={approver} />
       {server.status.pending?.spec && (
         <VStack gap="space-8">
           <HStack justify="space-between" align="end" gap="space-8">
@@ -125,17 +118,7 @@ export function ServerDetail({
           <AccessPolicy app={(server.status.pending?.spec ?? server.spec)?.upstream?.app} />
         </VStack>
       ) : null}
-      <ServerActions server={server} me={me} owner={owner} part="rest" />
-      <Detaljer
-        rows={[
-          ["Team", server.metadata.namespace],
-          ["Navn", server.metadata.name],
-          ["Adresse i fleet-gateway", server.status.route?.path ?? "–"],
-          ["Publisert versjon", server.status.publishedGeneration ?? "–"],
-          ["Versjon som venter på godkjenning", server.status.pending?.generation ?? "–"],
-        ]}
-      />
-      <Historikk events={events} />
+      <Versions server={server} events={events} owner={owner} />
       {agentsFailed ? (
         <Alert variant="warning" size="small">
           Vi fikk ikke hentet agentprofilene som venter på tilgang. Last inn siden på nytt.
@@ -143,11 +126,11 @@ export function ServerDetail({
       ) : (
         <WaitingForAccess server={server} agents={agents} />
       )}
-      <ServerActions server={server} me={me} owner={owner} part="edit" />
       <ServerDocs spec={server.status.pending?.spec ?? server.spec} />
       {!(server.status.route && hasCondition(server, "Published") && !hasCondition(server, "Revoked")) && (
         <AccessPolicy app={(server.status.pending?.spec ?? server.spec)?.upstream?.app} />
       )}
+      <Unpublish server={server} owner={owner} />
     </VStack>
   );
 }
@@ -155,20 +138,21 @@ export function ServerDetail({
 export function ServerHeader({ server }: { server: MCPServer }) {
   const spec = server.status.pending?.spec ?? server.spec;
   const tools = spec?.allowedTools?.length ?? 0;
+  const path = server.status.route?.path;
   return (
     <VStack gap="space-8">
-      {server.status.route && (
-        <Detail as="code" className="[overflow-wrap:anywhere]">
-          {server.status.route.path}
-        </Detail>
+      {path && (
+        <HStack gap="space-4" align="center" wrap={false}>
+          <Detail as="code" className="min-w-0 [overflow-wrap:anywhere]">
+            {path}
+          </Detail>
+          <CopyButton size="xsmall" copyText={path} title="Kopier adressen i fleet-gateway" />
+        </HStack>
       )}
       <HStack gap="space-16" wrap>
         <BodyShort size="small">Eierteam: {server.metadata.namespace}</BodyShort>
         <BodyShort size="small">{tools === 1 ? "1 verktøy" : `${tools} verktøy`}</BodyShort>
         {spec?.dataCategory && <BodyShort size="small">{categoryLabel(spec.dataCategory)}</BodyShort>}
-        {server.status.publishedGeneration && (
-          <BodyShort size="small">Publisert versjon {server.status.publishedGeneration}</BodyShort>
-        )}
       </HStack>
     </VStack>
   );
@@ -357,7 +341,7 @@ function ToolDiff({ now, next }: { now?: string[]; next?: string[] }) {
 function Versjoner({ server, next }: { server: MCPServer; next: MCPServerSpec }) {
   // Before the first approval fleet-control copies the draft into spec, so only a live server has a version in use.
   const none = hasCondition(server, "Revoked")
-    ? "Trukket tilbake"
+    ? "Avpublisert"
     : hasCondition(server, "Published")
       ? null
       : "Ikke publisert ennå";
@@ -448,20 +432,14 @@ function ServerActions({
   server,
   me,
   myName,
-  owner,
   approver = false,
-  part,
 }: {
   server: MCPServer;
   me?: string;
   myName?: string;
-  owner: boolean;
   approver?: boolean;
-  part: "approve" | "rest" | "edit";
 }) {
   const approve = useFleetPost("approve");
-  const revoke = useFleetPost("revoke");
-  const live = hasCondition(server, "Published") && !hasCondition(server, "Revoked");
   const { namespace, name } = server.metadata;
   const pending = server.status.pending;
   const ownVersion = !!me && pending?.submittedBy?.name === me;
@@ -471,121 +449,214 @@ function ServerActions({
       <input type="hidden" name="name" value={name} />
     </>
   );
-  if (part === "approve")
-    return pending?.contentHash ? (
-      <Box background="default" borderWidth="1" borderColor="warning" borderRadius="12" padding="space-20">
-        <VStack gap="space-12" align={{ xs: "stretch", md: "start" }}>
-          <Heading level="2" size="medium">
-            Versjon {pending.generation} venter
-          </Heading>
-          <BodyShort size="small">{APPROVAL_RULE}</BodyShort>
-          <Stack direction={{ xs: "column", md: "row" }} gap="space-16 space-40">
-            <HStack gap="space-8" align="center">
-              <Initials name={ownVersion ? myName : undefined} />
-              <VStack>
-                <Detail>Sendt inn av</Detail>
-                <BodyShort weight="semibold">
-                  {ownVersion ? (myName ? `${myName} (deg)` : "deg") : (pending.submittedBy?.name ?? "ingen person")}
-                </BodyShort>
-              </VStack>
-            </HStack>
+  return pending?.contentHash ? (
+    <Box background="default" borderWidth="1" borderColor="warning" borderRadius="12" padding="space-20">
+      <VStack gap="space-12" align={{ xs: "stretch", md: "start" }}>
+        <Heading level="2" size="medium">
+          Versjon {pending.generation} venter
+        </Heading>
+        <BodyShort size="small">{APPROVAL_RULE}</BodyShort>
+        <Stack direction={{ xs: "column", md: "row" }} gap="space-16 space-40">
+          <HStack gap="space-8" align="center">
+            <Initials name={ownVersion ? myName : undefined} />
             <VStack>
-              <Detail>Krever godkjenning fra</Detail>
-              <BodyShort weight="semibold">{APPROVER}</BodyShort>
-            </VStack>
-          </Stack>
-          {/* The UI only hides the button; fleet-control still decides, and a 403 is shown via route.ts. */}
-          {!approver ? (
-            <BodyShort>{ownVersion ? ownVersionText(pending.generation) : waitingText(pending.generation)}</BodyShort>
-          ) : (
-            <form onSubmit={approve.onSubmit}>
-              <VStack gap="space-8" align={{ xs: "stretch", md: "start" }}>
-                {ids}
-                <input type="hidden" name="generation" value={pending.generation} />
-                <input type="hidden" name="contentHash" value={pending.contentHash} />
-                <ActionError error={approve.error} />
-                <Button loading={approve.busy} className="w-full md:w-auto">
-                  Godkjenn versjon {pending.generation}
-                </Button>
-              </VStack>
-            </form>
-          )}
-        </VStack>
-      </Box>
-    ) : null;
-  return (
-    <VStack gap="space-24">
-      {live && part === "rest" && (
-        <VStack gap="space-4">
-          <Heading level="2" size="medium">
-            Nødtiltak
-          </Heading>
-          <BodyShort size="small">
-            Kan brukes av eierteamet og plattformteamet. Virker med en gang, uten godkjenning.
-          </BodyShort>
-        </VStack>
-      )}
-      {live && part === "rest" && (
-        <Box background="default" borderWidth="1" borderColor="neutral-subtle" borderRadius="12" padding="space-20">
-          <HGrid columns={{ xs: 1, md: 2 }} gap="space-24">
-            <VStack gap="space-8">
-              <Heading level="3" size="small">
-                Rull tilbake
-              </Heading>
-              {/* shortcut: fleet-control has no rollback yet; the column keeps the sketch's layout. */}
-              <BodyShort>
-                Eierteamet kan rulle tilbake til en tidligere publisert versjon. Kommer i Fleet.
-                {owner &&
-                  " Til da: Er feil i oppsettet, endre MCP-serveren og send inn en ny versjon. Er feilen i koden til appen, ruller dere tilbake appen i Nais. Haster det for alle, kan plattformteamet bruke nødstopp i fleet-gateway."}
+              <Detail>Sendt inn av</Detail>
+              <BodyShort weight="semibold">
+                {ownVersion ? (myName ? `${myName} (deg)` : "deg") : (pending.submittedBy?.name ?? "ingen person")}
               </BodyShort>
             </VStack>
-            <ConfirmForm
-              onSubmit={revoke.onSubmit}
-              heading={`Trekk tilbake ${name}?`}
-              question="Ingen kan bruke MCP-serveren etterpå, og agentene mister tilgangen. For å publisere den igjen må dere sende inn en ny versjon som team copilot godkjenner."
-              confirm="Trekk tilbake"
-              busy={revoke.busy}
-              fields={(formId) => (
-                <>
-                  <Textarea
-                    label="Begrunnelse"
-                    description="Vises i historikken."
-                    name="reason"
-                    form={formId}
-                    maxLength={500}
-                    required
-                  />
-                  <Checkbox name="block" form={formId}>
-                    Sperr denne versjonen for alltid. Den kan aldri sendes inn eller publiseres igjen.
-                  </Checkbox>
-                </>
-              )}
-            >
-              <Heading level="3" size="small">
-                Trekk tilbake
-              </Heading>
-              <BodyShort>Adressen slutter å svare. Agentene som bruker MCP-serveren, får feil.</BodyShort>
+          </HStack>
+          <VStack>
+            <Detail>Krever godkjenning fra</Detail>
+            <BodyShort weight="semibold">{APPROVER}</BodyShort>
+          </VStack>
+        </Stack>
+        {/* The UI only hides the button; fleet-control still decides, and a 403 is shown via route.ts. */}
+        {!approver ? (
+          <BodyShort>{ownVersion ? ownVersionText(pending.generation) : waitingText(pending.generation)}</BodyShort>
+        ) : (
+          <form onSubmit={approve.onSubmit}>
+            <VStack gap="space-8" align={{ xs: "stretch", md: "start" }}>
               {ids}
-              <ActionError error={revoke.error} />
-            </ConfirmForm>
-          </HGrid>
+              <input type="hidden" name="generation" value={pending.generation} />
+              <input type="hidden" name="contentHash" value={pending.contentHash} />
+              <ActionError error={approve.error} />
+              <Button loading={approve.busy} className="w-full md:w-auto">
+                Godkjenn versjon {pending.generation}
+              </Button>
+            </VStack>
+          </form>
+        )}
+      </VStack>
+    </Box>
+  ) : null;
+}
+
+const PUBLISHED = ["approved_published", "auto_published"];
+
+/** One row per published version, newest first, from the history. */
+export function versionRows(server: MCPServer, events: AuditEvent[]) {
+  const live = hasCondition(server, "Published") && !hasCondition(server, "Revoked");
+  const current = live ? server.status.publishedGeneration : undefined;
+  const revoked = new Set(events.filter((e) => e.action === "revoked").map((e) => e.generation));
+  const seen = new Set<number>();
+  return events.flatMap((e) => {
+    const gen = e.generation;
+    if (gen === undefined || !PUBLISHED.includes(e.action) || seen.has(gen)) return [];
+    seen.add(gen);
+    return [
+      {
+        event: e,
+        generation: gen,
+        current: gen === current,
+        revoked: revoked.has(gen),
+        // Approved by team copilot, or published as a change that added no access: fleet-control counts both as
+        // approved (approved_via). Only older versions, never a revoked one. fleet-control checks all of it again.
+        canUse: current !== undefined && gen < current && !revoked.has(gen),
+      },
+    ];
+  });
+}
+
+function Versions({ server, events, owner }: { server: MCPServer; events: AuditEvent[]; owner: boolean }) {
+  const rows = versionRows(server, events);
+  const rolledBack = events.find((e) => e.action === "rolled_back");
+  return (
+    <VStack gap="space-8">
+      <Heading level="2" size="medium">
+        Versjoner
+      </Heading>
+      {rows.length === 0 ? (
+        <BodyShort>Ingen versjon er publisert ennå.</BodyShort>
+      ) : (
+        <Box background="default" borderWidth="1" borderColor="neutral-subtle" borderRadius="12">
+          <VStack as="ul" aria-label="Versjoner">
+            {rows.map((r, i) => (
+              <Box
+                as="li"
+                key={r.generation}
+                padding="space-16"
+                borderWidth={i ? "1 0 0 0" : "0"}
+                borderColor="neutral-subtle"
+              >
+                <Stack direction={{ xs: "column", md: "row" }} justify="space-between" gap="space-8 space-16">
+                  <VStack gap="space-4" className="min-w-0 [overflow-wrap:anywhere]">
+                    <HStack gap="space-8" align="center">
+                      <BodyShort weight="semibold">Versjon {r.generation}</BodyShort>
+                      {r.current && (
+                        <Tag size="xsmall" variant="success">
+                          I bruk
+                        </Tag>
+                      )}
+                      {r.revoked && (
+                        <Tag size="xsmall" variant="neutral">
+                          Avpublisert
+                        </Tag>
+                      )}
+                    </HStack>
+                    <BodyShort size="small">
+                      {ACTIONS[r.event.action]} {date(r.event.at)} av {r.event.actor.name}
+                    </BodyShort>
+                    {r.current && rolledBack?.generation === r.generation && (
+                      <BodyShort size="small">
+                        Tatt i bruk igjen {date(rolledBack.at)} av {rolledBack.actor.name}
+                        {rolledBack.detail?.reason ? `: ${rolledBack.detail.reason}` : ""}
+                      </BodyShort>
+                    )}
+                  </VStack>
+                  {owner && r.canUse && <UseVersion server={server} generation={r.generation} />}
+                </Stack>
+              </Box>
+            ))}
+          </VStack>
         </Box>
       )}
-      {owner && part === "edit" && (
-        <VStack gap="space-8" align="start">
-          <Heading level="2" size="medium">
-            Endre MCP-serveren
-          </Heading>
-          <BodyLong>Endringen blir en ny versjon. {CHANGE_RULE}</BodyLong>
-          <Button
-            as={NextLink}
-            href={`/fleet/mcp-servere/${server.metadata.namespace}/${server.metadata.name}/endre`}
-            variant="secondary"
-          >
-            Endre MCP-serveren
-          </Button>
-        </VStack>
+    </VStack>
+  );
+}
+
+function UseVersion({ server, generation }: { server: MCPServer; generation: number }) {
+  const rollback = useFleetPost("rollback");
+  return (
+    <ConfirmForm
+      onSubmit={rollback.onSubmit}
+      heading={`Bruke versjon ${generation} igjen?`}
+      question="Versjonen blir publisert med en gang, uten ny godkjenning. Agentene får verktøyene og tilgangen i den versjonen."
+      confirm="Bruk denne versjonen"
+      variant="secondary"
+      busy={rollback.busy}
+      fields={(formId) => (
+        <Textarea
+          label="Begrunnelse"
+          description="Vises i historikken."
+          name="reason"
+          form={formId}
+          maxLength={500}
+          required
+        />
       )}
+    >
+      <input type="hidden" name="namespace" value={server.metadata.namespace} />
+      <input type="hidden" name="name" value={server.metadata.name} />
+      <input type="hidden" name="fromGeneration" value={server.status.publishedGeneration} />
+      <input type="hidden" name="generation" value={generation} />
+      <ActionError error={rollback.error} />
+    </ConfirmForm>
+  );
+}
+
+function Unpublish({ server, owner }: { server: MCPServer; owner: boolean }) {
+  const revoke = useFleetPost("revoke");
+  const { namespace, name } = server.metadata;
+  if (hasCondition(server, "Revoked"))
+    return owner ? (
+      <VStack gap="space-8" align="start">
+        <Heading level="2" size="medium">
+          Publiser igjen
+        </Heading>
+        <BodyLong>
+          MCP-serveren er avpublisert. Send inn en ny versjon for å publisere den igjen. {CHANGE_RULE}
+        </BodyLong>
+        <Button as={NextLink} href={`/fleet/mcp-servere/${namespace}/${name}/endre`} variant="secondary">
+          Publiser igjen
+        </Button>
+      </VStack>
+    ) : null;
+  if (!hasCondition(server, "Published")) return null;
+  return (
+    <VStack gap="space-8">
+      <Heading level="2" size="medium">
+        Avpubliser MCP-serveren
+      </Heading>
+      <ConfirmForm
+        onSubmit={revoke.onSubmit}
+        heading={`Avpublisere ${name}?`}
+        question="Ingen kan bruke MCP-serveren etterpå, og agentene mister tilgangen. For å publisere den igjen må dere sende inn en ny versjon som team copilot godkjenner."
+        confirm="Avpubliser…"
+        confirmModal="Avpubliser"
+        busy={revoke.busy}
+        fields={(formId) => (
+          <>
+            <Textarea
+              label="Begrunnelse"
+              description="Vises i historikken."
+              name="reason"
+              form={formId}
+              maxLength={500}
+              required
+            />
+            <Checkbox name="block" form={formId}>
+              Sperr denne versjonen for alltid. Den kan aldri sendes inn eller publiseres igjen.
+            </Checkbox>
+          </>
+        )}
+      >
+        <BodyShort>Adressen slutter å svare. Agentene som bruker MCP-serveren, får feil.</BodyShort>
+        <BodyShort size="small">Eierteamet og team copilot kan avpublisere. Det virker med en gang.</BodyShort>
+        <input type="hidden" name="namespace" value={namespace} />
+        <input type="hidden" name="name" value={name} />
+        <ActionError error={revoke.error} />
+      </ConfirmForm>
     </VStack>
   );
 }

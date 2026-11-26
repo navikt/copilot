@@ -90,7 +90,8 @@ export function failure(err: unknown, team: string, name: string, generation: nu
   }
   if (status === 404) return fail(`Fant ikke ${what}, eller du har ikke tilgang.`, 404);
   if (status === 409) {
-    if (fce?.reason === "AlreadyExists") return fail(REASON_TEXT.AlreadyExists!(ctx), 409);
+    const text = fce?.reason ? REASON_TEXT[fce.reason] : null;
+    if (text) return fail(text(ctx), 409);
     if (fce?.fields.includes("spec.registry.name"))
       return fail(
         "En annen MCP-server bruker allerede dette navnet i MCP-registeret. Send inn en ny versjon med et annet navn.",
