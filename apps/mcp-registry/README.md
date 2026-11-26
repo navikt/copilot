@@ -12,10 +12,20 @@ The registry serves the static `allowlist.json` merged with approved entries fro
 - **Write path**: `POST /api/v1/entries` submits an entry as a pending version. `POST /api/v1/entries/{name}/approve` or `/reject` decides it. Every step writes an audit row, including a `supersede` row when a newer version replaces an earlier one.
 - **Database**: Nais Postgres (`.nais/postgres.yaml`, Postgres 18, `spec.uses.postgres`). Connection settings come from the libpq `PG*` environment variables with TLS client certificates, no password. Migrations run with the unprefixed admin credentials; the running app uses the `READWRITE_` credentials. `DB_URL` overrides both for local runs and tests. The connection goes through PgBouncer in transaction mode, so the app uses the simple query protocol and keeps no session state.
 - **Migrations**: applied at startup, each inside a transaction holding a Postgres transaction-level advisory lock (`pg_advisory_xact_lock`), so only one replica migrates at a time.
-- **Static source**: `REGISTRY_SOURCE` is `git` (default, `allowlist.json` only) or `fleet-control` (#2641, dev only). With `fleet-control`, `allowlist.json` serves until the first good snapshot from `FLEET_CONTROL_URL/internal/v1/snapshots/registry`, fetched every 30 seconds with `If-None-Match` and an M2M token from Texas (`NAIS_TOKEN_ENDPOINT`, audience `FLEET_CONTROL_AUDIENCE`). Snapshot entries are validated like `allowlist.json`. An empty or invalid snapshot, an older generation, or a fleet-control or Texas failure keeps the current set.
+- **Static source**: `REGISTRY_SOURCE` is `git` (default, `allowlist.json` only), `shadow` (prod, #2765) or `fleet-control` (dev, #2641). See [fleet-control source](#fleet-control-source).
 - **Startup and outage**: if the database is unreachable, reads serve `allowlist.json`, writes answer 503, and the app retries connect and migrate in the background with backoff. It does not exit.
 - **Auth**: the bearer token is checked with Texas introspection. App tokens (`idtyp` = `app`) are rejected, and a NAVident is required. The token `azp` must be in `ALLOWED_WRITE_AZP`, a list of `cluster:namespace:app` names resolved through Nais `AZURE_APP_PRE_AUTHORIZED_APPS` (the manifest sets `{{cluster}}:copilot:my-copilot`; the Entra app uses `tenant: nav.no`). An empty list rejects every write with 403. The free-text reason an admin gives when rejecting an entry is not logged. A 401 is logged without its cause; a 403 logs the rejected `azp`, or the NAVident of a non-admin. Approve and reject also require membership in `ADMIN_GROUP_ID` (team copilot in dev and prod).
 - **Personal data**: rows store the NAVident, never the email. Audit rows are deleted after 90 days. Version rows are kept, but `submitted_by` is cleared after 90 days. `registry_entries.owner_navident` is kept while the entry exists, because it decides who may update the entry; this exception to the 90-day rule belongs in the privacy document ([#2092](https://github.com/navikt/copilot/issues/2092)).
+
+## fleet-control source
+
+With `fleet-control`, `allowlist.json` serves until the first good snapshot from `FLEET_CONTROL_URL/internal/v1/snapshots/registry`. The snapshot is fetched every 30 seconds with `If-None-Match` and an M2M token from Texas (`NAIS_TOKEN_ENDPOINT`, audience `FLEET_CONTROL_AUDIENCE`). Entries are validated like `allowlist.json`. A snapshot over 4 MiB, malformed, empty or invalid, an older generation, or a fleet-control or Texas failure keeps the current set.
+
+With `shadow`, the same fetch and validation run, but `allowlist.json` keeps serving. Differences in server names are logged (`Shadow fleet-control snapshot differs from allowlist.json`) and exported as `registry_fleet_control_shadow_diff{side="only_allowlist|only_fleet_control"}`.
+
+Metrics: `registry_fleet_control_snapshot_age_seconds` (since the last good fetch, 200 or 304) and `registry_fleet_control_fetch_failures_total`. Alerts `McpRegistrySnapshotStale` (age over 10 minutes) and `McpRegistrySnapshotFetchFailing` (failures for 15 minutes) are in `.nais/app.yaml`; the pod log line says what failed.
+
+Switching prod: set `registry_source: fleet-control` in `.nais/prod-gcp.yaml` once both shadow diff series stay 0.
 
 ## Endpoints
 

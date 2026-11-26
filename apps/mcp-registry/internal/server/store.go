@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"slices"
 	"sync"
 	"time"
 
@@ -157,10 +158,20 @@ func (s *Store) Reload(ctx context.Context) error {
 	var staticServers []registry.ServerResponse
 	var staticNames map[string]bool
 	var staticErr error
-	if s.Fleet != nil {
-		staticServers, staticNames, staticErr = s.Fleet.load(ctx, s.parseStatic)
-	} else {
+	switch {
+	case s.Fleet == nil:
 		staticServers, staticNames, staticErr = s.loadStatic()
+	case s.Fleet.shadow:
+		staticServers, staticNames, staticErr = s.loadStatic()
+		fleetServers, fleetNames, err := s.Fleet.fetch(ctx, s.parseStatic)
+		switch {
+		case err == nil && staticErr == nil:
+			logShadowDiff(staticNames, fleetNames, len(fleetServers))
+		case err != nil && !errors.Is(err, errNotModified):
+			slog.Warn("Shadow fleet-control snapshot not compared", "error", err)
+		}
+	default:
+		staticServers, staticNames, staticErr = s.Fleet.fetch(ctx, s.parseStatic)
 	}
 	if staticErr != nil && !errors.Is(staticErr, errNotModified) { // 304 keeps s.static silently
 		slog.Error("Failed to load static allowlist, keeping last good set", "error", staticErr)
@@ -296,5 +307,29 @@ func (s *Store) runRefresher(ctx context.Context, ticks <-chan time.Time) {
 				slog.Warn("Background reload failed", "error", err)
 			}
 		}
+	}
+}
+
+// logShadowDiff records which names allowlist.json and the fleet-control
+// snapshot disagree on. Only names: field-level drift is out of scope.
+func logShadowDiff(allowlist, fleet map[string]bool, fleetCount int) {
+	var onlyAllowlist, onlyFleet []string
+	for n := range allowlist {
+		if !fleet[n] {
+			onlyAllowlist = append(onlyAllowlist, n)
+		}
+	}
+	for n := range fleet {
+		if !allowlist[n] {
+			onlyFleet = append(onlyFleet, n)
+		}
+	}
+	slices.Sort(onlyAllowlist)
+	slices.Sort(onlyFleet)
+	fleetControlShadowDiff.WithLabelValues("only_allowlist").Set(float64(len(onlyAllowlist)))
+	fleetControlShadowDiff.WithLabelValues("only_fleet_control").Set(float64(len(onlyFleet)))
+	if len(onlyAllowlist)+len(onlyFleet) > 0 {
+		slog.Warn("Shadow fleet-control snapshot differs from allowlist.json",
+			"only_allowlist", onlyAllowlist, "only_fleet_control", onlyFleet, "fleet_control_servers", fleetCount)
 	}
 }

@@ -10,3 +10,6 @@ domain_external: nav.no
 ingresses:
   - https://mcp-registry.nav.no
 admin_group_id: "f59c8c77-7b73-4753-890a-2b483a07d18a" # team copilot
+# Shadow (#2765): fetch fleet-control's snapshot and log differences, keep serving allowlist.json.
+# Set to fleet-control once registry_fleet_control_shadow_diff stays 0.
+registry_source: shadow

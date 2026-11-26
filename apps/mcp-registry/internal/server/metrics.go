@@ -35,6 +35,21 @@ var (
 		Name: "registry_writes_total",
 		Help: "Total number of registry write operations.",
 	}, []string{"action", "status"})
+
+	fleetControlFetchFailures = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "registry_fleet_control_fetch_failures_total",
+		Help: "fleet-control registry snapshots fetched or validated without success; the current list stays.",
+	})
+
+	fleetControlSnapshotAge = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "registry_fleet_control_snapshot_age_seconds",
+		Help: "Seconds since the last good fleet-control registry snapshot (or since start). Stays 0 with REGISTRY_SOURCE=git.",
+	})
+
+	fleetControlShadowDiff = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "registry_fleet_control_shadow_diff",
+		Help: "REGISTRY_SOURCE=shadow: server names only in allowlist.json (only_allowlist) or only in the fleet-control snapshot (only_fleet_control).",
+	}, []string{"side"})
 )
 
 var knownPaths = map[string]bool{
