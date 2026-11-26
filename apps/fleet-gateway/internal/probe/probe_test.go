@@ -248,8 +248,8 @@ func TestProbeOBOFailures(t *testing.T) {
 		}))}
 		t.Cleanup(up.Close)
 		rec := do(newHandler(t, up, opts{}), "tok", okBody)
-		if rec.Code != http.StatusBadGateway || kind(t, rec) != "auth" {
-			t.Fatalf("status %d body %s, want 502 auth", rec.Code, rec.Body)
+		if rec.Code != http.StatusBadGateway || kind(t, rec) != "access" {
+			t.Fatalf("status %d body %s, want 502 access", rec.Code, rec.Body)
 		}
 	})
 	for name, tc := range map[string]struct {
@@ -273,11 +273,12 @@ func TestProbeOBOFailures(t *testing.T) {
 	}
 }
 
-// Each upstream answer maps to the kind my-copilot's fleet-tools.ts handles.
+// Every upstream failure answers "access" (#3078): distinct kinds would tell a
+// caller which services in other namespaces exist and answer.
 func TestProbeUpstreamKinds(t *testing.T) {
 	for code, want := range map[int]string{
-		http.StatusForbidden: "access", http.StatusNotFound: "noroute",
-		http.StatusInternalServerError: "unavailable", http.StatusTeapot: "invalid",
+		http.StatusForbidden: "access", http.StatusNotFound: "access",
+		http.StatusInternalServerError: "access", http.StatusTeapot: "access",
 	} {
 		up := &fakeUpstream{Server: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(code)
@@ -289,8 +290,8 @@ func TestProbeUpstreamKinds(t *testing.T) {
 	}
 	h := newHandler(t, nil, opts{})
 	h.upstream = &http.Client{Transport: errTransport{&net.DNSError{Err: "no such host", Name: "app", IsNotFound: true}}}
-	if rec := do(h, "tok", okBody); kind(t, rec) != "noroute" {
-		t.Errorf("no such app: body %s, want noroute", rec.Body)
+	if rec := do(h, "tok", okBody); kind(t, rec) != "access" {
+		t.Errorf("no such app: body %s, want access", rec.Body)
 	}
 	h.upstream = &http.Client{Transport: errTransport{errors.New("connection refused")}}
 	if rec := do(h, "tok", okBody); kind(t, rec) != "access" {
@@ -307,8 +308,8 @@ func TestProbeSlowUpstream(t *testing.T) {
 	h := newHandler(t, up, opts{})
 	h.timeout = 100 * time.Millisecond
 	rec := do(h, "tok", okBody)
-	if rec.Code != http.StatusGatewayTimeout || kind(t, rec) != "access" {
-		t.Fatalf("status %d body %s, want 504 access", rec.Code, rec.Body)
+	if rec.Code != http.StatusBadGateway || kind(t, rec) != "access" {
+		t.Fatalf("status %d body %s, want 502 access", rec.Code, rec.Body)
 	}
 }
 
@@ -424,8 +425,8 @@ func TestProbeDoesNotFollowRedirects(t *testing.T) {
 	inner := newUpstream(t, twoTools)
 	redirector := &fakeUpstream{Server: httptest.NewServer(http.RedirectHandler(inner.URL, http.StatusTemporaryRedirect))}
 	t.Cleanup(redirector.Close)
-	if rec := do(newHandler(t, redirector, opts{}), "tok", okBody); rec.Code != http.StatusBadGateway || kind(t, rec) != "invalid" {
-		t.Fatalf("status %d, want 502", rec.Code)
+	if rec := do(newHandler(t, redirector, opts{}), "tok", okBody); rec.Code != http.StatusBadGateway || kind(t, rec) != "access" {
+		t.Fatalf("status %d, want 502 access", rec.Code)
 	}
 	if len(inner.seen()) != 0 {
 		t.Fatal("redirect followed")
@@ -486,8 +487,8 @@ func TestProbeRefusesOversizedResponse(t *testing.T) {
 	big := `{"tools":[{"name":"x","description":"` + strings.Repeat("a", MaxResponseBytes) + `"}]}`
 	up := newUpstream(t, big)
 	h := newHandler(t, up, opts{})
-	if rec := do(h, "tok", okBody); rec.Code != http.StatusBadGateway || kind(t, rec) != "toolarge" {
-		t.Fatalf("status %d body %s, want 502 toolarge", rec.Code, rec.Body)
+	if rec := do(h, "tok", okBody); rec.Code != http.StatusBadGateway || kind(t, rec) != "access" {
+		t.Fatalf("status %d body %s, want 502 access", rec.Code, rec.Body)
 	}
 	// The cap itself, not a JSON error from a truncated body.
 	if _, _, err := h.call(context.Background(), up.URL, "t", "", 1, "tools/list", nil); err == nil || !strings.Contains(err.Error(), "bytes") {
@@ -497,8 +498,8 @@ func TestProbeRefusesOversizedResponse(t *testing.T) {
 
 func TestProbeRefusesBadToolName(t *testing.T) {
 	bad := `{"tools":[{"name":"ok"},{"name":"bad name"}]}`
-	if rec := do(newHandler(t, newUpstream(t, bad), opts{}), "tok", okBody); rec.Code != http.StatusBadGateway || kind(t, rec) != "invalid" {
-		t.Fatalf("status %d, want 502", rec.Code)
+	if rec := do(newHandler(t, newUpstream(t, bad), opts{}), "tok", okBody); rec.Code != http.StatusBadGateway || kind(t, rec) != "access" {
+		t.Fatalf("status %d, want 502 access", rec.Code)
 	}
 }
 

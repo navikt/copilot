@@ -13,7 +13,10 @@
 // the target's own checks apply (owner decision 2026-11-26).
 //
 // A failure answers {"error": kind}, the kinds my-copilot's fleet-tools.ts
-// handles (DiscoveryFailure):
+// handles (DiscoveryFailure). Every failure of the target itself (status,
+// DNS, refused, timeout, size, not MCP) answers 502 access, so the probe is
+// no reachability oracle for other namespaces (#3078); the audit log keeps
+// the detail. The list below says where each kind can come from:
 //
 //	unavailable  Texas, the Nais Console or the target failed (503, 5xx), or
 //	             the caller hit the rate limit (429). Try again later.
@@ -270,8 +273,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		slog.Warn("probe: upstream failed", "host", audit.Sanitize(host), "error", err)
-		status, o, kind := upstreamFailure(ctx, err)
-		fail(status, o, kind)
+		// One answer for every target failure (#3078): until the target is pinned
+		// to the team's own pods, distinct kinds are a reachability oracle for
+		// other namespaces. The audit outcome keeps the detail.
+		_, o, _ := upstreamFailure(ctx, err)
+		fail(http.StatusBadGateway, o, kindAccess)
 		return
 	}
 	tools, outcome = len(list), "ok"
