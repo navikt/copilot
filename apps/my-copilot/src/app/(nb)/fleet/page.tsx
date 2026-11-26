@@ -1,11 +1,19 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { BodyLong } from "@navikt/ds-react";
+import { BodyLong, Heading, HStack, VStack } from "@navikt/ds-react";
 import { fleetApi, fleetLoad, requireFleet } from "@/lib/fleet-control";
 import { TEAM_COOKIE } from "@/lib/fleet-names";
 import { FleetFrame, fleetRobots } from "./frame";
-import { FleetProblemAlert, KortFortalt, PendingInbox, TeamSections } from "./fleet-ui";
+import {
+  FleetProblemAlert,
+  KortFortalt,
+  PendingInbox,
+  RegisterButton,
+  ServerInbox,
+  TeamSections,
+  TeamStats,
+} from "./fleet-ui";
 import { TeamChooser, UnknownTeam } from "./catalog";
 
 const DNS_LABEL = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
@@ -36,7 +44,7 @@ export default async function FleetPage({ searchParams }: Props) {
       ),
       fleetApi.pending(),
     ]);
-    return { teams, pending: pending.items };
+    return { teams, pending: pending.items, me: me.name };
   });
   if ("problem" in result) {
     return (
@@ -45,7 +53,7 @@ export default async function FleetPage({ searchParams }: Props) {
       </FleetFrame>
     );
   }
-  const { teams, pending } = result.data;
+  const { teams, pending, me } = result.data;
   // No team: the catalogue explains how to start.
   if (teams.length === 0) redirect("/fleet/katalog");
   const remembered = team === undefined ? teams.find((t) => t.team === wanted) : undefined;
@@ -73,23 +81,38 @@ export default async function FleetPage({ searchParams }: Props) {
           : undefined
       }
     >
-      {picked && (
-        <KortFortalt>
-          <BodyLong>
-            Teamet registrerer en <strong>MCP-server</strong>. En annen i teamet godkjenner. Da får MCP-serveren en{" "}
-            <strong>rute</strong> i fleet-gateway, adressen <code>/mcp/team/navn</code>, og team dere gir tilgang, kan
-            bruke den.
-          </BodyLong>
-          <BodyLong>
-            En <strong>agentprofil</strong> bestemmer hvilken app som får bruke hvilke verktøy på hvilke MCP-servere, på
-            vegne av en innlogget bruker. Eierteamet til MCP-serveren gir tilgang.
-          </BodyLong>
-        </KortFortalt>
-      )}
       {picked ? (
         <>
-          {pending.length > 0 && <PendingInbox agents={pending} />}
-          <TeamSections teams={[picked]} />
+          <HStack justify="end">
+            <RegisterButton team={picked.team} />
+          </HStack>
+          <TeamStats servers={picked.servers} me={me} />
+          {(pending.length > 0 || picked.servers.some((s) => s.status.pending)) && (
+            <VStack gap="space-12">
+              <HStack justify="space-between" align="end" gap="space-8">
+                <Heading id="til-godkjenning" level="2" size="medium">
+                  Til godkjenning
+                </Heading>
+                <BodyLong size="small">
+                  Endringer må godkjennes av to personer i eierteamet: én sender inn, en annen godkjenner.
+                </BodyLong>
+              </HStack>
+              <ServerInbox servers={picked.servers} me={me} />
+              {pending.length > 0 && <PendingInbox agents={pending} />}
+            </VStack>
+          )}
+          <TeamSections teams={[picked]} me={me} />
+          <KortFortalt collapsed>
+            <BodyLong>
+              Teamet registrerer en <strong>MCP-server</strong>. En annen i teamet godkjenner. Da får MCP-serveren en{" "}
+              <strong>rute</strong> i fleet-gateway, adressen <code>/mcp/team/navn</code>, og team dere gir tilgang, kan
+              bruke den.
+            </BodyLong>
+            <BodyLong>
+              En <strong>agentprofil</strong> bestemmer hvilken app som får bruke hvilke verktøy på hvilke MCP-servere,
+              på vegne av en innlogget bruker. Eierteamet til MCP-serveren gir tilgang.
+            </BodyLong>
+          </KortFortalt>
         </>
       ) : (
         <>

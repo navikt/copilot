@@ -13,7 +13,9 @@ import {
   Button,
   Checkbox,
   CopyButton,
+  Detail,
   ExpansionCard,
+  HGrid,
   Hide,
   HStack,
   Modal,
@@ -24,6 +26,7 @@ import {
   Heading,
   Select,
   Show,
+  Stack,
   Table,
   Tag,
   Textarea,
@@ -130,7 +133,20 @@ export function FleetTable({ "aria-label": label, children }: { "aria-label": st
   );
 }
 
-export function KortFortalt({ children }: { children: ReactNode }) {
+export function KortFortalt({ children, collapsed = false }: { children: ReactNode; collapsed?: boolean }) {
+  if (collapsed)
+    return (
+      <ExpansionCard aria-label="Kort fortalt: hva er Fleet?" size="small">
+        <ExpansionCard.Header>
+          <ExpansionCard.Title as="h2" size="small">
+            Kort fortalt: hva er Fleet?
+          </ExpansionCard.Title>
+        </ExpansionCard.Header>
+        <ExpansionCard.Content>
+          <VStack gap="space-8">{children}</VStack>
+        </ExpansionCard.Content>
+      </ExpansionCard>
+    );
   return (
     <Box background="info-soft" padding="space-20" borderRadius="12">
       <VStack gap="space-8">
@@ -142,6 +158,13 @@ export function KortFortalt({ children }: { children: ReactNode }) {
     </Box>
   );
 }
+
+/** Client side, since a server component cannot pass NextLink to Button. */
+export const RegisterButton = ({ team }: { team: string }) => (
+  <Button as={NextLink} href={`/fleet/registrer?team=${team}`}>
+    Registrer MCP-server
+  </Button>
+);
 
 /** A team without MCP servers: what to do first. */
 export function EmptyTeam({ team }: { team: string }) {
@@ -183,9 +206,115 @@ export function SubmittedAlert({ server }: { server: MCPServer }) {
   );
 }
 
+/** A number with a label, as in the stat strip on top of the overview. */
+function Stat({ label, value, help }: { label: string; value: ReactNode; help?: string }) {
+  return (
+    <Box background="default" borderWidth="1" borderColor="neutral-subtle" borderRadius="12" padding="space-20">
+      <VStack gap="space-4">
+        <BodyShort size="small">{label}</BodyShort>
+        <Heading level="3" size="large" as="p">
+          {value}
+        </Heading>
+        {help && <BodyShort size="small">{help}</BodyShort>}
+      </VStack>
+    </Box>
+  );
+}
+
+/** The team's overview numbers. Calls and users per team are not in Fleet's API; Grafana has them per MCP server. */
+export function TeamStats({ servers, me }: { servers: MCPServer[]; me?: string }) {
+  const published = servers.filter((s) => hasCondition(s, "Published") && !hasCondition(s, "Revoked")).length;
+  const pending = servers.filter((s) => s.status.pending);
+  const forMe = pending.filter(
+    (s) => s.status.pending?.contentHash && s.status.pending.submittedBy?.name !== me
+  ).length;
+  return (
+    <HGrid columns={{ xs: 2, md: 4 }} gap="space-16">
+      <Stat
+        label="Publiserte MCP-servere"
+        value={published}
+        help={`av ${servers.length} ${servers.length === 1 ? "registrert" : "registrerte"}`}
+      />
+      <Stat label="Venter på godkjenning" value={pending.length} help={`${forMe} venter på deg`} />
+    </HGrid>
+  );
+}
+
+/** MCP server versions that wait for someone on the team: approve, or wait for the others. */
+export function ServerInbox({ servers, me }: { servers: MCPServer[]; me?: string }) {
+  const waiting = servers.filter((s) => s.status.pending);
+  if (!waiting.length) return null;
+  return (
+    <Box background="default" borderWidth="1" borderColor="neutral-subtle" borderRadius="12">
+      <VStack as="ul" aria-label="MCP-servere til godkjenning">
+        {waiting.map((s, i) => {
+          const p = s.status.pending!;
+          const mine = !!me && p.submittedBy?.name === me;
+          return (
+            <Box
+              as="li"
+              key={s.metadata.name}
+              padding="space-20"
+              borderWidth={i ? "1 0 0 0" : "0"}
+              borderColor="neutral-subtle"
+            >
+              <Stack
+                direction={{ xs: "column", md: "row" }}
+                gap="space-16"
+                justify="space-between"
+                align={{ md: "center" }}
+              >
+                <VStack gap="space-8">
+                  <HStack gap="space-8" align="center">
+                    <Tag size="small" variant="warning">
+                      Venter på godkjenning
+                    </Tag>
+                    <Link
+                      as={NextLink}
+                      href={`/fleet/mcp-servere/${refKey(s.metadata)}`}
+                      className="[overflow-wrap:anywhere]"
+                    >
+                      <strong>{s.metadata.name}</strong>
+                    </Link>
+                    <BodyShort size="small">versjon {p.generation}</BodyShort>
+                  </HStack>
+                  <BodyShort size="small">
+                    {mine
+                      ? "Sendt inn av deg."
+                      : p.submittedBy
+                        ? `Sendt inn av ${p.submittedBy.name}.`
+                        : "Ingen person sendte inn."}{" "}
+                    {mine ? "Venter på en annen i teamet." : "Du kan godkjenne."}
+                  </BodyShort>
+                </VStack>
+                <Button
+                  as={NextLink}
+                  href={`/fleet/mcp-servere/${refKey(s.metadata)}`}
+                  variant={mine ? "secondary" : "primary"}
+                >
+                  Se endringen
+                </Button>
+              </Stack>
+            </Box>
+          );
+        })}
+      </VStack>
+    </Box>
+  );
+}
+
+/** One short next step per MCP server for the overview table. */
+export function serverShortNext(s: MCPServer, me?: string): string {
+  const p = s.status.pending;
+  if (p)
+    return !!me && p.submittedBy?.name === me ? "En annen i teamet godkjenner" : "Godkjenn versjon " + p.generation;
+  if (hasCondition(s, "Revoked")) return "Send inn en ny versjon";
+  return "Ingen";
+}
+
 export type TeamData = { team: string; servers: MCPServer[]; agents: AgentProfile[] };
 
-export function TeamSections({ teams }: { teams: TeamData[] }) {
+export function TeamSections({ teams, me }: { teams: TeamData[]; me?: string }) {
   return (
     <VStack gap="space-32">
       {teams.map((t) => (
@@ -201,8 +330,9 @@ export function TeamSections({ teams }: { teams: TeamData[] }) {
                 <FleetTable aria-label={`MCP-serverne til ${t.team}`}>
                   <Table.Header>
                     <Table.Row>
-                      <Table.HeaderCell scope="col">Navn</Table.HeaderCell>
+                      <Table.HeaderCell scope="col">MCP-server</Table.HeaderCell>
                       <Table.HeaderCell scope="col">Status</Table.HeaderCell>
+                      <Table.HeaderCell scope="col">Neste steg</Table.HeaderCell>
                       <Table.HeaderCell scope="col">Publisert versjon</Table.HeaderCell>
                     </Table.Row>
                   </Table.Header>
@@ -210,13 +340,23 @@ export function TeamSections({ teams }: { teams: TeamData[] }) {
                     {t.servers.map((s) => (
                       <Table.Row key={s.metadata.name}>
                         <Table.DataCell>
-                          <NextLink className={linkClass} href={`/fleet/mcp-servere/${refKey(s.metadata)}`}>
-                            {s.metadata.name}
-                          </NextLink>
+                          <VStack gap="space-4">
+                            <NextLink className={linkClass} href={`/fleet/mcp-servere/${refKey(s.metadata)}`}>
+                              <strong>{s.metadata.name}</strong>
+                            </NextLink>
+                            {s.status.route && <Detail as="code">{s.status.route.path}</Detail>}
+                            <Detail>
+                              {(s.spec?.allowedTools?.length ?? 0) === 1
+                                ? "1 verktøy"
+                                : `${s.spec?.allowedTools?.length ?? 0} verktøy`}
+                              {s.spec?.dataCategory && ` · ${categoryLabel(s.spec.dataCategory)}`}
+                            </Detail>
+                          </VStack>
                         </Table.DataCell>
                         <Table.DataCell>
                           <StatusTag s={serverStatus(s)} />
                         </Table.DataCell>
+                        <Table.DataCell>{serverShortNext(s, me)}</Table.DataCell>
                         <Table.DataCell>{s.status.publishedGeneration ?? "–"}</Table.DataCell>
                       </Table.Row>
                     ))}
@@ -377,8 +517,8 @@ function WaitingForAccess({ server, agents }: { server: MCPServer; agents: Agent
 export function PendingInbox({ agents }: { agents: AgentProfile[] }) {
   return (
     <VStack gap="space-8">
-      <Heading id="til-godkjenning" level="2" size="medium">
-        Til godkjenning
+      <Heading level="3" size="small">
+        Agentprofiler som venter på tilgang
       </Heading>
       {agents.length === 0 ? (
         <BodyShort>Ingen agentprofiler venter på teamene dine.</BodyShort>
@@ -913,6 +1053,8 @@ export function AccessPolicy({ app }: { app?: string }) {
     </VStack>
   );
 }
+
+export const categoryLabel = (c: string) => DATA_CATEGORIES.find((d) => d[0] === c)?.[1] ?? c;
 
 const DATA_CATEGORIES: [string, string, string][] = [
   ["Aapen", "Åpne data", "Kan deles med alle, også utenfor Nav. For eksempel offentlige kodeverk og regelverk."],

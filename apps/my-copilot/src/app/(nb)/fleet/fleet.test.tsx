@@ -155,15 +155,26 @@ describe("/fleet", () => {
 
   it("shows Kort fortalt, the inbox and the team's MCP servers with status", async () => {
     render(await FleetPage(sp()));
-    expect(screen.getByText("Kort fortalt")).toBeInTheDocument();
+    expect(screen.getByText("Kort fortalt: hva er Fleet?")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Til godkjenning" })).toBeInTheDocument();
+    // Main: the stat strip and the team's own versions waiting for approval.
+    expect(screen.getByText("Publiserte MCP-servere")).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("list", { name: "MCP-servere til godkjenning" })).getByRole("button", {
+        name: "Se endringen",
+      })
+    ).toHaveAttribute("href", "/fleet/mcp-servere/team-a/docs");
     expect(screen.getByRole("link", { name: "studio" })).toHaveAttribute("href", "/fleet/agenter/aksel/studio");
     expect(screen.getByText("MCP-server team-a/docs")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "team-a" })).toBeInTheDocument();
     expect(screen.queryByRole("tab")).not.toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Registrer/ })).toHaveLength(1);
     expect(screen.getByRole("link", { name: "Registrer MCP-server" })).toHaveAttribute("href", "/fleet/registrer");
-    expect(screen.getByRole("link", { name: "Registrer MCP-server" })).toHaveClass("aksel-link");
+    // Aksel's Button as a link keeps role="button".
+    expect(screen.getByRole("button", { name: "Registrer MCP-server" })).toHaveAttribute(
+      "href",
+      "/fleet/registrer?team=team-a"
+    );
     expect(screen.getByRole("navigation", { name: "Fleet" })).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: "docs" })[0]).toHaveAttribute("href", "/fleet/mcp-servere/team-a/docs");
     expect(screen.getByText("Ny versjon venter")).toBeInTheDocument();
