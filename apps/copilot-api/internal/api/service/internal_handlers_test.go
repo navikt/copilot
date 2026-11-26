@@ -1,9 +1,10 @@
-package main
+package service
 
 import (
 	"bytes"
 	"context"
 	"errors"
+	"github.com/navikt/copilot/apps/copilot-api/internal/problem"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -80,13 +81,13 @@ func TestRegisterInternalRoutes(t *testing.T) {
 	auth := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if _, err := auth.ExtractBearerToken(r); err != nil {
-				respondError(w, "unauthorized", err.Error(), http.StatusUnauthorized)
+				problem.Respond(w, "unauthorized", err.Error(), http.StatusUnauthorized)
 				return
 			}
 			next.ServeHTTP(w, r)
 		})
 	}
-	registerInternalRoutes(mux, auth, "survey-id", nil, "cli-id", nil)
+	RegisterRoutes(mux, auth, "survey-id", nil, "cli-id", nil)
 	for _, tc := range []struct {
 		method, path string
 		want         int
@@ -110,7 +111,7 @@ func TestSurveyTokenThroughMux(t *testing.T) {
 	auth := auth.BearerAuth(validate, []string{"survey-id"})
 	mux := http.NewServeMux()
 	mux.Handle("/api/v1/", auth(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})))
-	registerInternalRoutes(mux, auth, "survey-id", nil, "cli-id", nil)
+	RegisterRoutes(mux, auth, "survey-id", nil, "cli-id", nil)
 	for _, tc := range []struct {
 		method, path string
 		want         int
@@ -197,7 +198,7 @@ func TestOrgMembershipThroughMux(t *testing.T) {
 	}{{"cli-id", 200}, {"survey-id", 403}, {"my-copilot-id", 403}} {
 		validate := func(string) (*auth.User, error) { return &auth.User{AZP: tc.azp, Idtyp: "app"}, nil }
 		mux := http.NewServeMux()
-		registerInternalRoutes(mux, auth.BearerAuth(validate, []string{"survey-id"}), "survey-id", nil, "cli-id",
+		RegisterRoutes(mux, auth.BearerAuth(validate, []string{"survey-id"}), "survey-id", nil, "cli-id",
 			func(context.Context, string) (bool, error) { return true, nil })
 		req := httptest.NewRequest(http.MethodPost, orgMembershipPath, strings.NewReader(`{"login":"hans"}`))
 		req.Header.Set("Authorization", "Bearer t")

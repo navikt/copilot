@@ -1,8 +1,10 @@
-package main
+package public
 
 import (
 	"context"
 	"fmt"
+	"github.com/navikt/copilot/apps/copilot-api/internal/api/httpx"
+	"github.com/navikt/copilot/apps/copilot-api/internal/problem"
 	"log/slog"
 	"net"
 	"net/http"
@@ -21,7 +23,7 @@ type VideoHandlers struct {
 	playRateLimiter  *videoPlayRateLimiter
 }
 
-func newVideoHandlers(config *config.Config) *VideoHandlers {
+func NewVideoHandlers(config *config.Config) *VideoHandlers {
 	manifestSource := strings.TrimSpace(config.VideoManifestURL)
 	if manifestSource == "" {
 		manifestSource = strings.TrimSpace(config.VideoManifestPath)
@@ -120,7 +122,7 @@ func videoPlayClientKey(r *http.Request) string {
 }
 
 func (h *VideoHandlers) handleVideoFeed(w http.ResponseWriter, r *http.Request) {
-	if !requireMethod(w, r, http.MethodGet) {
+	if !httpx.RequireMethod(w, r, http.MethodGet) {
 		return
 	}
 
@@ -128,7 +130,7 @@ func (h *VideoHandlers) handleVideoFeed(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		if len(entries) == 0 {
 			slog.Error("Failed to load video manifest", "error", err)
-			respondError(w, "service_unavailable", "Video feed is unavailable", http.StatusServiceUnavailable)
+			problem.Respond(w, "service_unavailable", "Video feed is unavailable", http.StatusServiceUnavailable)
 			return
 		}
 		slog.Warn("Serving stale video manifest after refresh error", "error", err)
@@ -138,7 +140,7 @@ func (h *VideoHandlers) handleVideoFeed(w http.ResponseWriter, r *http.Request) 
 	if rawLimit := r.URL.Query().Get("limit"); rawLimit != "" {
 		n, err := strconv.Atoi(rawLimit)
 		if err != nil || n < 1 || n > 50 {
-			respondError(w, "invalid_parameter", "limit must be between 1 and 50", http.StatusBadRequest)
+			problem.Respond(w, "invalid_parameter", "limit must be between 1 and 50", http.StatusBadRequest)
 			return
 		}
 		limit = n
@@ -148,7 +150,7 @@ func (h *VideoHandlers) handleVideoFeed(w http.ResponseWriter, r *http.Request) 
 	if cursor := r.URL.Query().Get("cursor"); cursor != "" {
 		n, err := strconv.Atoi(cursor)
 		if err != nil || n < 0 {
-			respondError(w, "invalid_parameter", "cursor must be a non-negative integer", http.StatusBadRequest)
+			problem.Respond(w, "invalid_parameter", "cursor must be a non-negative integer", http.StatusBadRequest)
 			return
 		}
 		offset = n
@@ -162,7 +164,7 @@ func (h *VideoHandlers) handleVideoFeed(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if offset > len(published) {
-		respondError(w, "invalid_parameter", "cursor out of range", http.StatusBadRequest)
+		problem.Respond(w, "invalid_parameter", "cursor out of range", http.StatusBadRequest)
 		return
 	}
 
@@ -176,13 +178,13 @@ func (h *VideoHandlers) handleVideoFeed(w http.ResponseWriter, r *http.Request) 
 		posterURL, err := objectURL(h.publicBaseURL, e.PosterObject)
 		if err != nil {
 			slog.Error("Invalid poster object in manifest", "id", e.ID, "error", err)
-			respondError(w, "internal_error", "Invalid video manifest configuration", http.StatusInternalServerError)
+			problem.Respond(w, "internal_error", "Invalid video manifest configuration", http.StatusInternalServerError)
 			return
 		}
 		playURL, err := objectURL(h.publicBaseURL, e.HLSMasterObject)
 		if err != nil {
 			slog.Error("Invalid HLS object in manifest", "id", e.ID, "error", err)
-			respondError(w, "internal_error", "Invalid video manifest configuration", http.StatusInternalServerError)
+			problem.Respond(w, "internal_error", "Invalid video manifest configuration", http.StatusInternalServerError)
 			return
 		}
 		var mp4URL string
@@ -190,7 +192,7 @@ func (h *VideoHandlers) handleVideoFeed(w http.ResponseWriter, r *http.Request) 
 			mp4URL, err = objectURL(h.publicBaseURL, e.MP4Object)
 			if err != nil {
 				slog.Error("Invalid MP4 object in manifest", "id", e.ID, "error", err)
-				respondError(w, "internal_error", "Invalid video manifest configuration", http.StatusInternalServerError)
+				problem.Respond(w, "internal_error", "Invalid video manifest configuration", http.StatusInternalServerError)
 				return
 			}
 		}
@@ -199,7 +201,7 @@ func (h *VideoHandlers) handleVideoFeed(w http.ResponseWriter, r *http.Request) 
 			captionsURL, err = objectURL(h.publicBaseURL, e.CaptionsObject)
 			if err != nil {
 				slog.Error("Invalid captions object in manifest", "id", e.ID, "error", err)
-				respondError(w, "internal_error", "Invalid video manifest configuration", http.StatusInternalServerError)
+				problem.Respond(w, "internal_error", "Invalid video manifest configuration", http.StatusInternalServerError)
 				return
 			}
 		}
@@ -229,29 +231,29 @@ func (h *VideoHandlers) handleVideoFeed(w http.ResponseWriter, r *http.Request) 
 	if cacheSeconds <= 0 {
 		cacheSeconds = 60
 	}
-	cacheControl(w, cacheSeconds, true)
-	respondJSON(w, resp, http.StatusOK)
+	httpx.CacheControl(w, cacheSeconds, true)
+	httpx.RespondJSON(w, resp, http.StatusOK)
 }
 
 // handleVideoDetail returns a single video by ID with full metadata
 func (h *VideoHandlers) handleVideoDetail(w http.ResponseWriter, r *http.Request) {
-	if !requireMethod(w, r, http.MethodGet) {
+	if !httpx.RequireMethod(w, r, http.MethodGet) {
 		return
 	}
 
 	videoID := r.PathValue("id")
 	if videoID == "" {
-		respondError(w, "invalid_parameter", "video id is required", http.StatusBadRequest)
+		problem.Respond(w, "invalid_parameter", "video id is required", http.StatusBadRequest)
 		return
 	}
 
 	if !isValidVideoID(videoID) {
-		respondError(w, "invalid_parameter", "Invalid video id", http.StatusBadRequest)
+		problem.Respond(w, "invalid_parameter", "Invalid video id", http.StatusBadRequest)
 		return
 	}
 
 	if !h.playRateLimiter.allow(videoPlayClientKey(r)) {
-		respondError(w, "rate_limit_exceeded", "Too many requests", http.StatusTooManyRequests)
+		problem.Respond(w, "rate_limit_exceeded", "Too many requests", http.StatusTooManyRequests)
 		return
 	}
 
@@ -259,7 +261,7 @@ func (h *VideoHandlers) handleVideoDetail(w http.ResponseWriter, r *http.Request
 	if err != nil {
 		if len(entries) == 0 {
 			slog.Error("Failed to load video manifest", "error", err)
-			respondError(w, "service_unavailable", "Video service is unavailable", http.StatusServiceUnavailable)
+			problem.Respond(w, "service_unavailable", "Video service is unavailable", http.StatusServiceUnavailable)
 			return
 		}
 		slog.Warn("Serving stale video manifest after refresh error", "error", err)
@@ -275,7 +277,7 @@ func (h *VideoHandlers) handleVideoDetail(w http.ResponseWriter, r *http.Request
 	}
 
 	if videoEntry == nil {
-		respondError(w, "not_found", "video not found", http.StatusNotFound)
+		problem.Respond(w, "not_found", "video not found", http.StatusNotFound)
 		return
 	}
 
@@ -283,13 +285,13 @@ func (h *VideoHandlers) handleVideoDetail(w http.ResponseWriter, r *http.Request
 	posterURL, err := objectURL(h.publicBaseURL, videoEntry.PosterObject)
 	if err != nil {
 		slog.Error("Invalid poster object in manifest", "id", videoEntry.ID, "error", err)
-		respondError(w, "internal_error", "Invalid video manifest configuration", http.StatusInternalServerError)
+		problem.Respond(w, "internal_error", "Invalid video manifest configuration", http.StatusInternalServerError)
 		return
 	}
 	playURL, err := objectURL(h.publicBaseURL, videoEntry.HLSMasterObject)
 	if err != nil {
 		slog.Error("Invalid HLS object in manifest", "id", videoEntry.ID, "error", err)
-		respondError(w, "internal_error", "Invalid video manifest configuration", http.StatusInternalServerError)
+		problem.Respond(w, "internal_error", "Invalid video manifest configuration", http.StatusInternalServerError)
 		return
 	}
 	var mp4URL string
@@ -297,7 +299,7 @@ func (h *VideoHandlers) handleVideoDetail(w http.ResponseWriter, r *http.Request
 		mp4URL, err = objectURL(h.publicBaseURL, videoEntry.MP4Object)
 		if err != nil {
 			slog.Error("Invalid MP4 object in manifest", "id", videoEntry.ID, "error", err)
-			respondError(w, "internal_error", "Invalid video manifest configuration", http.StatusInternalServerError)
+			problem.Respond(w, "internal_error", "Invalid video manifest configuration", http.StatusInternalServerError)
 			return
 		}
 	}
@@ -306,7 +308,7 @@ func (h *VideoHandlers) handleVideoDetail(w http.ResponseWriter, r *http.Request
 		captionsURL, err = objectURL(h.publicBaseURL, videoEntry.CaptionsObject)
 		if err != nil {
 			slog.Error("Invalid captions object in manifest", "id", videoEntry.ID, "error", err)
-			respondError(w, "internal_error", "Invalid video manifest configuration", http.StatusInternalServerError)
+			problem.Respond(w, "internal_error", "Invalid video manifest configuration", http.StatusInternalServerError)
 			return
 		}
 	}
@@ -331,85 +333,85 @@ func (h *VideoHandlers) handleVideoDetail(w http.ResponseWriter, r *http.Request
 	if cacheSeconds <= 0 {
 		cacheSeconds = 60
 	}
-	cacheControl(w, cacheSeconds, true)
-	respondJSON(w, item, http.StatusOK)
+	httpx.CacheControl(w, cacheSeconds, true)
+	httpx.RespondJSON(w, item, http.StatusOK)
 }
 
 func (h *VideoHandlers) handleVideoPlay(w http.ResponseWriter, r *http.Request) {
-	if !requireMethod(w, r, http.MethodGet) {
+	if !httpx.RequireMethod(w, r, http.MethodGet) {
 		return
 	}
 	if !h.playRateLimiter.allow(videoPlayClientKey(r)) {
-		respondError(w, "rate_limited", "Too many play requests", http.StatusTooManyRequests)
+		problem.Respond(w, "rate_limited", "Too many play requests", http.StatusTooManyRequests)
 		return
 	}
 
 	id := r.PathValue("id")
 	if !isValidVideoID(id) {
-		respondError(w, "invalid_parameter", "Invalid video id", http.StatusBadRequest)
+		problem.Respond(w, "invalid_parameter", "Invalid video id", http.StatusBadRequest)
 		return
 	}
 
 	entry, err := h.getPublishedVideoByID(r.Context(), id)
 	if err != nil {
 		slog.Error("Failed to load video by id", "id", id, "error", err)
-		respondError(w, "service_unavailable", "Video playback is unavailable", http.StatusServiceUnavailable)
+		problem.Respond(w, "service_unavailable", "Video playback is unavailable", http.StatusServiceUnavailable)
 		return
 	}
 	if entry == nil {
-		respondError(w, "not_found", "Video not found", http.StatusNotFound)
+		problem.Respond(w, "not_found", "Video not found", http.StatusNotFound)
 		return
 	}
 
 	playURL, err := objectURL(h.publicBaseURL, entry.HLSMasterObject)
 	if err != nil {
 		slog.Error("Invalid HLS object in manifest", "id", id, "error", err)
-		respondError(w, "internal_error", "Invalid video manifest configuration", http.StatusInternalServerError)
+		problem.Respond(w, "internal_error", "Invalid video manifest configuration", http.StatusInternalServerError)
 		return
 	}
 
-	cacheControl(w, 300, true)
-	respondJSON(w, VideoPlayResponse{
+	httpx.CacheControl(w, 300, true)
+	httpx.RespondJSON(w, VideoPlayResponse{
 		ID:      id,
 		PlayURL: playURL,
 	}, http.StatusOK)
 }
 
 func (h *VideoHandlers) handleVideoCaptions(w http.ResponseWriter, r *http.Request) {
-	if !requireMethod(w, r, http.MethodGet) {
+	if !httpx.RequireMethod(w, r, http.MethodGet) {
 		return
 	}
 
 	id := r.PathValue("id")
 	if !isValidVideoID(id) {
-		respondError(w, "invalid_parameter", "Invalid video id", http.StatusBadRequest)
+		problem.Respond(w, "invalid_parameter", "Invalid video id", http.StatusBadRequest)
 		return
 	}
 
 	entry, err := h.getPublishedVideoByID(r.Context(), id)
 	if err != nil {
 		slog.Error("Failed to load captions by id", "id", id, "error", err)
-		respondError(w, "service_unavailable", "Video captions are unavailable", http.StatusServiceUnavailable)
+		problem.Respond(w, "service_unavailable", "Video captions are unavailable", http.StatusServiceUnavailable)
 		return
 	}
 	if entry == nil {
-		respondError(w, "not_found", "Video not found", http.StatusNotFound)
+		problem.Respond(w, "not_found", "Video not found", http.StatusNotFound)
 		return
 	}
 	if entry.CaptionsObject == "" {
-		respondError(w, "not_found", "Captions not found for this video", http.StatusNotFound)
+		problem.Respond(w, "not_found", "Captions not found for this video", http.StatusNotFound)
 		return
 	}
 
 	captionsURL, err := objectURL(h.publicBaseURL, entry.CaptionsObject)
 	if err != nil {
 		slog.Error("Invalid captions object in manifest", "id", id, "error", err)
-		respondError(w, "internal_error", "Invalid video manifest configuration", http.StatusInternalServerError)
+		problem.Respond(w, "internal_error", "Invalid video manifest configuration", http.StatusInternalServerError)
 		return
 	}
 
-	cacheControl(w, 300, true)
-	respondJSON(w, VideoCaptionsResponse{
+	httpx.CacheControl(w, 300, true)
+	httpx.RespondJSON(w, VideoCaptionsResponse{
 		ID:          id,
 		CaptionsURL: captionsURL,
 	}, http.StatusOK)

@@ -1,4 +1,4 @@
-package main
+package copilot
 
 import (
 	"context"
@@ -93,10 +93,10 @@ func TestHandleBilling(t *testing.T) {
 	t.Run("returns billing data on success", func(t *testing.T) {
 		mock := &mockGitHubClient{billing: &github.CopilotBilling{}}
 		mock.billing.SeatBreakdown.Total = 100
-		h := newGitHubHandlers(mock)
+		h := NewGitHubHandlers(mock)
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/billing", nil)
 		rec := httptest.NewRecorder()
-		h.handleBilling(rec, req)
+		h.HandleBilling(rec, req)
 
 		if rec.Code != http.StatusOK {
 			t.Errorf("status: got %d, want 200", rec.Code)
@@ -105,10 +105,10 @@ func TestHandleBilling(t *testing.T) {
 
 	t.Run("returns 500 on error", func(t *testing.T) {
 		mock := &mockGitHubClient{billingErr: errors.New("github error")}
-		h := newGitHubHandlers(mock)
+		h := NewGitHubHandlers(mock)
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/billing", nil)
 		rec := httptest.NewRecorder()
-		h.handleBilling(rec, req)
+		h.HandleBilling(rec, req)
 
 		if rec.Code != http.StatusInternalServerError {
 			t.Errorf("status: got %d, want 500", rec.Code)
@@ -169,7 +169,7 @@ func TestHandleGetSeat(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			mock := &mockGitHubClient{seat: tc.seat, seatErr: tc.seatErr}
-			h := newGitHubHandlers(mock)
+			h := NewGitHubHandlers(mock)
 
 			req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/seats/"+tc.username, nil)
 			req.SetPathValue("username", tc.username)
@@ -177,7 +177,7 @@ func TestHandleGetSeat(t *testing.T) {
 				req = identityContext(req, tc.resolvedUsername)
 			}
 			rec := httptest.NewRecorder()
-			h.handleGetSeat(rec, req)
+			h.HandleGetSeat(rec, req)
 
 			if rec.Code != tc.wantStatus {
 				t.Errorf("status: got %d, want %d", rec.Code, tc.wantStatus)
@@ -189,12 +189,12 @@ func TestHandleGetSeat(t *testing.T) {
 func TestHandleAssignSeat(t *testing.T) {
 	t.Run("returns 403 when the only group is the admin group", func(t *testing.T) {
 		t.Setenv(auth.AdminGroupEnv, "admin")
-		h := newGitHubHandlers(&mockGitHubClient{assignResult: &github.AssignResult{SeatsCreated: 1}})
+		h := NewGitHubHandlers(&mockGitHubClient{assignResult: &github.AssignResult{SeatsCreated: 1}})
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/copilot/seats", strings.NewReader(`{"username":"octocat"}`))
 		req = identityContext(req, "octocat")
 		req = req.WithContext(context.WithValue(req.Context(), auth.UserContextKey, &auth.User{Groups: []string{"admin"}}))
 		rec := httptest.NewRecorder()
-		h.handleAssignSeat(rec, req)
+		h.HandleAssignSeat(rec, req)
 		if rec.Code != http.StatusForbidden {
 			t.Errorf("status: got %d, want 403", rec.Code)
 		}
@@ -204,14 +204,14 @@ func TestHandleAssignSeat(t *testing.T) {
 		mock := &mockGitHubClient{
 			assignResult: &github.AssignResult{SeatsCreated: 1},
 		}
-		h := newGitHubHandlers(mock)
+		h := NewGitHubHandlers(mock)
 
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/copilot/seats",
 			strings.NewReader(`{"username":"octocat"}`))
 		req = identityContext(req, "octocat")
 		req = req.WithContext(context.WithValue(req.Context(), auth.UserContextKey, &auth.User{Groups: []string{"g"}}))
 		rec := httptest.NewRecorder()
-		h.handleAssignSeat(rec, req)
+		h.HandleAssignSeat(rec, req)
 
 		if rec.Code != http.StatusCreated {
 			t.Errorf("status: got %d, want 201", rec.Code)
@@ -220,13 +220,13 @@ func TestHandleAssignSeat(t *testing.T) {
 
 	t.Run("rejects caller with no allowed group", func(t *testing.T) {
 		mock := &mockGitHubClient{assignResult: &github.AssignResult{SeatsCreated: 1}}
-		h := newGitHubHandlers(mock)
+		h := NewGitHubHandlers(mock)
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/copilot/seats",
 			strings.NewReader(`{"username":"octocat"}`))
 		req = identityContext(req, "octocat")
 		req = req.WithContext(context.WithValue(req.Context(), auth.UserContextKey, &auth.User{}))
 		rec := httptest.NewRecorder()
-		h.handleAssignSeat(rec, req)
+		h.HandleAssignSeat(rec, req)
 
 		if rec.Code != http.StatusForbidden {
 			t.Errorf("status: got %d, want 403", rec.Code)
@@ -234,11 +234,11 @@ func TestHandleAssignSeat(t *testing.T) {
 	})
 
 	t.Run("rejects request with no resolved identity", func(t *testing.T) {
-		h := newGitHubHandlers(&mockGitHubClient{})
+		h := NewGitHubHandlers(&mockGitHubClient{})
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/copilot/seats",
 			strings.NewReader(`{"username":"octocat"}`))
 		rec := httptest.NewRecorder()
-		h.handleAssignSeat(rec, req)
+		h.HandleAssignSeat(rec, req)
 
 		if rec.Code != http.StatusUnauthorized {
 			t.Errorf("status: got %d, want 401", rec.Code)
@@ -246,12 +246,12 @@ func TestHandleAssignSeat(t *testing.T) {
 	})
 
 	t.Run("rejects invalid username in body", func(t *testing.T) {
-		h := newGitHubHandlers(&mockGitHubClient{})
+		h := NewGitHubHandlers(&mockGitHubClient{})
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/copilot/seats",
 			strings.NewReader(`{"username":"inv@lid"}`))
 		req = identityContext(req, "inv@lid")
 		rec := httptest.NewRecorder()
-		h.handleAssignSeat(rec, req)
+		h.HandleAssignSeat(rec, req)
 
 		if rec.Code != http.StatusBadRequest {
 			t.Errorf("status: got %d, want 400", rec.Code)
@@ -259,12 +259,12 @@ func TestHandleAssignSeat(t *testing.T) {
 	})
 
 	t.Run("rejects malformed JSON", func(t *testing.T) {
-		h := newGitHubHandlers(&mockGitHubClient{})
+		h := NewGitHubHandlers(&mockGitHubClient{})
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/copilot/seats",
 			strings.NewReader(`not-json`))
 		req = identityContext(req, "octocat")
 		rec := httptest.NewRecorder()
-		h.handleAssignSeat(rec, req)
+		h.HandleAssignSeat(rec, req)
 
 		if rec.Code != http.StatusBadRequest {
 			t.Errorf("status: got %d, want 400", rec.Code)
@@ -273,13 +273,13 @@ func TestHandleAssignSeat(t *testing.T) {
 
 	t.Run("returns 403 when username does not match resolved identity", func(t *testing.T) {
 		mock := &mockGitHubClient{}
-		h := newGitHubHandlers(mock)
+		h := NewGitHubHandlers(mock)
 
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/copilot/seats",
 			strings.NewReader(`{"username":"octocat"}`))
 		req = identityContext(req, "other-user")
 		rec := httptest.NewRecorder()
-		h.handleAssignSeat(rec, req)
+		h.HandleAssignSeat(rec, req)
 
 		if rec.Code != http.StatusForbidden {
 			t.Errorf("status: got %d, want 403", rec.Code)
@@ -292,13 +292,13 @@ func TestHandleUnassignSeat(t *testing.T) {
 		mock := &mockGitHubClient{
 			unassignResult: &github.UnassignResult{SeatsCancelled: 1},
 		}
-		h := newGitHubHandlers(mock)
+		h := NewGitHubHandlers(mock)
 
 		req := httptest.NewRequest(http.MethodDelete, "/api/v1/copilot/seats/octocat", nil)
 		req.SetPathValue("username", "octocat")
 		req = identityContext(req, "octocat")
 		rec := httptest.NewRecorder()
-		h.handleUnassignSeat(rec, req)
+		h.HandleUnassignSeat(rec, req)
 
 		if rec.Code != http.StatusOK {
 			t.Errorf("status: got %d, want 200", rec.Code)
@@ -306,11 +306,11 @@ func TestHandleUnassignSeat(t *testing.T) {
 	})
 
 	t.Run("rejects request with no resolved identity", func(t *testing.T) {
-		h := newGitHubHandlers(&mockGitHubClient{})
+		h := NewGitHubHandlers(&mockGitHubClient{})
 		req := httptest.NewRequest(http.MethodDelete, "/api/v1/copilot/seats/octocat", nil)
 		req.SetPathValue("username", "octocat")
 		rec := httptest.NewRecorder()
-		h.handleUnassignSeat(rec, req)
+		h.HandleUnassignSeat(rec, req)
 
 		if rec.Code != http.StatusUnauthorized {
 			t.Errorf("status: got %d, want 401", rec.Code)
@@ -318,12 +318,12 @@ func TestHandleUnassignSeat(t *testing.T) {
 	})
 
 	t.Run("rejects invalid username in path", func(t *testing.T) {
-		h := newGitHubHandlers(&mockGitHubClient{})
+		h := NewGitHubHandlers(&mockGitHubClient{})
 		req := httptest.NewRequest(http.MethodDelete, "/api/v1/copilot/seats/inv@lid", nil)
 		req.SetPathValue("username", "inv@lid")
 		req = identityContext(req, "inv@lid")
 		rec := httptest.NewRecorder()
-		h.handleUnassignSeat(rec, req)
+		h.HandleUnassignSeat(rec, req)
 
 		if rec.Code != http.StatusBadRequest {
 			t.Errorf("status: got %d, want 400", rec.Code)
@@ -332,13 +332,13 @@ func TestHandleUnassignSeat(t *testing.T) {
 
 	t.Run("returns 403 when username does not match resolved identity", func(t *testing.T) {
 		mock := &mockGitHubClient{}
-		h := newGitHubHandlers(mock)
+		h := NewGitHubHandlers(mock)
 
 		req := httptest.NewRequest(http.MethodDelete, "/api/v1/copilot/seats/octocat", nil)
 		req.SetPathValue("username", "octocat")
 		req = identityContext(req, "other-user")
 		rec := httptest.NewRecorder()
-		h.handleUnassignSeat(rec, req)
+		h.HandleUnassignSeat(rec, req)
 
 		if rec.Code != http.StatusForbidden {
 			t.Errorf("status: got %d, want 403", rec.Code)
@@ -396,7 +396,7 @@ func TestHandleGetUsernameBySAML(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			mock := &mockGitHubClient{samlUsername: tc.mockUsername, samlErr: tc.mockErr}
-			h := newGitHubHandlers(mock)
+			h := NewGitHubHandlers(mock)
 
 			req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/saml/"+tc.identity, nil)
 			req.SetPathValue("identity", tc.identity)
@@ -404,7 +404,7 @@ func TestHandleGetUsernameBySAML(t *testing.T) {
 				req = userContext(req, &auth.User{Email: tc.actorEmail, NAVident: "T123456"})
 			}
 			rec := httptest.NewRecorder()
-			h.handleGetUsernameBySAML(rec, req)
+			h.HandleGetUsernameBySAML(rec, req)
 
 			if rec.Code != tc.wantStatus {
 				t.Errorf("status: got %d, want %d", rec.Code, tc.wantStatus)
@@ -482,7 +482,7 @@ func TestHandlePremiumRequestUsage(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			mock := &mockGitHubClient{premiumUsage: tc.mockData, premiumErr: tc.mockErr}
-			h := newGitHubHandlers(mock)
+			h := NewGitHubHandlers(mock)
 
 			query := ""
 			if tc.org != "" {
@@ -508,7 +508,7 @@ func TestHandlePremiumRequestUsage(t *testing.T) {
 
 			req := httptest.NewRequest(http.MethodGet, url, nil)
 			rec := httptest.NewRecorder()
-			h.handlePremiumRequestUsage(rec, req)
+			h.HandlePremiumRequestUsage(rec, req)
 
 			if rec.Code != tc.wantStatus {
 				t.Errorf("status: got %d, want %d", rec.Code, tc.wantStatus)
@@ -573,7 +573,7 @@ func TestHandleRepositoryContributors(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			mock := &mockGitHubClient{contributors: tc.mockData, contributorsErr: tc.mockErr}
-			h := newGitHubHandlers(mock)
+			h := NewGitHubHandlers(mock)
 
 			query := ""
 			if tc.owner != "" {
@@ -599,7 +599,7 @@ func TestHandleRepositoryContributors(t *testing.T) {
 
 			req := httptest.NewRequest(http.MethodGet, url, nil)
 			rec := httptest.NewRecorder()
-			h.handleRepositoryContributors(rec, req)
+			h.HandleRepositoryContributors(rec, req)
 
 			if rec.Code != tc.wantStatus {
 				t.Errorf("status: got %d, want %d", rec.Code, tc.wantStatus)
@@ -609,11 +609,11 @@ func TestHandleRepositoryContributors(t *testing.T) {
 }
 
 func TestHandleRepositoryContributorsValidatesRepo(t *testing.T) {
-	h := newGitHubHandlers(&mockGitHubClient{})
+	h := NewGitHubHandlers(&mockGitHubClient{})
 	for _, repo := range []string{"", ".", "..", "a/b", "a%2Fb", "x?y", strings.Repeat("a", 101)} {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/repo-contributors?owner=navikt&paths=%5B%22a%22%5D&repo="+url.QueryEscape(repo), nil)
 		rec := httptest.NewRecorder()
-		h.handleRepositoryContributors(rec, req)
+		h.HandleRepositoryContributors(rec, req)
 		if rec.Code != http.StatusBadRequest {
 			t.Errorf("repo %q: status %d, want 400", repo, rec.Code)
 		}

@@ -1,10 +1,12 @@
-package main
+package copilot
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/navikt/copilot/apps/copilot-api/internal/api/httpx"
+	"github.com/navikt/copilot/apps/copilot-api/internal/problem"
 	"log/slog"
 	"net/http"
 	"os"
@@ -48,30 +50,30 @@ type GitHubHandlers struct {
 	githubClient GitHubAPI
 }
 
-func newGitHubHandlers(githubClient GitHubAPI) *GitHubHandlers {
+func NewGitHubHandlers(githubClient GitHubAPI) *GitHubHandlers {
 	return &GitHubHandlers{
 		githubClient: githubClient,
 	}
 }
 
-// handleBilling handles GET /api/v1/copilot/billing
-func (h *GitHubHandlers) handleBilling(w http.ResponseWriter, r *http.Request) {
+// HandleBilling handles GET /api/v1/copilot/billing
+func (h *GitHubHandlers) HandleBilling(w http.ResponseWriter, r *http.Request) {
 	billing, err := h.githubClient.GetCopilotBilling(r.Context())
 	if err != nil {
 		slog.Error("Failed to fetch billing", "error", err)
-		respondError(w, "github_error", "Failed to fetch Copilot billing data", http.StatusInternalServerError)
+		problem.Respond(w, "github_error", "Failed to fetch Copilot billing data", http.StatusInternalServerError)
 		return
 	}
 
-	cacheControl(w, 900, false) // 15 min, private (billing summary)
-	respondJSON(w, billing, http.StatusOK)
+	httpx.CacheControl(w, 900, false) // 15 min, private (billing summary)
+	httpx.RespondJSON(w, billing, http.StatusOK)
 }
 
-// handleGetSeat handles GET /api/v1/copilot/seats/{username}
-func (h *GitHubHandlers) handleGetSeat(w http.ResponseWriter, r *http.Request) {
+// HandleGetSeat handles GET /api/v1/copilot/seats/{username}
+func (h *GitHubHandlers) HandleGetSeat(w http.ResponseWriter, r *http.Request) {
 	username := r.PathValue("username")
 	if !auth.IsValidGitHubUsername(username) {
-		respondError(w, "invalid_parameter", "Invalid GitHub username", http.StatusBadRequest)
+		problem.Respond(w, "invalid_parameter", "Invalid GitHub username", http.StatusBadRequest)
 		return
 	}
 
@@ -86,21 +88,21 @@ func (h *GitHubHandlers) handleGetSeat(w http.ResponseWriter, r *http.Request) {
 	seat, err := h.githubClient.GetCopilotSeat(r.Context(), username)
 	if err != nil {
 		slog.Error("Failed to fetch seat", "error", err)
-		respondError(w, "github_error", "Failed to fetch Copilot seat data", http.StatusInternalServerError)
+		problem.Respond(w, "github_error", "Failed to fetch Copilot seat data", http.StatusInternalServerError)
 		return
 	}
 
 	if seat == nil {
-		respondError(w, "not_found", fmt.Sprintf("No Copilot seat found for user %s", username), http.StatusNotFound)
+		problem.Respond(w, "not_found", fmt.Sprintf("No Copilot seat found for user %s", username), http.StatusNotFound)
 		return
 	}
 
-	cacheControl(w, 300, false) // 5 min, private (user-specific)
-	respondJSON(w, seat, http.StatusOK)
+	httpx.CacheControl(w, 300, false) // 5 min, private (user-specific)
+	httpx.RespondJSON(w, seat, http.StatusOK)
 }
 
-// handleAssignSeat handles POST /api/v1/copilot/seats
-func (h *GitHubHandlers) handleAssignSeat(w http.ResponseWriter, r *http.Request) {
+// HandleAssignSeat handles POST /api/v1/copilot/seats
+func (h *GitHubHandlers) HandleAssignSeat(w http.ResponseWriter, r *http.Request) {
 	// user supplies the groups for the check below and the NAVident for audit
 	// logging; the ownership check is mechanism-agnostic (see requireOwnership).
 	user, _ := auth.UserFromContext(r.Context())
@@ -110,12 +112,12 @@ func (h *GitHubHandlers) handleAssignSeat(w http.ResponseWriter, r *http.Request
 	}
 	body := http.MaxBytesReader(w, r.Body, 1024)
 	if err := json.NewDecoder(body).Decode(&req); err != nil {
-		respondError(w, "invalid_request", "Invalid JSON body", http.StatusBadRequest)
+		problem.Respond(w, "invalid_request", "Invalid JSON body", http.StatusBadRequest)
 		return
 	}
 
 	if !auth.IsValidGitHubUsername(req.Username) {
-		respondError(w, "invalid_parameter", "Invalid GitHub username", http.StatusBadRequest)
+		problem.Respond(w, "invalid_parameter", "Invalid GitHub username", http.StatusBadRequest)
 		return
 	}
 
@@ -130,7 +132,7 @@ func (h *GitHubHandlers) handleAssignSeat(w http.ResponseWriter, r *http.Request
 	// listed under azure.application.claims.groups may activate a seat.
 	// The admin group is in the claim only for requireAdmin and grants no seat.
 	if user == nil || !slices.ContainsFunc(user.Groups, func(g string) bool { return g != "" && g != os.Getenv(auth.AdminGroupEnv) }) {
-		respondError(w, "forbidden", "User is not a member of any allowed group", http.StatusForbidden)
+		problem.Respond(w, "forbidden", "User is not a member of any allowed group", http.StatusForbidden)
 		return
 	}
 
@@ -141,7 +143,7 @@ func (h *GitHubHandlers) handleAssignSeat(w http.ResponseWriter, r *http.Request
 			"actor_navident", navIdentOf(user),
 			"error", err,
 		)
-		respondError(w, "github_error", "Failed to assign Copilot seat", http.StatusInternalServerError)
+		problem.Respond(w, "github_error", "Failed to assign Copilot seat", http.StatusInternalServerError)
 		return
 	}
 
@@ -152,22 +154,22 @@ func (h *GitHubHandlers) handleAssignSeat(w http.ResponseWriter, r *http.Request
 		"seats_created", result.SeatsCreated,
 	)
 
-	noCacheControl(w)
-	respondJSON(w, map[string]interface{}{
+	problem.NoCache(w)
+	httpx.RespondJSON(w, map[string]interface{}{
 		"seats_created": result.SeatsCreated,
 		"username":      req.Username,
 	}, http.StatusCreated)
 }
 
-// handleUnassignSeat handles DELETE /api/v1/copilot/seats/{username}
-func (h *GitHubHandlers) handleUnassignSeat(w http.ResponseWriter, r *http.Request) {
+// HandleUnassignSeat handles DELETE /api/v1/copilot/seats/{username}
+func (h *GitHubHandlers) HandleUnassignSeat(w http.ResponseWriter, r *http.Request) {
 	// user is only used for audit logging (NAVident) below — the ownership
 	// check itself is mechanism-agnostic (see requireOwnership).
 	user, _ := auth.UserFromContext(r.Context())
 
 	username := r.PathValue("username")
 	if !auth.IsValidGitHubUsername(username) {
-		respondError(w, "invalid_parameter", "Invalid GitHub username", http.StatusBadRequest)
+		problem.Respond(w, "invalid_parameter", "Invalid GitHub username", http.StatusBadRequest)
 		return
 	}
 
@@ -185,7 +187,7 @@ func (h *GitHubHandlers) handleUnassignSeat(w http.ResponseWriter, r *http.Reque
 			"actor_navident", navIdentOf(user),
 			"error", err,
 		)
-		respondError(w, "github_error", "Failed to unassign Copilot seat", http.StatusInternalServerError)
+		problem.Respond(w, "github_error", "Failed to unassign Copilot seat", http.StatusInternalServerError)
 		return
 	}
 
@@ -196,63 +198,63 @@ func (h *GitHubHandlers) handleUnassignSeat(w http.ResponseWriter, r *http.Reque
 		"seats_cancelled", result.SeatsCancelled,
 	)
 
-	noCacheControl(w)
-	respondJSON(w, map[string]interface{}{
+	problem.NoCache(w)
+	httpx.RespondJSON(w, map[string]interface{}{
 		"seats_cancelled": result.SeatsCancelled,
 		"username":        username,
 	}, http.StatusOK)
 }
 
-// handleGetUsernameBySAML handles GET /api/v1/copilot/saml/{identity}
+// HandleGetUsernameBySAML handles GET /api/v1/copilot/saml/{identity}
 // Restricted: callers can only look up their own email identity.
 // Cache: 30 min (SAML identity mappings rarely change)
-func (h *GitHubHandlers) handleGetUsernameBySAML(w http.ResponseWriter, r *http.Request) {
+func (h *GitHubHandlers) HandleGetUsernameBySAML(w http.ResponseWriter, r *http.Request) {
 	identity := r.PathValue("identity")
 	if identity == "" || len(identity) > 254 || strings.Contains(identity, "/") {
-		respondError(w, "invalid_parameter", "Invalid SAML identity", http.StatusBadRequest)
+		problem.Respond(w, "invalid_parameter", "Invalid SAML identity", http.StatusBadRequest)
 		return
 	}
 
 	// Ownership check: only allow users to look up their own email.
 	user, ok := auth.UserFromContext(r.Context())
 	if !ok || user == nil {
-		respondError(w, "unauthorized", "Authentication required", http.StatusUnauthorized)
+		problem.Respond(w, "unauthorized", "Authentication required", http.StatusUnauthorized)
 		return
 	}
 	if !strings.EqualFold(user.Email, identity) {
-		respondError(w, "forbidden", "You can only look up your own identity", http.StatusForbidden)
+		problem.Respond(w, "forbidden", "You can only look up your own identity", http.StatusForbidden)
 		return
 	}
 
 	username, err := h.githubClient.GetUsernameBySamlIdentity(r.Context(), identity)
 	if err != nil {
 		slog.Error("Failed to lookup SAML identity", "error", err)
-		respondError(w, "github_error", "Failed to lookup SAML identity", http.StatusInternalServerError)
+		problem.Respond(w, "github_error", "Failed to lookup SAML identity", http.StatusInternalServerError)
 		return
 	}
 
 	if username == "" {
-		cacheControl(w, 1800, false)
-		respondJSON(w, map[string]interface{}{
+		httpx.CacheControl(w, 1800, false)
+		httpx.RespondJSON(w, map[string]interface{}{
 			"identity": identity,
 			"username": nil,
 		}, http.StatusOK)
 		return
 	}
 
-	cacheControl(w, 1800, false)
-	respondJSON(w, map[string]interface{}{
+	httpx.CacheControl(w, 1800, false)
+	httpx.RespondJSON(w, map[string]interface{}{
 		"identity": identity,
 		"username": username,
 	}, http.StatusOK)
 }
 
-// handlePremiumRequestUsage handles GET /api/v1/copilot/billing/premium
+// HandlePremiumRequestUsage handles GET /api/v1/copilot/billing/premium
 // Cache: 1 hour (billing data updated daily)
-func (h *GitHubHandlers) handlePremiumRequestUsage(w http.ResponseWriter, r *http.Request) {
+func (h *GitHubHandlers) HandlePremiumRequestUsage(w http.ResponseWriter, r *http.Request) {
 	org := r.URL.Query().Get("org")
 	if org == "" || !auth.IsValidGitHubUsername(org) {
-		respondError(w, "invalid_parameter", "Invalid organization name", http.StatusBadRequest)
+		problem.Respond(w, "invalid_parameter", "Invalid organization name", http.StatusBadRequest)
 		return
 	}
 
@@ -263,7 +265,7 @@ func (h *GitHubHandlers) handlePremiumRequestUsage(w http.ResponseWriter, r *htt
 		var err error
 		year, err = strconv.Atoi(yearStr)
 		if err != nil || year < 2000 || year > 2999 {
-			respondError(w, "invalid_parameter", "Invalid year parameter", http.StatusBadRequest)
+			problem.Respond(w, "invalid_parameter", "Invalid year parameter", http.StatusBadRequest)
 			return
 		}
 	}
@@ -272,7 +274,7 @@ func (h *GitHubHandlers) handlePremiumRequestUsage(w http.ResponseWriter, r *htt
 		var err error
 		month, err = strconv.Atoi(monthStr)
 		if err != nil || month < 1 || month > 12 {
-			respondError(w, "invalid_parameter", "Invalid month parameter", http.StatusBadRequest)
+			problem.Respond(w, "invalid_parameter", "Invalid month parameter", http.StatusBadRequest)
 			return
 		}
 	}
@@ -280,67 +282,67 @@ func (h *GitHubHandlers) handlePremiumRequestUsage(w http.ResponseWriter, r *htt
 	usage, err := h.githubClient.GetPremiumRequestUsage(r.Context(), org, year, month)
 	if err != nil {
 		slog.Error("Failed to fetch premium request usage", "org", org, "error", err)
-		respondError(w, "github_error", "Failed to fetch premium request usage", http.StatusInternalServerError)
+		problem.Respond(w, "github_error", "Failed to fetch premium request usage", http.StatusInternalServerError)
 		return
 	}
 
-	cacheControl(w, 3600, false)
-	respondJSON(w, usage, http.StatusOK)
+	httpx.CacheControl(w, 3600, false)
+	httpx.RespondJSON(w, usage, http.StatusOK)
 }
 
-// handleRepositoryContributors handles GET /api/v1/copilot/repo-contributors
+// HandleRepositoryContributors handles GET /api/v1/copilot/repo-contributors
 // Cache: 7 days (contributors list is stable)
-func (h *GitHubHandlers) handleRepositoryContributors(w http.ResponseWriter, r *http.Request) {
+func (h *GitHubHandlers) HandleRepositoryContributors(w http.ResponseWriter, r *http.Request) {
 	owner := r.URL.Query().Get("owner")
 	repo := r.URL.Query().Get("repo")
 	pathsJSON := r.URL.Query().Get("paths")
 
 	if owner == "" || !auth.IsValidGitHubUsername(owner) {
-		respondError(w, "invalid_parameter", "Invalid owner", http.StatusBadRequest)
+		problem.Respond(w, "invalid_parameter", "Invalid owner", http.StatusBadRequest)
 		return
 	}
 
 	if !validRepoName.MatchString(repo) || repo == "." || repo == ".." {
-		respondError(w, "invalid_parameter", "Invalid repository name", http.StatusBadRequest)
+		problem.Respond(w, "invalid_parameter", "Invalid repository name", http.StatusBadRequest)
 		return
 	}
 
 	if pathsJSON == "" {
-		respondError(w, "invalid_parameter", "Missing paths parameter", http.StatusBadRequest)
+		problem.Respond(w, "invalid_parameter", "Missing paths parameter", http.StatusBadRequest)
 		return
 	}
 
 	var paths []string
 	if err := json.Unmarshal([]byte(pathsJSON), &paths); err != nil {
-		respondError(w, "invalid_parameter", "Invalid paths format", http.StatusBadRequest)
+		problem.Respond(w, "invalid_parameter", "Invalid paths format", http.StatusBadRequest)
 		return
 	}
 
 	if len(paths) == 0 || len(paths) > 50 {
-		respondError(w, "invalid_parameter", "Must provide 1-50 paths", http.StatusBadRequest)
+		problem.Respond(w, "invalid_parameter", "Must provide 1-50 paths", http.StatusBadRequest)
 		return
 	}
 
 	for _, path := range paths {
 		if len(path) > 512 {
-			respondError(w, "invalid_parameter", "Path too long", http.StatusBadRequest)
+			problem.Respond(w, "invalid_parameter", "Path too long", http.StatusBadRequest)
 			return
 		}
 	}
 
 	contributors, err := h.githubClient.GetRepositoryContributors(r.Context(), owner, repo, paths)
 	if errors.Is(err, github.ErrOwnerNotAllowed) {
-		respondError(w, "invalid_parameter", "Invalid owner", http.StatusBadRequest)
+		problem.Respond(w, "invalid_parameter", "Invalid owner", http.StatusBadRequest)
 		return
 	}
 	if err != nil {
 		slog.Error("Failed to fetch contributors", "owner", owner, "repo", repo, "error", err)
-		respondError(w, "github_error", "Failed to fetch contributors", http.StatusInternalServerError)
+		problem.Respond(w, "github_error", "Failed to fetch contributors", http.StatusInternalServerError)
 		return
 	}
 
-	cacheControl(w, 604800, false) // 7 days, private
-	respondJSON(w, map[string]interface{}{
+	httpx.CacheControl(w, 604800, false) // 7 days, private
+	httpx.RespondJSON(w, map[string]interface{}{
 		"contributors": contributors,
 	}, http.StatusOK)
 }

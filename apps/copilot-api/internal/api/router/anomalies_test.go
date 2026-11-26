@@ -1,4 +1,4 @@
-package main
+package router
 
 import (
 	"context"
@@ -17,7 +17,7 @@ import (
 func TestCostAnomaliesAdminOnly(t *testing.T) {
 	t.Setenv(auth.AdminGroupEnv, "admins")
 	h := admin.New(admin.Deps{BQ: &adminQuerier{anomalies: []bqstore.Anomaly{{Rule: "A1", Date: "2026-09-21"}}}})
-	mux := makeAPIRouter(&config.Config{}, nil, h, nil, nil, nil, nil)
+	mux := API(&config.Config{}, nil, h, nil, nil, nil, nil)
 	for _, tc := range []struct {
 		groups []string
 		want   int

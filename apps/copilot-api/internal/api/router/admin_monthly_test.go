@@ -1,4 +1,4 @@
-package main
+package router
 
 import (
 	"context"
@@ -15,7 +15,7 @@ import (
 func TestAdminMonthlyRouteRequiresAdmin(t *testing.T) {
 	const group = "11111111-2222-3333-4444-555555555555"
 	t.Setenv(auth.AdminGroupEnv, group)
-	router := makeAPIRouter(&config.Config{}, nil, admin.New(admin.Deps{BQ: &adminQuerier{}}), nil, nil, auth.NewIdentityResolverChain(), nil)
+	router := API(&config.Config{}, nil, admin.New(admin.Deps{BQ: &adminQuerier{}}), nil, nil, auth.NewIdentityResolverChain(), nil)
 	for _, tc := range []struct {
 		groups []string
 		want   int

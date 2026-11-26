@@ -3,6 +3,7 @@ package public
 import (
 	"context"
 	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
+	"github.com/navikt/copilot/apps/copilot-api/internal/config"
 
 	"encoding/json"
 	"net/http"
@@ -119,9 +120,9 @@ func TestEveryTemplateRendersCleanly(t *testing.T) {
 }
 
 func TestPublicFactEndpoint(t *testing.T) {
-	h := New(Deps{BQ: &factQuerier{aggregates: fullAggregates()}})
+	router := Router(&config.Config{}, nil, New(Deps{BQ: &factQuerier{aggregates: fullAggregates()}}))
 	rec := httptest.NewRecorder()
-	h.HandlePublicFact(rec, httptest.NewRequest(http.MethodGet, "/public/v1/fact", nil))
+	router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/public/v1/fact", nil))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d", rec.Code)
 	}

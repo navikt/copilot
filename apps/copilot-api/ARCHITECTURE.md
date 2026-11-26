@@ -96,7 +96,7 @@ Handlers have **zero knowledge** of SAML, X-On-Behalf-Of, or any future mechanis
 
 1. **Global `IdentityMiddleware(chain, required=false)`** — runs on all `/api/v1/` routes, resolves identity best-effort so aggregate endpoints (team dashboards, billing) aren't blocked when identity can't be determined.
 
-2. **Route-level `requireResolvedIdentity(chain, handler)`** — wraps specific per-user routes with `required=true`, making it _structurally impossible_ for a per-user route to serve requests without a resolved identity. Applied in `makeAPIRouter()`:
+2. **Route-level `requireResolvedIdentity(chain, handler)`** — wraps specific per-user routes with `required=true`, making it _structurally impossible_ for a per-user route to serve requests without a resolved identity. Applied in `router.API()` (`internal/api/router/router.go`):
 
    ```go
    perUser := func(h http.HandlerFunc) http.HandlerFunc {
@@ -170,5 +170,5 @@ The `OnBehalfOfIdentityResolver` validates the `X-On-Behalf-Of` header against G
 | `identity_saml.go` | SAML → GitHub username resolver (my-copilot) |
 | `identity_middleware.go` | Middleware, requireOwnership, requireResolvedIdentity |
 | `identity_test.go` | Comprehensive tests for all identity components |
-| `handlers.go` | Router with perUser wiring |
+| `internal/api/router/router.go` | /api/v1/ router with perUser wiring |
 | `main.go` | Chain construction and middleware composition |
