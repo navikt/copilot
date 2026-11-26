@@ -56,6 +56,7 @@ const DYNAMIC: Record<string, (value: string) => boolean> = {
   "/admin/undersokelser/[id]/fritekst/koding": (s) => /^[a-z0-9-]{1,64}$/.test(s),
   // Nais team and MCP server names are DNS labels; fleet-control decides whether they exist.
   "/fleet/mcp-servere/[namespace]/[name]": (s) => /^[a-z0-9-]{1,63}$/.test(s),
+  "/fleet/mcp-servere/[namespace]/[name]/endre": (s) => /^[a-z0-9-]{1,63}$/.test(s),
   "/fleet/ruter/[namespace]/[name]": (s) => /^[a-z0-9-]{1,63}$/.test(s),
   "/fleet/agenter/[namespace]/[name]": (s) => /^[a-z0-9-]{1,63}$/.test(s),
   // Gateway servers in the registry allowlist; the page answers 404 to the rest.
@@ -308,6 +309,7 @@ function currentSite(): Found[] {
     "/admin/undersokelser/[id]/fritekst": [],
     "/admin/undersokelser/[id]/fritekst/koding": [],
     "/fleet/mcp-servere/[namespace]/[name]": [],
+    "/fleet/mcp-servere/[namespace]/[name]/endre": [],
     "/fleet/ruter/[namespace]/[name]": [],
     "/fleet/agenter/[namespace]/[name]": [],
   };
