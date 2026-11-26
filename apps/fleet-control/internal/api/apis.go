@@ -210,11 +210,6 @@ func (s *server) apisFor(a *auth.Authz, adminClientID string, teams auth.TeamDir
 			writeStatus(w, r, kind, fmt.Errorf("team lookup: %w", err))
 			return
 		}
-		// Every /apis write is a non-GET on a namespace path; outside dev only pilot teams pass.
-		if r.Method != http.MethodGet && !s.writeAllowed(r.PathValue("namespace")) {
-			writeStatus(w, r, kind, stErr(http.StatusForbidden, "Forbidden", "writes are not enabled for this team in this cluster"))
-			return
-		}
 		var db *DB
 		if box := s.store.Load(); box != nil {
 			db, _ = box.snapshotStore.(*DB)
@@ -228,7 +223,6 @@ func (s *server) apisFor(a *auth.Authz, adminClientID string, teams auth.TeamDir
 }
 
 // apisRoutes mounts v1alpha1. Like /admin/v1 it needs the admin client.
-// Outside dev-* writes pass only for pilot teams (writeAllowed in apisFor).
 func (s *server) apisRoutes(mux *http.ServeMux, a *auth.Authz, adminClientID string, teams auth.TeamDirectory) {
 	if adminClientID == "" {
 		return
@@ -241,13 +235,13 @@ func (s *server) apisRoutes(mux *http.ServeMux, a *auth.Authz, adminClientID str
 		{"GET " + apisPrefix + "/{$}", "", discovery},
 		{"GET " + apisPrefix + "/whoami", "", whoami},
 		{"GET " + ns + "apps", "", listTeamApps(teams)},
-		{"GET " + apisPrefix + "/mcpservers", "mcpservers", listMyServers},
-		{"GET " + ns + "mcpservers", "mcpservers", listServersNS},
+		{"GET " + apisPrefix + "/mcpservers", "mcpservers", s.listMyServers},
+		{"GET " + ns + "mcpservers", "mcpservers", s.listServersNS},
 		{"POST " + ns + "mcpservers", "mcpservers", s.createServer},
-		{"GET " + ns + "mcpservers/{name}", "mcpservers", getServerV1},
+		{"GET " + ns + "mcpservers/{name}", "mcpservers", s.getServerV1},
 		{"PUT " + ns + "mcpservers/{name}", "mcpservers", s.putServer},
 		{"DELETE " + ns + "mcpservers/{name}", "mcpservers", methodNotAllowed},
-		{"GET " + ns + "mcpservers/{name}/generations/{n}", "mcpservers", getServerGeneration},
+		{"GET " + ns + "mcpservers/{name}/generations/{n}", "mcpservers", s.getServerGeneration},
 		{"POST " + ns + "mcpservers/{name}/approval", "mcpservers", s.approveServer},
 		{"POST " + ns + "mcpservers/{name}/revocation", "mcpservers", s.revokeServer},
 		{"POST " + ns + "mcpservers/{name}/rollback", "mcpservers", s.rollbackServer},

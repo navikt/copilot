@@ -76,9 +76,11 @@ spec:
     # Client id for my-copilot's OBO tokens on the /apis and /admin write routes.
     - name: MY_COPILOT_CLIENT_ID
       value: "{{my_copilot_client_id}}"
-    # Teams that may write outside dev-* (comma-separated). Empty: every write there is refused.
-    - name: FLEET_CONTROL_PILOT_TEAMS
-      value: "{{ pilot_teams }}"
+    # Platform team: the only approver of MCPServer versions, in every
+    # namespace; MCPServer revocation everywhere, vendor registry names and the
+    # global job kill switch (#2634, #2752). Empty: nobody can approve.
+    - name: FLEET_CONTROL_OPERATOR_TEAM
+      value: "{{ operator_team }}"
     # Owner decision 2026-11-24: Loki keeps the audit archive, the DB deletes
     # audit_events older than 90 days.
     - name: FLEET_AUDIT_RETENTION_DELETE

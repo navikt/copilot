@@ -67,7 +67,7 @@ func TestRealPostgresRegistryNamePrefix(t *testing.T) {
 		}
 	}
 	m := decodeServer(t, e.want(201, "POST", nsBase+"team-a/mcpservers", person("A111111"), registryServerJSON("team-a", "svc", "no.nav.team-a/svc")))
-	e.want(200, "POST", nsBase+"team-a/mcpservers/svc/approval", person("A222222"), approval(1, m.Status.Pending.ContentHash))
+	e.want(200, "POST", nsBase+"team-a/mcpservers/svc/approval", person("C222222"), approval(1, m.Status.Pending.ContentHash))
 	// The platform team may take a vendor name, and a case variant collides at publish.
 	m = decodeServer(t, e.want(201, "POST", nsBase+"copilot/mcpservers", person("A111111"), registryServerJSON("copilot", "playwright-mcp", "com.microsoft/playwright-mcp")))
 	e.want(200, "POST", nsBase+"copilot/mcpservers/playwright-mcp/approval", person("C222222"), approval(1, m.Status.Pending.ContentHash))
@@ -82,7 +82,7 @@ func TestRealPostgresRollbackRechecksRegistryName(t *testing.T) {
 	e.srv.operatorTeam = "copilot"
 	ctx := context.Background()
 	m := decodeServer(t, e.want(201, "POST", nsBase+"team-a/mcpservers", person("A111111"), registryServerJSON("team-a", "svc", "no.nav.team-a/svc")))
-	e.want(200, "POST", nsBase+"team-a/mcpservers/svc/approval", person("A222222"), approval(1, m.Status.Pending.ContentHash))
+	e.want(200, "POST", nsBase+"team-a/mcpservers/svc/approval", person("C222222"), approval(1, m.Status.Pending.ContentHash))
 	// As an image from before the rule would have stored it.
 	if _, err := e.db.pool.Exec(ctx, `UPDATE server_versions SET registry = jsonb_set(registry, '{name}', '"com.microsoft/svc"') WHERE namespace = 'team-a' AND name = 'svc'`); err != nil {
 		t.Fatal(err)
@@ -95,7 +95,10 @@ func TestRealPostgresRollbackRechecksRegistryName(t *testing.T) {
 	}
 	m = decodeServer(t, e.want(200, "GET", nsBase+"team-a/mcpservers/svc", person("A111111"), ""))
 	m = decodeServer(t, e.want(200, "PUT", nsBase+"team-a/mcpservers/svc", person("A111111"), strings.Replace(strings.Replace(registryServerJSON("team-a", "svc", "no.nav.team-a/svc"), `"1.0.0"`, `"1.0.1"`, 1), `"namespace"`, `"resourceVersion":"`+m.Metadata.ResourceVersion+`","namespace"`, 1)))
-	e.want(200, "POST", nsBase+"team-a/mcpservers/svc/approval", person("A222222"), approval(2, m.Status.Pending.ContentHash))
+	// A registry version bump adds no access: published at once (#2634).
+	if m.Status.PublishedGeneration != 2 || m.Status.Pending != nil {
+		t.Fatalf("version bump must auto-publish: %+v", m.Status)
+	}
 	if code, out := e.do("POST", nsBase+"team-a/mcpservers/svc/rollback", person("A111111"), `{"fromGeneration":2,"reason":"test"}`); code != 422 || !strings.Contains(out, "spec.registry.name") {
 		t.Fatalf("rollback to a foreign name: want 422, got %d %s", code, out)
 	}
@@ -109,7 +112,7 @@ func TestRealPostgresApproveRechecksRegistryName(t *testing.T) {
 	if _, err := e.db.pool.Exec(context.Background(), `UPDATE server_versions SET registry = jsonb_set(registry, '{name}', '"com.microsoft/svc"') WHERE namespace = 'team-a' AND name = 'svc'`); err != nil {
 		t.Fatal(err)
 	}
-	if code, out := e.do("POST", nsBase+"team-a/mcpservers/svc/approval", person("A222222"), approval(1, m.Status.Pending.ContentHash)); code != 422 || !strings.Contains(out, "spec.registry.name") {
+	if code, out := e.do("POST", nsBase+"team-a/mcpservers/svc/approval", person("C222222"), approval(1, m.Status.Pending.ContentHash)); code != 422 || !strings.Contains(out, "spec.registry.name") {
 		t.Fatalf("approve a foreign name: want 422, got %d %s", code, out)
 	}
 }

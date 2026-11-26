@@ -24,9 +24,9 @@ type Config struct {
 	AdminClientID string
 	// Cluster is NAIS_CLUSTER_NAME.
 	Cluster string
-	// PilotTeams may write outside dev-*.
-	PilotTeams []string
-	// OperatorTeam may set the global job kill switch; empty, nobody can.
+	// OperatorTeam is the platform team: it alone approves MCP servers, may
+	// revoke them in every namespace and sets the global job kill switch.
+	// Empty: none of these.
 	OperatorTeam    string
 	SlackWebhookURL string
 }
@@ -43,9 +43,8 @@ type API struct {
 func New(cfg Config) (*API, error) {
 	srv := newServer()
 	srv.cluster = cfg.Cluster
-	srv.pilotTeams = cfg.PilotTeams
-	if !auth.DevCluster(cfg.Cluster) && len(srv.pilotTeams) == 0 {
-		slog.Warn("FLEET_CONTROL_PILOT_TEAMS empty outside dev: every write is refused", "cluster", cfg.Cluster)
+	if cfg.OperatorTeam == "" {
+		slog.Warn("FLEET_CONTROL_OPERATOR_TEAM empty: nobody can approve MCP servers")
 	}
 	srv.notifier = newSlackNotifier(cfg.SlackWebhookURL)
 	if _, ok := cfg.Teams.(auth.UnboundTeams); ok {
@@ -234,11 +233,9 @@ type server struct {
 	// cluster is NAIS_CLUSTER_NAME; route targets must be in it, since the
 	// gateway resolves service DNS in its own cluster.
 	cluster string
-	// operatorTeam may set the global job kill switch.
+	// operatorTeam is the platform team; see Config.OperatorTeam.
 	operatorTeam string
-	// pilotTeams may write outside dev-*; see writeAllowed.
-	pilotTeams []string
-	store      atomic.Pointer[storeBox]
+	store        atomic.Pointer[storeBox]
 	// lastGood holds the last served snapshot per kind, so a database outage
 	// keeps serving it; after a restart there is none and the answer is 503.
 	lastGood map[string]*atomic.Pointer[model.Snapshot]

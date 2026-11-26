@@ -244,16 +244,44 @@ func registryNameAllowed(platform, ns, regName string) bool {
 
 // --- handlers ---
 
-func listServersNS(w http.ResponseWriter, r *http.Request, c caller, db *DB) error {
+func (s *server) listServersNS(w http.ResponseWriter, r *http.Request, c caller, db *DB) error {
 	ns := r.PathValue("namespace")
-	if err := memberOf(c, ns); err != nil {
+	if err := s.serverReader(c, ns); err != nil {
 		return err
 	}
 	return writeServerList(r.Context(), w, db, []string{ns})
 }
 
-func listMyServers(w http.ResponseWriter, r *http.Request, c caller, db *DB) error {
-	return writeServerList(r.Context(), w, db, c.Teams)
+// listMyServers lists the caller's teams' servers. The platform team also
+// gets every namespace with a generation awaiting approval.
+func (s *server) listMyServers(w http.ResponseWriter, r *http.Request, c caller, db *DB) error {
+	teams := c.Teams
+	if s.isPlatform(c) {
+		rows, err := db.pool.Query(r.Context(), `SELECT DISTINCT namespace FROM servers WHERE pending_version IS NOT NULL`)
+		if err != nil {
+			return err
+		}
+		pending, err := pgx.CollectRows(rows, pgx.RowTo[string])
+		if err != nil {
+			return err
+		}
+		teams = append(slices.Clone(teams), pending...)
+	}
+	return writeServerList(r.Context(), w, db, teams)
+}
+
+// isPlatform: the caller is in the platform team. Unset team: nobody.
+func (s *server) isPlatform(c caller) bool {
+	return s.operatorTeam != "" && c.in(s.operatorTeam)
+}
+
+// serverReader lets the owner team and the platform team, which approves
+// in every namespace, read an MCPServer. Anyone else gets 404.
+func (s *server) serverReader(c caller, ns string) error {
+	if s.isPlatform(c) {
+		return nil
+	}
+	return memberOf(c, ns)
 }
 
 func writeServerList(ctx context.Context, w http.ResponseWriter, db *DB, teams []string) error {
@@ -265,9 +293,9 @@ func writeServerList(ctx context.Context, w http.ResponseWriter, db *DB, teams [
 	return nil
 }
 
-func getServerV1(w http.ResponseWriter, r *http.Request, c caller, db *DB) error {
+func (s *server) getServerV1(w http.ResponseWriter, r *http.Request, c caller, db *DB) error {
 	ns, name := r.PathValue("namespace"), r.PathValue("name")
-	if err := memberOf(c, ns); err != nil {
+	if err := s.serverReader(c, ns); err != nil {
 		return err
 	}
 	return writeServer(r.Context(), w, db, ns, name, http.StatusOK)
@@ -283,9 +311,9 @@ func writeServer(ctx context.Context, w http.ResponseWriter, db *DB, ns, name st
 	return nil
 }
 
-func getServerGeneration(w http.ResponseWriter, r *http.Request, c caller, db *DB) error {
+func (s *server) getServerGeneration(w http.ResponseWriter, r *http.Request, c caller, db *DB) error {
 	ns, name := r.PathValue("namespace"), r.PathValue("name")
-	if err := memberOf(c, ns); err != nil {
+	if err := s.serverReader(c, ns); err != nil {
 		return err
 	}
 	n, err := pathGeneration(r)
@@ -320,7 +348,7 @@ func (s *server) createServer(w http.ResponseWriter, r *http.Request, c caller, 
 	if err != nil {
 		return err
 	}
-	if err := db.submitServer(r.Context(), c, in.Metadata, spec, sv, true); err != nil {
+	if _, err := db.submitServer(r.Context(), c, in.Metadata, spec, sv, true); err != nil {
 		return err
 	}
 	return writeServer(r.Context(), w, db, ns, in.Metadata.Name, http.StatusCreated)
@@ -339,15 +367,19 @@ func (s *server) putServer(w http.ResponseWriter, r *http.Request, c caller, db 
 	if err != nil {
 		return err
 	}
-	if err := db.submitServer(r.Context(), c, in.Metadata, spec, sv, false); err != nil {
+	auto, err := db.submitServer(r.Context(), c, in.Metadata, spec, sv, false)
+	if err != nil {
 		return err
+	}
+	if auto != nil {
+		s.notifyServer(r.Context(), db, "auto", ns, name, "owner", auto...)
 	}
 	return writeServer(r.Context(), w, db, ns, name, http.StatusOK)
 }
 
 func (s *server) approveServer(w http.ResponseWriter, r *http.Request, c caller, db *DB) error {
 	ns, name := r.PathValue("namespace"), r.PathValue("name")
-	if err := memberOf(c, ns); err != nil {
+	if err := approverGuard(c, s.operatorTeam, ns); err != nil {
 		return err
 	}
 	var body struct {
@@ -360,8 +392,21 @@ func (s *server) approveServer(w http.ResponseWriter, r *http.Request, c caller,
 	if err := db.approveServer(r.Context(), c, s.operatorTeam, ns, name, body.Generation, body.ContentHash); err != nil {
 		return err
 	}
-	s.notifyServer(r.Context(), db, "approve", ns, name, "owner")
+	s.notifyServer(r.Context(), db, "approve", ns, name, "platform")
 	return writeServer(r.Context(), w, db, ns, name, http.StatusOK)
+}
+
+// approverGuard: only the platform team approves MCPServer generations, in
+// every namespace (owner decision 2026-11-26, #2634). A member of the owner
+// team outside it gets 403, anyone else 404. Unset platform team: nobody.
+func approverGuard(c caller, platform, ns string) error {
+	switch {
+	case platform != "" && c.in(platform):
+		return nil
+	case c.in(ns):
+		return stErr(http.StatusForbidden, "Forbidden", "only the platform team approves MCP server versions")
+	}
+	return errV1NotFound
 }
 
 // operatorOr lets members of ns, and of the platform team, stop a resource.
@@ -409,10 +454,13 @@ func (s *server) revokeServer(w http.ResponseWriter, r *http.Request, c caller, 
 
 func (s *server) rollbackServer(w http.ResponseWriter, r *http.Request, c caller, db *DB) error {
 	ns, name := r.PathValue("namespace"), r.PathValue("name")
-	by, err := s.operatorOr(c, ns)
-	if err != nil {
+	// Rollback is the owner team's: it only returns to a generation the
+	// platform team already approved, so it needs no approver.
+	if err := memberOf(c, ns); err != nil {
 		return err
 	}
+	by := "owner"
+	var err error
 	var body struct {
 		FromGeneration int    `json:"fromGeneration"`
 		ToGeneration   *int   `json:"toGeneration"`
@@ -639,20 +687,20 @@ func (d *DB) buildServer(ctx context.Context, row serverRow) (MCPServer, error) 
 		return obj, err
 	}
 	at := func(actions ...string) time.Time { return latest(ev, row.Created, actions...) }
-	pubAt := at("approved_published", "rolled_back", "revoked")
+	pubAt := at("approved_published", "auto_published", "rolled_back", "revoked")
 	published, revoked := row.Status == "published", row.Status == "revoked"
 	pubReason := "NeverApproved"
 	switch {
 	case revoked:
 		pubReason = "Revoked"
-	case published && ev["rolled_back"].After(ev["approved_published"]):
+	case published && ev["rolled_back"].After(at("approved_published", "auto_published")):
 		pubReason = "RolledBack"
 	case published:
 		pubReason = "Approved"
 	}
 	pendReason := "NothingPending"
 	if row.Pending != nil {
-		pendReason = "AwaitingSecondPerson"
+		pendReason = "AwaitingPlatformTeam"
 	}
 	revReason := "NotRevoked"
 	if revoked {
@@ -675,8 +723,8 @@ func (d *DB) buildServer(ctx context.Context, row serverRow) (MCPServer, error) 
 	}
 	st.Conditions = []Condition{
 		cond("Published", published, pubReason, gen, pubAt),
-		cond("PendingApproval", row.Pending != nil, pendReason, gen, at("draft_submitted", "approved_published")),
-		cond("Revoked", revoked, revReason, gen, at("revoked", "approved_published")),
+		cond("PendingApproval", row.Pending != nil, pendReason, gen, at("draft_submitted", "approved_published", "auto_published")),
+		cond("Revoked", revoked, revReason, gen, at("revoked", "approved_published", "auto_published")),
 		cond("Ready", published, readyReason, gen, pubAt),
 	}
 	return obj, nil
@@ -706,13 +754,15 @@ func blockedContent(ctx context.Context, tx pgx.Tx, table, ns, name string, hash
 // submitServer is POST (create) and PUT. A new generation is made only when
 // the spec differs from both the pending and the published one, or when the
 // server is revoked (restart). Otherwise only labels and annotations change.
-func (d *DB) submitServer(ctx context.Context, c caller, m ObjectMeta, spec MCPServerSpec, sv model.Server, create bool) error {
+// It returns the changed fields (non-nil) when the generation auto-published.
+func (d *DB) submitServer(ctx context.Context, c caller, m ObjectMeta, spec MCPServerSpec, sv model.Server, create bool) ([]string, error) {
 	hashes, herr := canon.Hashes(spec)
 	if herr != nil {
-		return herr
+		return nil, herr
 	}
 	hash := hashes[0]
-	return pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
+	var auto []string
+	err := pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
 		if create {
 			tag, err := tx.Exec(ctx, `INSERT INTO servers (namespace, name, status, labels, annotations) VALUES ($1, $2, 'draft', $3::jsonb, $4::jsonb) ON CONFLICT DO NOTHING`,
 				sv.Namespace, sv.Name, jsonText(m.Labels), jsonText(m.Annotations))
@@ -774,29 +824,87 @@ func (d *DB) submitServer(ctx context.Context, c caller, m ObjectMeta, spec MCPS
 		if err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `INSERT INTO server_versions (namespace, name, version, registry, route_path, target, upstream_url, enabled, tools,
+		if _, err = tx.Exec(ctx, `INSERT INTO server_versions (namespace, name, version, registry, route_path, target, upstream_url, enabled, tools,
 			submitted_by, submitted_by_kind, submitted_by_oid, spec, spec_hash)
 			VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, true, $8, $9, 'User', $10::uuid, $11::jsonb, $12)`,
 			sv.Namespace, sv.Name, version, registry, path, target, upstream, tools, c.Ident, c.Oid, string(specJSON), hash); err != nil {
 			return err
 		}
+		change, err := classifySubmit(ctx, tx, row, sv.Namespace, sv.Name, specJSON)
+		if err != nil {
+			return err
+		}
+		if !change.Escalates {
+			auto = append([]string{}, change.Changed...)
+			return autoPublish(ctx, tx, c, sv, version, hash, row.Pending, change.Changed)
+		}
 		if _, err := tx.Exec(ctx, `UPDATE servers SET pending_version = $3, updated_at = now() WHERE namespace = $1 AND name = $2`, sv.Namespace, sv.Name, version); err != nil {
 			return err
 		}
-		return auditV1(ctx, tx, c, "draft_submitted", "MCPServer", sv.Namespace, sv.Name, &version, map[string]any{"contentHash": hash, "replaced": row.Pending})
+		return auditV1(ctx, tx, c, "draft_submitted", "MCPServer", sv.Namespace, sv.Name, &version, map[string]any{"contentHash": hash, "replaced": row.Pending, "escalations": change.Reasons})
 	})
+	if err != nil {
+		return nil, err
+	}
+	return auto, nil
 }
 
-// approveServer publishes the pending generation. The approver is another
-// person: different oid and NAVident, and the submitter a User with an oid.
+// classifySubmit compares a new generation with the published one. No
+// published generation, a revoked server or a published generation the
+// platform team never approved (approved_via NULL) always escalates.
+func classifySubmit(ctx context.Context, tx pgx.Tx, row serverRow, ns, name string, next []byte) (model.Change, error) {
+	if row.Status != "published" || row.Published == nil {
+		return model.Classify(nil, next), nil
+	}
+	var prev string
+	var via *string
+	if err := tx.QueryRow(ctx, `SELECT COALESCE(v.spec, `+legacySpecSQL+`)::text, v.approved_via FROM server_versions v
+		WHERE v.namespace = $1 AND v.name = $2 AND v.version = $3`, ns, name, *row.Published).Scan(&prev, &via); err != nil {
+		return model.Change{}, err
+	}
+	if via == nil {
+		return model.Change{Escalates: true, Reasons: []string{"the published version was not approved by the platform team"}}, nil
+	}
+	return model.Classify(json.RawMessage(prev), next), nil
+}
+
+// autoPublish publishes an owner-team change that adds no access, in the
+// submit transaction, with the same route-lock and snapshot-budget checks
+// as approveServer. A pending generation it replaces is dropped.
+func autoPublish(ctx context.Context, tx pgx.Tx, c caller, sv model.Server, version int, hash string, replaced *int, changed []string) error {
+	before, err := lockRoutes(ctx, tx)
+	if err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `UPDATE server_versions SET approved_by = 'auto', approved_at = now(), published_at = now(), approved_via = 'auto'
+		WHERE namespace = $1 AND name = $2 AND version = $3`, sv.Namespace, sv.Name, version); err != nil {
+		return err
+	}
+	var reg *string
+	if sv.RegistryName != "" {
+		reg = &sv.RegistryName
+	}
+	if _, err := tx.Exec(ctx, `UPDATE servers SET published_version = $3, pending_version = NULL, status = 'published', registry_name = $4, updated_at = now()
+		WHERE namespace = $1 AND name = $2`, sv.Namespace, sv.Name, version, reg); err != nil {
+		if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok && pgErr.Code == "23505" {
+			return conflict("spec.registry.name", "FieldValueDuplicate", "registry name is used by another server")
+		}
+		return err
+	}
+	if err := checkRoutesFit(ctx, tx, sv.Namespace, before); err != nil {
+		return err
+	}
+	return auditV1(ctx, tx, c, "auto_published", "MCPServer", sv.Namespace, sv.Name, &version,
+		map[string]any{"contentHash": hash, "approvedBy": "auto", "changed": changed, "replaced": replaced})
+}
+
+// approveServer publishes the pending generation. The approver is a member
+// of the platform team and may be the submitter (self_approved). The
+// submitter is a User with an oid.
 func (d *DB) approveServer(ctx context.Context, c caller, platform, ns, name string, gen int, hash string) error {
 	expired := false
 	err := pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
 		row, err := lockServerRow(ctx, tx, ns, name)
-		if err != nil {
-			return err
-		}
-		before, err := lockRoutes(ctx, tx)
 		if err != nil {
 			return err
 		}
@@ -822,19 +930,25 @@ func (d *DB) approveServer(ctx context.Context, c caller, platform, ns, name str
 		case deref(v.SubKind) != "User" || v.SubOid == nil:
 			return stErr(http.StatusForbidden, "Forbidden", "the pending generation has no person as submitter; a person must submit it again")
 		case c.Oid == "":
-			// The two-person rule compares oids; an empty one would also fail the uuid cast below.
+			// self_approved compares oids; an empty one would also fail the uuid cast below.
 			return stErr(http.StatusForbidden, "Forbidden", "the approver has no object id")
-		case *v.SubOid == c.Oid || v.SubName == c.Ident:
-			return stErr(http.StatusForbidden, "Forbidden", "the submitter cannot approve their own generation")
+		case platform == "" || !c.in(platform):
+			return stErr(http.StatusForbidden, "Forbidden", "only the platform team approves MCP server versions")
 		case v.RegName != nil && !registryNameAllowed(platform, ns, *v.RegName):
 			return invalid("spec.registry.name", "generation %d has registry name %q, which team %s may not use", gen, *v.RegName, ns)
 		}
 		hashes := []string{hash}
-		if err := blockedContent(ctx, tx, "server_versions", ns, name, hashes); err != nil {
+		if err = blockedContent(ctx, tx, "server_versions", ns, name, hashes); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `UPDATE server_versions SET approved_by = $4, approved_by_oid = $5::uuid, approved_at = now(), published_at = now()
-			WHERE namespace = $1 AND name = $2 AND version = $3`, ns, name, gen, c.Ident, c.Oid); err != nil {
+		// Routes are locked after the expiry and approver checks, so neither waits on the route lock.
+		before, err := lockRoutes(ctx, tx)
+		if err != nil {
+			return err
+		}
+		self := *v.SubOid == c.Oid || v.SubName == c.Ident
+		if _, err := tx.Exec(ctx, `UPDATE server_versions SET approved_by = $4, approved_by_oid = $5::uuid, approved_at = now(), published_at = now(), self_approved = $6, approved_via = 'platform'
+			WHERE namespace = $1 AND name = $2 AND version = $3`, ns, name, gen, c.Ident, c.Oid, self); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `UPDATE servers SET published_version = $3, pending_version = NULL, status = 'published', registry_name = $4, updated_at = now()
@@ -847,7 +961,11 @@ func (d *DB) approveServer(ctx context.Context, c caller, platform, ns, name str
 		if err := checkRoutesFit(ctx, tx, ns, before); err != nil {
 			return err
 		}
-		return auditV1(ctx, tx, c, "approved_published", "MCPServer", ns, name, &gen, map[string]any{"contentHash": hash, "submittedBy": v.SubName})
+		detail := map[string]any{"contentHash": hash, "submittedBy": v.SubName, "outcome": "approved"}
+		if self {
+			detail["outcome"] = "self_approved"
+		}
+		return auditV1(ctx, tx, c, "approved_published", "MCPServer", ns, name, &gen, detail)
 	})
 	if err == nil && expired {
 		return errPendingExpired(gen)
@@ -910,6 +1028,15 @@ func (d *DB) rollbackServer(ctx context.Context, c caller, platform, by, ns, nam
 		}
 		if err != nil {
 			return err
+		}
+		// Only to a generation the platform team approved, directly or as an
+		// owner change that added no access (auto) or a git seed (#2634).
+		var via *string
+		if err := tx.QueryRow(ctx, `SELECT approved_via FROM server_versions WHERE namespace = $1 AND name = $2 AND version = $3`, ns, name, target).Scan(&via); err != nil {
+			return err
+		}
+		if via == nil {
+			return conflict("toGeneration", "GenerationNotEligible", "generation %d was not approved by the platform team", target)
 		}
 		var refused bool
 		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM server_versions WHERE namespace = $1 AND name = $2 AND (revoked_at IS NOT NULL OR blocked) AND spec_hash = $3)`, ns, name, v.Hash).Scan(&refused); err != nil {

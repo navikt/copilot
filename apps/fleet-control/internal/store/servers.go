@@ -54,8 +54,8 @@ func (d *Store) Seed(ctx context.Context, servers []model.Server, source string)
 			if r := s.Route; r != nil {
 				path, target, upstream, tools, enabled = &r.Path, &r.Target, &r.UpstreamURL, r.Tools, r.Enabled
 			}
-			if _, err := tx.Exec(ctx, `INSERT INTO server_versions (namespace, name, version, registry, route_path, target, upstream_url, enabled, tools, submitted_by, published_at)
-				VALUES ($1, $2, 1, $3::jsonb, $4, $5, $6, $7, $8, 'seed', now())`, s.Namespace, s.Name, registry, path, target, upstream, enabled, tools); err != nil {
+			if _, err := tx.Exec(ctx, `INSERT INTO server_versions (namespace, name, version, registry, route_path, target, upstream_url, enabled, tools, submitted_by, published_at, approved_via)
+				VALUES ($1, $2, 1, $3::jsonb, $4, $5, $6, $7, $8, 'seed', now(), 'seed')`, s.Namespace, s.Name, registry, path, target, upstream, enabled, tools); err != nil {
 				return fmt.Errorf("insert version %s: %w", s.Key(), err)
 			}
 		}
