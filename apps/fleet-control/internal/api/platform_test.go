@@ -2,103 +2,152 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/navikt/copilot/fleet-control/internal/auth"
 )
 
-// The platform team (#2752) may revoke an MCPServer in any namespace in prod,
-// pilot or not, and nothing else there. No database: a request that passes
-// the gate ends in 503.
-func TestPlatformRevokeGate(t *testing.T) {
-	srv := func(operator string, teams auth.TeamDirectory) http.Handler {
-		s := newServer()
-		s.cluster = "prod-gcp"
-		s.pilotTeams = []string{"copilot", "aksel-studio"}
-		s.operatorTeam = operator
-		return s.routes(testAuthz(t), adminID, teams, nil)
+// readServerJSON is a read-only server, so prod needs no ROS for it.
+func readServerJSON(ns, name, rv, readme string, tools ...string) string {
+	meta := map[string]any{"name": name, "namespace": ns}
+	if rv != "" {
+		meta["resourceVersion"] = rv
 	}
-	revoke := nsBase + "team-b/mcpservers/svc/revocation"
-	reason := `{"reason":"leaks data"}`
-	for _, tc := range []struct {
-		name, operator, method, path, who string
-		teams                             auth.TeamDirectory
-		want                              int
-	}{
-		{"platform member revokes outside the pilot", "copilot", "POST", revoke, "A111111", apisTeams, 503},
-		{"non-platform member cannot revoke elsewhere", "copilot", "POST", revoke, "A555555", apisTeams, 403},
-		{"owner of a non-pilot team cannot revoke", "copilot", "POST", revoke, "B444444", apisTeams, 403},
-		{"operator team unset", "", "POST", revoke, "A111111", apisTeams, 403},
-		{"platform member cannot approve elsewhere", "copilot", "POST", nsBase + "team-b/mcpservers/svc/approval", "A111111", apisTeams, 403},
-		{"platform member cannot change elsewhere", "copilot", "PUT", nsBase + "team-b/mcpservers/svc", "A111111", apisTeams, 403},
-		{"platform member cannot roll back elsewhere", "copilot", "POST", nsBase + "team-b/mcpservers/svc/rollback", "A111111", apisTeams, 403},
-		{"platform member cannot revoke a profile elsewhere", "copilot", "POST", nsBase + "team-b/agentprofiles/p/revocation", "A111111", apisTeams, 403},
-		{"Console lookup down", "copilot", "POST", revoke, "A111111", auth.UnboundTeams{}, 503},
-	} {
-		rec := do(t, srv(tc.operator, tc.teams), tc.method, tc.path, person(tc.who), reason)
-		if rec.Code != tc.want {
-			t.Errorf("%s: want %d, got %d %s", tc.name, tc.want, rec.Code, rec.Body)
+	raw, _ := json.Marshal(map[string]any{
+		"apiVersion": apiGroupVersion, "kind": "MCPServer", "metadata": meta,
+		"spec": map[string]any{"dataCategory": "Intern", "upstream": map[string]any{"app": "svc", "url": "http://svc." + ns + "/mcp"},
+			"allowedTools": tools, "defaultRisk": "read", "readme": readme},
+	})
+	return string(raw)
+}
+
+// Console down: every /apis write answers 503 before any rule runs.
+func TestApprovalModelConsoleDown(t *testing.T) {
+	s := newServer()
+	s.cluster = "prod-gcp"
+	s.operatorTeam = "copilot"
+	h := s.routes(testAuthz(t), adminID, auth.UnboundTeams{}, nil)
+	for _, p := range []string{"team-b/mcpservers", "team-b/mcpservers/svc/approval", "team-b/mcpservers/svc/rollback", "team-b/mcpservers/svc/revocation"} {
+		if rec := do(t, h, "POST", nsBase+p, person("A111111"), `{}`); rec.Code != http.StatusServiceUnavailable {
+			t.Errorf("%s: want 503, got %d", p, rec.Code)
 		}
 	}
 }
 
-func TestRealPostgresPlatformTeamRights(t *testing.T) {
+// Owner decision 2026-11-26 (#2634, #2752): any team submits in its own
+// namespace, only the platform team approves, owners roll back and revoke.
+func TestRealPostgresApprovalModel(t *testing.T) {
 	e := newApisEnv(t)
-	e.srv.operatorTeam = "copilot"
-	e.publish("team-b", "svc", "B444444", "B555555", "one")
-	// Drafts by A111111 (in copilot and aksel-studio), submitted in dev to skip prod's ROS rule.
-	hash := map[string]string{}
-	for _, k := range [][2]string{{"aksel-studio", "s1"}, {"copilot", "s1"}, {"copilot", "s2"}} {
-		m := decodeServer(t, e.want(201, "POST", nsBase+k[0]+"/mcpservers", person("A111111"), serverJSON(k[0], k[1], "", "t")))
-		hash[k[0]+"/"+k[1]] = m.Status.Pending.ContentHash
-	}
 	e.srv.cluster = "prod-gcp"
-	e.srv.pilotTeams = []string{"copilot", "aksel-studio"}
+	e.srv.operatorTeam = "copilot" // A111111 and C222222
 	ctx := context.Background()
+	base := nsBase + "team-b/mcpservers"
 
-	// #2752: revoke in a non-pilot namespace.
-	base := nsBase + "team-b/mcpservers/svc"
-	e.want(403, "POST", base+"/revocation", person("A555555"), `{"reason":"x"}`)
-	e.want(400, "POST", base+"/revocation", person("A111111"), `{}`)
-	e.want(400, "POST", base+"/revocation", person("A111111"), `{"reason":"  "}`)
-	e.want(403, "POST", base+"/rollback", person("A111111"), `{"fromGeneration":1,"reason":"x"}`)
-	e.want(200, "POST", base+"/revocation", person("A111111"), `{"reason":"leaks data"}`)
-	var reason, by string
-	if err := e.db.pool.QueryRow(ctx, `SELECT detail->>'reason', detail->>'by' FROM audit_events
-		WHERE action = 'revoked' AND namespace = 'team-b' AND actor = 'A111111'`).Scan(&reason, &by); err != nil || reason != "leaks data" || by != "platform" {
-		t.Fatalf("revoke audit: %q %q %v", reason, by, err)
+	// Submit: any team, own namespace only, no pilot list.
+	e.want(404, "POST", base, person("A555555"), readServerJSON("team-b", "svc", "", "", "t1"))
+	e.want(404, "POST", base, person("C222222"), readServerJSON("team-b", "svc", "", "", "t1"))
+	e.want(400, "POST", base, person("B444444"), readServerJSON("team-a", "svc", "", "", "t1"))
+	m := decodeServer(t, e.want(201, "POST", base, person("B444444"), readServerJSON("team-b", "svc", "", "", "t1")))
+	gen1 := approval(1, m.Status.Pending.ContentHash)
+
+	// The platform team reads what it approves; outsiders do not.
+	e.want(200, "GET", base+"/svc", person("C222222"), "")
+	e.want(200, "GET", base+"/svc/generations/1", person("C222222"), "")
+	e.want(404, "GET", base+"/svc", person("A555555"), "")
+	if out := e.want(200, "GET", apisPrefix+"/mcpservers", person("C222222"), ""); !strings.Contains(out, `"namespace":"team-b"`) {
+		t.Errorf("platform list must show team-b's pending server: %s", out)
 	}
 
-	// #2634: self-approval in copilot only.
-	selfApprove := func(ns, name string) int {
-		code, _ := e.do("POST", nsBase+ns+"/mcpservers/"+name+"/approval", person("A111111"), approval(1, hash[ns+"/"+name]))
-		return code
-	}
-	if code := selfApprove("aksel-studio", "s1"); code != 403 {
-		t.Errorf("self-approval in aksel-studio: want 403, got %d", code)
-	}
-	if code := selfApprove("copilot", "s1"); code != 200 {
-		t.Errorf("self-approval in copilot: want 200, got %d", code)
-	}
-	var outcome string
-	if err := e.db.pool.QueryRow(ctx, `SELECT detail->>'outcome' FROM audit_events
-		WHERE action = 'approved_published' AND namespace = 'copilot' AND name = 's1'`).Scan(&outcome); err != nil || outcome != "self_approved" {
-		t.Errorf("self-approval audit: %q %v", outcome, err)
-	}
+	// Approve: owners and the submitter cannot, outsiders get 404.
+	e.want(403, "POST", base+"/svc/approval", person("B444444"), gen1)
+	e.want(403, "POST", base+"/svc/approval", person("B555555"), gen1)
+	e.want(404, "POST", base+"/svc/approval", person("A555555"), gen1)
 	e.srv.operatorTeam = ""
-	if code := selfApprove("copilot", "s2"); code != 403 {
-		t.Errorf("self-approval with operator team unset: want 403, got %d", code)
-	}
+	e.want(403, "POST", base+"/svc/approval", person("B555555"), gen1)
+	e.want(404, "POST", base+"/svc/approval", person("C222222"), gen1)
 	e.srv.operatorTeam = "copilot"
-	// A two-person approval elsewhere is still plain "approved".
-	if err := e.db.pool.QueryRow(ctx, `SELECT detail->>'outcome' FROM audit_events
-		WHERE action = 'approved_published' AND namespace = 'team-b'`).Scan(&outcome); err != nil || outcome != "approved" {
-		t.Errorf("two-person audit: %q %v", outcome, err)
+	m = decodeServer(t, e.want(200, "POST", base+"/svc/approval", person("C222222"), gen1))
+	if m.Status.PublishedGeneration != 1 || m.Status.ApprovedBy.Name != "C222222" {
+		t.Fatalf("platform approval: %+v", m.Status)
 	}
-	// The database refuses a self-approval outside copilot even if the code would allow it.
-	if _, err := e.db.pool.Exec(ctx, `UPDATE server_versions SET self_approved = true, approved_by = submitted_by,
-		approved_by_oid = submitted_by_oid WHERE namespace = 'aksel-studio' AND name = 's1'`); err == nil {
-		t.Error("self_approved outside copilot passed the database check")
+	outcome := func(ns, name string) (o, sub string) {
+		_ = e.db.pool.QueryRow(ctx, `SELECT detail->>'outcome', detail->>'submittedBy' FROM audit_events
+			WHERE action = 'approved_published' AND namespace = $1 AND name = $2 ORDER BY id DESC LIMIT 1`, ns, name).Scan(&o, &sub)
+		return o, sub
+	}
+	if o, sub := outcome("team-b", "svc"); o != "approved" || sub != "B444444" {
+		t.Errorf("approval audit: %q %q", o, sub)
+	}
+
+	// A change that adds no access publishes at once, audited with its fields.
+	put := func(who, readme string, tools ...string) MCPServer {
+		cur := decodeServer(t, e.want(200, "GET", base+"/svc", person(who), ""))
+		return decodeServer(t, e.want(200, "PUT", base+"/svc", person(who), readServerJSON("team-b", "svc", cur.Metadata.ResourceVersion, readme, tools...)))
+	}
+	m = put("B444444", "new readme", "t1")
+	if m.Status.PublishedGeneration != 2 || m.Status.Pending != nil {
+		t.Fatalf("readme change must auto-publish: %+v", m.Status)
+	}
+	var by, changed string
+	if err := e.db.pool.QueryRow(ctx, `SELECT detail->>'approvedBy', detail->>'changed' FROM audit_events
+		WHERE action = 'auto_published' AND namespace = 'team-b'`).Scan(&by, &changed); err != nil || by != "auto" || changed != `["readme"]` {
+		t.Errorf("auto audit: %q %q %v", by, changed, err)
+	}
+	// A new tool waits for the platform team.
+	m = put("B444444", "new readme", "t1", "t2")
+	if m.Status.PublishedGeneration != 2 || m.Status.Pending == nil {
+		t.Fatalf("new tool must wait: %+v", m.Status)
+	}
+	e.want(200, "POST", base+"/svc/approval", person("C222222"), approval(3, m.Status.Pending.ContentHash))
+
+	// Rollback: owner team only, only to a generation the platform team approved.
+	rb := `{"fromGeneration":3,"toGeneration":1,"reason":"x"}`
+	e.want(404, "POST", base+"/svc/rollback", person("C222222"), rb)
+	if _, err := e.db.pool.Exec(ctx, `UPDATE server_versions SET approved_via = NULL WHERE namespace = 'team-b' AND name = 'svc' AND version = 1`); err != nil {
+		t.Fatal(err)
+	}
+	if code, out := e.do("POST", base+"/svc/rollback", person("B555555"), rb); code != 409 || !strings.Contains(out, "not approved by the platform team") {
+		t.Errorf("rollback to a generation the platform team did not approve: %d %s", code, out)
+	}
+	e.want(200, "POST", base+"/svc/rollback", person("B555555"), `{"fromGeneration":3,"toGeneration":2,"reason":"x"}`)
+	// No auto-publish on top of a generation the platform team never approved.
+	if _, err := e.db.pool.Exec(ctx, `UPDATE server_versions SET approved_via = NULL, approved_by = NULL WHERE namespace = 'team-b' AND name = 'svc' AND version = 2`); err != nil {
+		t.Fatal(err)
+	}
+	if m = put("B444444", "another readme", "t1"); m.Status.Pending == nil {
+		t.Errorf("change on an unapproved base must wait: %+v", m.Status)
+	}
+
+	// Revoke: the platform team anywhere, with a reason; outsiders 404.
+	e.want(404, "POST", base+"/svc/revocation", person("A555555"), `{"reason":"x"}`)
+	e.want(400, "POST", base+"/svc/revocation", person("C222222"), `{"reason":"  "}`)
+	e.want(200, "POST", base+"/svc/revocation", person("C222222"), `{"reason":"leaks data"}`)
+	var reason, role string
+	if err := e.db.pool.QueryRow(ctx, `SELECT detail->>'reason', detail->>'by' FROM audit_events
+		WHERE action = 'revoked' AND namespace = 'team-b'`).Scan(&reason, &role); err != nil || reason != "leaks data" || role != "platform" {
+		t.Errorf("revoke audit: %q %q %v", reason, role, err)
+	}
+
+	// Self-approval: a platform member approves what they submitted, in any namespace.
+	for _, ns := range []string{"copilot", "team-a"} {
+		m := decodeServer(t, e.want(201, "POST", nsBase+ns+"/mcpservers", person("A111111"), readServerJSON(ns, "own", "", "", "t1")))
+		e.want(200, "POST", nsBase+ns+"/mcpservers/own/approval", person("A111111"), approval(1, m.Status.Pending.ContentHash))
+		if o, _ := outcome(ns, "own"); o != "self_approved" {
+			t.Errorf("%s: self-approval audit %q", ns, o)
+		}
+	}
+
+	// The database keeps the self_approved mark and auto rows consistent.
+	for _, q := range []string{
+		`UPDATE server_versions SET self_approved = false WHERE namespace = 'copilot' AND name = 'own'`,
+		`UPDATE server_versions SET self_approved = true WHERE namespace = 'team-b' AND version = 1`,
+		`UPDATE server_versions SET approved_by_oid = submitted_by_oid WHERE namespace = 'team-b' AND version = 2`,
+	} {
+		if _, err := e.db.pool.Exec(ctx, q); err == nil {
+			t.Errorf("database accepted: %s", q)
+		}
 	}
 }

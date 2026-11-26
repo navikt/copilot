@@ -87,11 +87,11 @@ func TestApisNotifiesEachAction(t *testing.T) {
 		base := nsBase + "team-a/mcpservers/svc"
 
 		wg.Add(1)
-		pub := e.publish("team-a", "svc", "A111111", "A222222", "t1")
+		pub := e.publish("team-a", "svc", "A111111", "t1")
 		wg.Wait()
 		m := decodeServer(t, e.want(200, "PUT", base, person("A111111"), serverJSON("team-a", "svc", pub.Metadata.ResourceVersion, "t1", "t2")))
 		wg.Add(1)
-		e.want(200, "POST", base+"/approval", person("A222222"), approval(2, m.Status.Pending.ContentHash))
+		e.want(200, "POST", base+"/approval", person("P999999"), approval(2, m.Status.Pending.ContentHash))
 		wg.Wait()
 		wg.Add(1)
 		e.want(200, "POST", base+"/rollback", person("A111111"), `{"fromGeneration":2,"reason":"x"}`)

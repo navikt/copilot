@@ -66,28 +66,6 @@ func DevCluster(cluster string) bool {
 	return strings.HasPrefix(cluster, "dev-")
 }
 
-// PilotTeamsFromEnv reads FLEET_CONTROL_PILOT_TEAMS, the comma-separated
-// teams that may write outside dev-*. Entries are trimmed and must be
-// lowercase DNS labels, the exact form of a namespace path value; anything
-// else refuses startup rather than being folded into a match. Empty or unset
-// gives nil: every write outside dev is refused.
-func PilotTeamsFromEnv() ([]string, error) {
-	var out []string
-	for _, t := range strings.Split(os.Getenv("FLEET_CONTROL_PILOT_TEAMS"), ",") {
-		t = strings.TrimSpace(t)
-		if t == "" {
-			continue
-		}
-		if !dnsLabelRegex.MatchString(t) {
-			return nil, fmt.Errorf("FLEET_CONTROL_PILOT_TEAMS: invalid team %q", t)
-		}
-		if !slices.Contains(out, t) {
-			out = append(out, t)
-		}
-	}
-	return out, nil
-}
-
 // resolvePerson returns the NAVident behind a write request and its teams,
 // for callers that need the list rather than one membership check.
 func resolvePerson(ctx context.Context, a *Authz, header, adminClientID string, teams TeamDirectory) (string, []string, error) {

@@ -10,8 +10,6 @@ memory_limit: 128Mi
 gomemlimit: 115MiB
 # Caller client ids come from AZURE_APP_PRE_AUTHORIZED_APPS, which Nais fills
 # from accessPolicy.inbound. No agent seed and no static team list in prod.
-# Owner decision 2026-11-25: writes on for the closed pilot only.
-pilot_teams: copilot,aksel-studio
-# Owner decision 2026-11-26 (#2752, #2634): the platform team may revoke
-# anywhere and approve its own servers in namespace copilot.
+# Owner decision 2026-11-26 (#2634, #2752): any team submits, the platform
+# team approves and may revoke anywhere.
 operator_team: copilot

@@ -8,7 +8,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"slices"
 	"strings"
 	"time"
 
@@ -154,10 +153,6 @@ func (s *server) admin(a *auth.Authz, adminClientID string, teams auth.TeamDirec
 			http.Error(w, "forbidden: not a member of team "+ns, http.StatusForbidden)
 			return
 		}
-		if !s.writeAllowed(ns) {
-			http.Error(w, "forbidden: writes are not enabled for team "+ns+" in this cluster", http.StatusForbidden)
-			return
-		}
 		js := s.jobs()
 		if js == nil {
 			http.Error(w, "database unavailable", http.StatusServiceUnavailable)
@@ -178,11 +173,4 @@ func decodeBody(w http.ResponseWriter, r *http.Request, v any) error {
 		return refuse(http.StatusBadRequest, "invalid body: trailing content")
 	}
 	return nil
-}
-
-// writeAllowed reports whether team ns may be written to in this cluster:
-// always in dev-*, elsewhere (unset cluster included) only for a pilot team.
-// Membership is checked separately; this narrows, never widens.
-func (s *server) writeAllowed(ns string) bool {
-	return auth.DevCluster(s.cluster) || slices.Contains(s.pilotTeams, ns)
 }

@@ -20,6 +20,5 @@ static_teams_secret: fleet-control-static-teams
 # Secret holding FLEET_SLACK_WEBHOOK_URL (ROS FG-14). Uncomment once the
 # owner has created it; a missing secret stops the pod.
 # slack_webhook_secret: fleet-control-slack
-# Dev needs no pilot list: every team may write in dev-*.
-pilot_teams: ""
-operator_team: ""
+# Owner decision 2026-11-26 (#2634): the platform team approves, in dev too.
+operator_team: copilot

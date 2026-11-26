@@ -200,7 +200,7 @@ func seedAgentsFromEnv(ctx context.Context, db *DB) error {
 
 // Audit actions the pre-v1alpha1 code wrote; history still shows them.
 var (
-	serverActions = []string{"draft_submitted", "approved_published", "revoked", "rolled_back", "approval_expired"}
+	serverActions = []string{"draft_submitted", "auto_published", "approved_published", "revoked", "rolled_back", "approval_expired"}
 )
 
 func nonNil(v []string) []string {

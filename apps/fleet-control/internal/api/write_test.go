@@ -141,7 +141,7 @@ func TestRealPostgresRoutesSizeLimit(t *testing.T) {
 		t.Fatal(err)
 	}
 	srv := e.srv
-	a, b := person("A111111"), person("A222222")
+	a, b := person("A111111"), person("P999999")
 	base := nsBase + "team-a/mcpservers/"
 	// draft submits name and returns the approval body for its pending generation.
 	draft := func(name string, tools ...string) string {

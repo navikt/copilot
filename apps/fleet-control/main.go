@@ -46,17 +46,13 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	pilotTeams, err := auth.PilotTeamsFromEnv()
-	if err != nil {
-		return err
-	}
 	a, err := api.New(api.Config{
 		Authz:         authz,
 		Teams:         teams,
 		AdminClientID: myCopilotID,
 		Cluster:       cluster,
-		PilotTeams:    pilotTeams,
-		// FLEET_CONTROL_OPERATOR_TEAM may set the global job kill switch; unset, nobody can.
+		// FLEET_CONTROL_OPERATOR_TEAM is the platform team: it approves MCP servers,
+		// may revoke them anywhere and sets the global job kill switch. Unset: nobody can.
 		OperatorTeam:    strings.TrimSpace(os.Getenv("FLEET_CONTROL_OPERATOR_TEAM")),
 		SlackWebhookURL: os.Getenv("FLEET_SLACK_WEBHOOK_URL"),
 	})

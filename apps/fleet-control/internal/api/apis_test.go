@@ -129,11 +129,11 @@ func approval(gen int, hash string) string {
 	return fmt.Sprintf(`{"generation":%d,"contentHash":%q}`, gen, hash)
 }
 
-// publish creates ns/name with tools and has a second member approve it.
-func (e *apisEnv) publish(ns, name, submitter, approver string, tools ...string) MCPServer {
+// publish creates ns/name with tools and has the platform team approve it.
+func (e *apisEnv) publish(ns, name, submitter string, tools ...string) MCPServer {
 	e.t.Helper()
 	m := decodeServer(e.t, e.want(201, "POST", nsBase+ns+"/mcpservers", person(submitter), serverJSON(ns, name, "", tools...)))
-	return decodeServer(e.t, e.want(200, "POST", nsBase+ns+"/mcpservers/"+name+"/approval", person(approver), approval(1, m.Status.Pending.ContentHash)))
+	return decodeServer(e.t, e.want(200, "POST", nsBase+ns+"/mcpservers/"+name+"/approval", person("P999999"), approval(1, m.Status.Pending.ContentHash)))
 }
 
 func TestApisGuardsFailClosed(t *testing.T) {
@@ -216,17 +216,17 @@ func TestRealPostgresMCPServerLifecycle(t *testing.T) {
 	}
 	e.want(409, "POST", base, person("A222222"), serverJSON("team-a", "svc", "", "search"))
 	hash := m.Status.Pending.ContentHash
+	// Owner-team members do not approve, submitter or not (#2634); outsiders get 404.
 	e.want(403, "POST", base+"/svc/approval", person("A111111"), approval(1, hash))
-	// Same person under another NAVident, and another oid behind the same NAVident.
-	e.want(403, "POST", base+"/svc/approval", person("A222222")+":A222222:"+testOid("A111111"), approval(1, hash))
-	e.want(403, "POST", base+"/svc/approval", person("A111111")+":A111111:"+testOid("A222222"), approval(1, hash))
-	e.want(409, "POST", base+"/svc/approval", person("A222222"), approval(1, "v1:sha256:00"))
-	e.want(409, "POST", base+"/svc/approval", person("A222222"), approval(2, hash))
-	m = decodeServer(t, e.want(200, "POST", base+"/svc/approval", person("A222222"), approval(1, hash)))
+	e.want(403, "POST", base+"/svc/approval", person("A222222"), approval(1, hash))
+	e.want(404, "POST", base+"/svc/approval", person("B444444"), approval(1, hash))
+	e.want(409, "POST", base+"/svc/approval", person("P999999"), approval(1, "v1:sha256:00"))
+	e.want(409, "POST", base+"/svc/approval", person("P999999"), approval(2, hash))
+	m = decodeServer(t, e.want(200, "POST", base+"/svc/approval", person("P999999"), approval(1, hash)))
 	if m.Status.PublishedGeneration != 1 || m.Status.Pending != nil || condOf(m.Status.Conditions, "Ready").Status != "True" || m.Status.Route.Path != "/mcp/team-a/svc" {
 		t.Fatalf("approved: %+v", m.Status)
 	}
-	if m.Status.ApprovedBy.Name != "A222222" || m.Status.SubmittedBy.Kind != "User" {
+	if m.Status.ApprovedBy.Name != "P999999" || m.Status.SubmittedBy.Kind != "User" {
 		t.Fatalf("actors: %+v %+v", m.Status.SubmittedBy, m.Status.ApprovedBy)
 	}
 	servers, _ := e.db.Servers(context.Background())
@@ -239,12 +239,13 @@ func TestRealPostgresMCPServerLifecycle(t *testing.T) {
 	e.want(409, "PUT", base+"/svc", person("A111111"), serverJSON("team-a", "svc", "", "search"))
 	e.want(409, "PUT", base+"/svc", person("A111111"), serverJSON("team-a", "svc", "1", "search"))
 	e.want(400, "PUT", base+"/svc", person("A111111"), serverJSON("team-a", "other", rv, "search"))
-	m = decodeServer(t, e.want(200, "PUT", base+"/svc", person("A111111"), serverJSON("team-a", "svc", rv, "search")))
+	// A new tool adds access, so it waits for the platform team.
+	m = decodeServer(t, e.want(200, "PUT", base+"/svc", person("A111111"), serverJSON("team-a", "svc", rv, "search", "more")))
 	if m.Metadata.Generation != 2 || m.Status.Pending.Generation != 2 || m.Status.PublishedGeneration != 1 || len(m.Spec.AllowedTools) != 2 {
 		t.Fatalf("new generation: spec must stay the published one, pending 2: %+v", m)
 	}
 	// A label change with the pending spec sent back keeps the colleague's proposal.
-	labelled := strings.Replace(serverJSON("team-a", "svc", m.Metadata.ResourceVersion, "search"), `"name":"svc"`, `"name":"svc","labels":{"owner":"a"}`, 1)
+	labelled := strings.Replace(serverJSON("team-a", "svc", m.Metadata.ResourceVersion, "search", "more"), `"name":"svc"`, `"name":"svc","labels":{"owner":"a"}`, 1)
 	m2 := decodeServer(t, e.want(200, "PUT", base+"/svc", person("A222222"), labelled))
 	if m2.Metadata.Generation != 2 || m2.Status.Pending == nil || m2.Status.Pending.ContentHash != m.Status.Pending.ContentHash || m2.Metadata.Labels["owner"] != "a" {
 		t.Fatalf("label change must not touch the pending generation: %+v", m2)
@@ -287,11 +288,11 @@ func TestRealPostgresMCPServerLifecycle(t *testing.T) {
 func TestRealPostgresMCPServerRevokeRollbackBlock(t *testing.T) {
 	e := newApisEnv(t)
 	base := nsBase + "team-a/mcpservers/svc"
-	e.publish("team-a", "svc", "A111111", "A222222", "one")
+	e.publish("team-a", "svc", "A111111", "one")
 	submit := func(tools ...string) MCPServer {
 		cur := decodeServer(t, e.want(200, "GET", base, person("A111111"), ""))
 		m := decodeServer(t, e.want(200, "PUT", base, person("A111111"), serverJSON("team-a", "svc", cur.Metadata.ResourceVersion, tools...)))
-		return decodeServer(t, e.want(200, "POST", base+"/approval", person("A222222"), approval(int(m.Metadata.Generation), m.Status.Pending.ContentHash)))
+		return decodeServer(t, e.want(200, "POST", base+"/approval", person("P999999"), approval(int(m.Metadata.Generation), m.Status.Pending.ContentHash)))
 	}
 	submit("two")   // gen 2
 	submit("three") // gen 3
@@ -325,7 +326,7 @@ func TestRealPostgresMCPServerRevokeRollbackBlock(t *testing.T) {
 	// A revocation older than 90 days survives retention (#2762).
 	revokedAt := condOf(decodeServer(t, e.want(200, "GET", base, person("A111111"), "")).Status.Conditions, "Revoked").LastTransitionTime
 	// A second server revoked by the platform without block shows by_role.
-	e.publish("team-a", "svc2", "A111111", "A222222", "one")
+	e.publish("team-a", "svc2", "A111111", "one")
 	e.want(200, "POST", nsBase+"team-a/mcpservers/svc2/revocation", person("P999999"), `{"reason":"incident"}`)
 	ageAudit(t, e.db)
 	if m := decodeServer(t, e.want(200, "GET", nsBase+"team-a/mcpservers/svc2", person("A111111"), "")); condOf(m.Status.Conditions, "Revoked").Reason != "RevokedByPlatform" {
@@ -348,7 +349,7 @@ func TestRealPostgresMCPServerRevokeRollbackBlock(t *testing.T) {
 	if m.Metadata.Generation != 5 {
 		t.Fatalf("restart must give a new generation: %+v", m.Metadata)
 	}
-	m = decodeServer(t, e.want(200, "POST", base+"/approval", person("A222222"), approval(5, m.Status.Pending.ContentHash)))
+	m = decodeServer(t, e.want(200, "POST", base+"/approval", person("P999999"), approval(5, m.Status.Pending.ContentHash)))
 	if condOf(m.Status.Conditions, "Revoked").Status != "False" || m.Status.PublishedGeneration != 5 {
 		t.Fatalf("a new approved generation lifts Revoked: %+v", m.Status)
 	}
@@ -368,7 +369,7 @@ func TestRealPostgresMCPServerRevokeRollbackBlock(t *testing.T) {
 	}
 	cur = decodeServer(t, e.want(200, "GET", base, person("A111111"), ""))
 	m = decodeServer(t, e.want(200, "PUT", base, person("A111111"), serverJSON("team-a", "svc", cur.Metadata.ResourceVersion, "six")))
-	e.want(200, "POST", base+"/approval", person("A222222"), approval(6, m.Status.Pending.ContentHash))
+	e.want(200, "POST", base+"/approval", person("P999999"), approval(6, m.Status.Pending.ContentHash))
 	if code, out := rollback(`{"fromGeneration":6,"reason":"x"}`); code != 409 || !strings.Contains(out, "GenerationRevoked") {
 		t.Fatalf("rollback to a revoked generation: %d %s", code, out)
 	}
@@ -380,9 +381,9 @@ func TestRealPostgresMCPServerRevokeRollbackBlock(t *testing.T) {
 
 func TestRealPostgresCatalogShowsOnlyPublished(t *testing.T) {
 	e := newApisEnv(t)
-	e.publish("team-a", "live", "A111111", "A222222", "search")
+	e.publish("team-a", "live", "A111111", "search")
 	e.want(201, "POST", nsBase+"team-a/mcpservers", person("A111111"), serverJSON("team-a", "draft", "", "search"))
-	e.publish("team-a", "gone", "A111111", "A222222", "search")
+	e.publish("team-a", "gone", "A111111", "search")
 	e.want(200, "POST", nsBase+"team-a/mcpservers/gone/revocation", person("A111111"), `{"reason":"x"}`)
 	// Any signed-in person, member or not.
 	out := e.want(200, "GET", apisPrefix+"/mcpservercatalogentries", person("B444444"), "")
@@ -419,7 +420,7 @@ func TestRealPostgresCatalogShowsOnlyPublished(t *testing.T) {
 	// Tool descriptions reach other teams through the catalog; upstream and readme do not.
 	doc := `{"apiVersion":"` + apiGroupVersion + `","kind":"MCPServer","metadata":{"name":"doc","namespace":"team-a"},"spec":{"dataCategory":"Intern","upstream":{"app":"svc","url":"http://svc.team-a/mcp"},"allowedTools":["search"],"readme":"secret","tools":[{"name":"search","description":"Finds things."}]}}`
 	m := decodeServer(t, e.want(201, "POST", nsBase+"team-a/mcpservers", person("A111111"), doc))
-	e.want(200, "POST", nsBase+"team-a/mcpservers/doc/approval", person("A222222"), approval(1, m.Status.Pending.ContentHash))
+	e.want(200, "POST", nsBase+"team-a/mcpservers/doc/approval", person("P999999"), approval(1, m.Status.Pending.ContentHash))
 	got := e.want(200, "GET", nsBase+"team-a/mcpservercatalogentries/doc", person("B444444"), "")
 	if !strings.Contains(got, `"tools":[{"name":"search","description":"Finds things."}]`) || strings.Contains(got, "secret") || strings.Contains(got, "upstream") {
 		t.Fatalf("catalog entry tools: %s", got)
@@ -464,8 +465,8 @@ func grantBody(gen int, ref, hash string) string {
 
 func TestRealPostgresAgentProfileV1(t *testing.T) {
 	e := newApisEnv(t)
-	e.publish("copilot", "dolly", "C222222", "A111111", "hent", "opprett")
-	e.publish("team-b", "kodeverk", "B444444", "B555555", "lookup")
+	e.publish("copilot", "dolly", "C222222", "hent", "opprett")
+	e.publish("team-b", "kodeverk", "B444444", "lookup")
 	base := nsBase + "aksel-studio/agentprofiles"
 	body := profileJSON("aksel-studio", "assistant", "", "copilot/dolly=hent", "team-b/kodeverk=lookup")
 	e.want(404, "POST", base, person("C222222"), body)
@@ -571,7 +572,7 @@ func TestRealPostgresAgentProfileV1(t *testing.T) {
 
 func TestRealPostgresSeededProfileNeedsPerson(t *testing.T) {
 	e := newApisEnv(t)
-	e.publish("copilot", "dolly", "C222222", "A111111", "hent")
+	e.publish("copilot", "dolly", "C222222", "hent")
 	var p AgentProfile
 	if err := json.Unmarshal([]byte(fixture(t)), &p); err != nil {
 		t.Fatal(err)
@@ -614,7 +615,7 @@ func TestRealPostgresServerReadmeRoundTrip(t *testing.T) {
 		t.Fatalf("round trip: %+v", m.Status.Pending)
 	}
 	e.want(422, "POST", nsBase+"team-a/mcpservers", person("A111111"), strings.Replace(serverJSON("team-a", "big", "", "a"), `"allowedTools"`, `"readme":"`+strings.Repeat("x", maxReadmeBytes+1)+`","allowedTools"`, 1))
-	e.publish("copilot", "dolly", "C222222", "A111111", "hent")
+	e.publish("copilot", "dolly", "C222222", "hent")
 	e.want(201, "POST", nsBase+"aksel-studio/agentprofiles", person("A555555"), profileJSON("aksel-studio", "p", "", "copilot/dolly=hent"))
 	if got := decodeProfile(t, e.want(200, "GET", nsBase+"aksel-studio/agentprofiles/p", person("A555555"), "")); got.Status.Pending == nil || got.Status.NeedsResubmit {
 		t.Fatalf("a person's draft needs no resubmit: %+v", got.Status)
@@ -625,8 +626,8 @@ func TestRealPostgresServerReadmeRoundTrip(t *testing.T) {
 // as for a profile that does not exist, before any state shows.
 func TestRealPostgresGrantActionsDoNotLeakProfiles(t *testing.T) {
 	e := newApisEnv(t)
-	e.publish("copilot", "dolly", "C222222", "A111111", "hent")
-	e.publish("team-b", "kodeverk", "B444444", "B555555", "lookup")
+	e.publish("copilot", "dolly", "C222222", "hent")
+	e.publish("team-b", "kodeverk", "B444444", "lookup")
 	base := nsBase + "aksel-studio/agentprofiles/"
 	e.want(201, "POST", nsBase+"aksel-studio/agentprofiles", person("A111111"), profileJSON("aksel-studio", "assistant", "", "copilot/dolly=hent"))
 	ref := `{"group":"fleet.nav.no","kind":"MCPServer","namespace":"team-b","name":"kodeverk"}`
@@ -647,8 +648,8 @@ func TestRealPostgresGrantActionsDoNotLeakProfiles(t *testing.T) {
 // was given stops the profile.
 func TestRealPostgresPublishRechecksEveryGrant(t *testing.T) {
 	e := newApisEnv(t)
-	e.publish("copilot", "dolly", "C222222", "A111111", "hent")
-	e.publish("team-b", "kodeverk", "B444444", "B555555", "lookup")
+	e.publish("copilot", "dolly", "C222222", "hent")
+	e.publish("team-b", "kodeverk", "B444444", "lookup")
 	base := nsBase + "aksel-studio/agentprofiles"
 	p := decodeProfile(t, e.want(201, "POST", base, person("A111111"), profileJSON("aksel-studio", "assistant", "", "copilot/dolly=hent", "team-b/kodeverk=lookup")))
 	h := map[string]string{}
@@ -664,7 +665,7 @@ func TestRealPostgresPublishRechecksEveryGrant(t *testing.T) {
 	// Republishing the server does not bring the old grant back.
 	srv := decodeServer(t, e.want(200, "GET", nsBase+"team-b/mcpservers/kodeverk", person("B444444"), ""))
 	srv = decodeServer(t, e.want(200, "PUT", nsBase+"team-b/mcpservers/kodeverk", person("B444444"), serverJSON("team-b", "kodeverk", srv.Metadata.ResourceVersion, "lookup")))
-	e.want(200, "POST", nsBase+"team-b/mcpservers/kodeverk/approval", person("B555555"), approval(int(srv.Metadata.Generation), srv.Status.Pending.ContentHash))
+	e.want(200, "POST", nsBase+"team-b/mcpservers/kodeverk/approval", person("P999999"), approval(int(srv.Metadata.Generation), srv.Status.Pending.ContentHash))
 	if code, out := e.do("POST", base+"/assistant/approval", person("C222222"), grantBody(1, "copilot/dolly", h["copilot/dolly"])); code == 200 {
 		t.Fatalf("published with a grant on a revoked server: %s", out)
 	}
@@ -689,8 +690,8 @@ func hideTable(t *testing.T, db *DB, table string, f func()) {
 // at the precheck, as excerpt does, without building it first (#2696).
 func TestRealPostgresProfilePrecheckFollowsPending(t *testing.T) {
 	e := newApisEnv(t)
-	e.publish("copilot", "dolly", "C222222", "A111111", "hent")
-	e.publish("team-b", "kodeverk", "B444444", "B555555", "lookup")
+	e.publish("copilot", "dolly", "C222222", "hent")
+	e.publish("team-b", "kodeverk", "B444444", "lookup")
 	base := nsBase + "aksel-studio/agentprofiles"
 	p := decodeProfile(t, e.want(201, "POST", base, person("A111111"), profileJSON("aksel-studio", "assistant", "", "copilot/dolly=hent", "team-b/kodeverk=lookup")))
 	for _, g := range p.Status.Grants {
@@ -723,11 +724,11 @@ func TestRealPostgresToolRiskSnapshot(t *testing.T) {
 	ctx := context.Background()
 	body := strings.Replace(serverJSON("team-a", "svc", "", "a", "b"), `"allowedTools"`, `"toolRisk":{"a":"read"},"allowedTools"`, 1)
 	m := decodeServer(t, e.want(201, "POST", nsBase+"team-a/mcpservers", person("A111111"), body))
-	e.want(200, "POST", nsBase+"team-a/mcpservers/svc/approval", person("A222222"), approval(1, m.Status.Pending.ContentHash))
-	e.publish("team-a", "legacy", "A111111", "A222222", "c")
+	e.want(200, "POST", nsBase+"team-a/mcpservers/svc/approval", person("P999999"), approval(1, m.Status.Pending.ContentHash))
+	e.publish("team-a", "legacy", "A111111", "c")
 	body = strings.Replace(serverJSON("team-a", "dflt", "", "a", "b"), `"allowedTools"`, `"defaultRisk":"propose","toolRisk":{"a":"write"},"allowedTools"`, 1)
 	m = decodeServer(t, e.want(201, "POST", nsBase+"team-a/mcpservers", person("A111111"), body))
-	e.want(200, "POST", nsBase+"team-a/mcpservers/dflt/approval", person("A222222"), approval(1, m.Status.Pending.ContentHash))
+	e.want(200, "POST", nsBase+"team-a/mcpservers/dflt/approval", person("P999999"), approval(1, m.Status.Pending.ContentHash))
 	if _, err := e.db.pool.Exec(ctx, `UPDATE server_versions SET spec = spec - 'toolRisk' WHERE name = 'legacy'`); err != nil {
 		t.Fatal(err)
 	}

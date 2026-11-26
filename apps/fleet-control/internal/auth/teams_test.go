@@ -7,26 +7,6 @@ import (
 	"testing"
 )
 
-func TestPilotTeamsFromEnv(t *testing.T) {
-	t.Setenv("FLEET_CONTROL_PILOT_TEAMS", " copilot, aksel-studio ,,copilot ")
-	if got, err := PilotTeamsFromEnv(); err != nil || strings.Join(got, ",") != "copilot,aksel-studio" {
-		t.Errorf("got %v %v", got, err)
-	}
-	for _, v := range []string{"", " ", " , "} {
-		t.Setenv("FLEET_CONTROL_PILOT_TEAMS", v)
-		if got, err := PilotTeamsFromEnv(); err != nil || len(got) != 0 {
-			t.Errorf("%q: want none, got %v %v", v, got, err)
-		}
-	}
-	// Not folded into a match: a wrong-case or odd entry refuses startup.
-	for _, v := range []string{"Copilot", "copilot,team a", "team_a"} {
-		t.Setenv("FLEET_CONTROL_PILOT_TEAMS", v)
-		if _, err := PilotTeamsFromEnv(); err == nil {
-			t.Errorf("%q: want error", v)
-		}
-	}
-}
-
 func TestTeamsFromEnv(t *testing.T) {
 	// Emails are compared trimmed and case-insensitively.
 	t.Setenv("FLEET_CONTROL_STATIC_TEAMS", `{"team-a":[" Kari.Nordmann@Example.com "],"team-b":["kari.nordmann@example.com"]}`)
