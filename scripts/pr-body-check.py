@@ -76,7 +76,11 @@ def main(argv):
             capture_output=True, text=True, check=True,
         ).stdout
     elif len(argv) == 1:
-        body = sys.stdin.read() if argv[0] == "-" else open(argv[0], encoding="utf-8").read()
+        if argv[0] == "-":
+            body = sys.stdin.read()
+        else:
+            with open(argv[0], encoding="utf-8") as f:
+                body = f.read()
     elif not argv and "PR_BODY" in os.environ:
         actor = os.environ.get("ACTOR", "")
         if actor.endswith("[bot]"):
