@@ -28,6 +28,7 @@ func expiredAudits(t *testing.T, e *apisEnv, name string) int {
 // 410 Expired and an audit row; the same content can be submitted again (#2731).
 func TestRealPostgresServerPendingExpires(t *testing.T) {
 	e := newApisEnv(t)
+	e.srv.operatorTeam = "copilot" // only the platform team approves (#2634); C222222 is a member
 	base := nsBase + "team-a/mcpservers"
 	m := decodeServer(t, e.want(201, "POST", base, person("A111111"), serverJSON("team-a", "old", "", "t")))
 	if p := m.Status.Pending; p == nil || p.ExpiresAt == nil || time.Until(*p.ExpiresAt) < 29*24*time.Hour {
@@ -37,21 +38,25 @@ func TestRealPostgresServerPendingExpires(t *testing.T) {
 	age(t, e, "server_versions", "old", 31*24*time.Hour)
 	age(t, e, "server_versions", "fresh", 29*24*time.Hour)
 
-	code, out := e.do("POST", base+"/old/approval", person("A222222"), approval(1, m.Status.Pending.ContentHash))
+	// An owner-team member outside the platform team is refused before expiry is checked, and writes no audit row.
+	if code, _ := e.do("POST", base+"/old/approval", person("A222222"), approval(1, m.Status.Pending.ContentHash)); code != 403 {
+		t.Fatalf("owner-team approval: want 403, got %d", code)
+	}
+	code, out := e.do("POST", base+"/old/approval", person("C222222"), approval(1, m.Status.Pending.ContentHash))
 	if code != 410 || !strings.Contains(out, `"reason":"Expired"`) {
 		t.Fatalf("expired approval: want 410 Expired, got %d %s", code, out)
 	}
 	if got := expiredAudits(t, e, "old"); got != 1 {
 		t.Fatalf("want one approval_expired audit row, got %d", got)
 	}
-	e.want(200, "POST", base+"/fresh/approval", person("A222222"), approval(1, n.Status.Pending.ContentHash))
+	e.want(200, "POST", base+"/fresh/approval", person("C222222"), approval(1, n.Status.Pending.ContentHash))
 
 	cur := decodeServer(t, e.want(200, "GET", base+"/old", person("A111111"), ""))
 	re := decodeServer(t, e.want(200, "PUT", base+"/old", person("A111111"), serverJSON("team-a", "old", cur.Metadata.ResourceVersion, "t")))
 	if re.Status.Pending == nil || re.Status.Pending.Generation != 2 {
 		t.Fatalf("resubmitting the same content must make a new generation: %+v", re.Status.Pending)
 	}
-	e.want(200, "POST", base+"/old/approval", person("A222222"), approval(2, re.Status.Pending.ContentHash))
+	e.want(200, "POST", base+"/old/approval", person("C222222"), approval(2, re.Status.Pending.ContentHash))
 }
 
 // A partly granted profile lapses with its generation; another profile is

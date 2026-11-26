@@ -908,10 +908,6 @@ func (d *DB) approveServer(ctx context.Context, c caller, platform, ns, name str
 		if err != nil {
 			return err
 		}
-		before, err := lockRoutes(ctx, tx)
-		if err != nil {
-			return err
-		}
 		if row.Pending == nil || *row.Pending != gen {
 			return conflict("generation", "FieldValueInvalid", "generation %d is not the one awaiting approval", gen)
 		}
@@ -942,7 +938,12 @@ func (d *DB) approveServer(ctx context.Context, c caller, platform, ns, name str
 			return invalid("spec.registry.name", "generation %d has registry name %q, which team %s may not use", gen, *v.RegName, ns)
 		}
 		hashes := []string{hash}
-		if err := blockedContent(ctx, tx, "server_versions", ns, name, hashes); err != nil {
+		if err = blockedContent(ctx, tx, "server_versions", ns, name, hashes); err != nil {
+			return err
+		}
+		// Routes are locked after the expiry and approver checks, so neither waits on the route lock.
+		before, err := lockRoutes(ctx, tx)
+		if err != nil {
 			return err
 		}
 		self := *v.SubOid == c.Oid || v.SubName == c.Ident
