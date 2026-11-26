@@ -213,19 +213,33 @@
   "/fleet": {
     "sources": [
       "apps/my-copilot/src/app/(nb)/fleet/catalog.tsx",
+      "apps/my-copilot/src/app/(nb)/fleet/frame.tsx",
       "apps/my-copilot/src/app/(nb)/fleet/nav.tsx",
       "apps/my-copilot/src/app/(nb)/fleet/page.tsx",
       "apps/my-copilot/src/app/(nb)/fleet/registrer/wizard.tsx"
     ],
     "anchors": {}
   },
+  "/fleet/agenter": {
+    "sources": ["apps/my-copilot/src/app/(nb)/fleet/agenter/page.tsx"],
+    "anchors": {}
+  },
   "/fleet/katalog": {
     "sources": [
+      "apps/my-copilot/src/app/(nb)/fleet/catalog.tsx",
+      "apps/my-copilot/src/app/(nb)/fleet/fleet-ui.tsx",
       "apps/my-copilot/src/app/(nb)/fleet/katalog/page.tsx",
+      "apps/my-copilot/src/app/(nb)/fleet/mcp-servere/[namespace]/[name]/page.tsx",
       "apps/my-copilot/src/app/(nb)/fleet/nav.tsx",
       "apps/my-copilot/src/app/(nb)/fleet/page.tsx"
     ],
     "anchors": {}
+  },
+  "/fleet/mcp-servere/[namespace]/[name]": {
+    "sources": [],
+    "anchors": {
+      "be-om-tilgang": ["apps/my-copilot/src/app/(nb)/fleet/mcp-servere/[namespace]/[name]/page.tsx"]
+    }
   },
   "/fleet/registrer": {
     "sources": [
