@@ -242,6 +242,12 @@ func validateUpstreamURL(raw, namespace string) (*url.URL, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Before lowercasing: ToLower folds U+212A (Kelvin) to "k". Matches fleet-control NormalizeHost.
+	for i := 0; i < len(u.Hostname()); i++ {
+		if u.Hostname()[i] >= 0x80 {
+			return nil, fmt.Errorf("upstream host %q must be ASCII", u.Hostname())
+		}
+	}
 	host := strings.ToLower(strings.TrimSuffix(u.Hostname(), "."))
 	if host == "" {
 		return nil, errors.New("missing hostname")
