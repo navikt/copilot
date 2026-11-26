@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"strconv"
 	"time"
-	_ "time/tzdata"
 )
 
 // The front page's «Dagens innsikt»: one sentence a day, built from Nav-wide
