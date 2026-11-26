@@ -196,3 +196,21 @@ func TestRealPostgresAgentJobClientMismatch(t *testing.T) {
 	}
 	e.want(401, "POST", nsBase+"team-a/agentjobs", delegated("B444444"), jobJSON("team-a", "first", ""))
 }
+
+// The status reads expiry by DB time, as enforcement does (#3077).
+func TestRealPostgresProfileStatusExpiredByDBTime(t *testing.T) {
+	e := newApisEnv(t)
+	liveProfile(t, e.db, "team-a", "studio", appClientID, "Read")
+	ready := func() Condition {
+		return condOf(decodeProfile(t, e.want(200, "GET", nsBase+"team-a/agentprofiles/studio", person("A111111"), "")).Status.Conditions, "Ready")
+	}
+	if c := ready(); c.Reason == "Expired" {
+		t.Fatalf("live profile shows %+v", c)
+	}
+	if _, err := e.db.pool.Exec(context.Background(), `UPDATE agent_profile_generations SET expires_at = now() - interval '1 second'`); err != nil {
+		t.Fatal(err)
+	}
+	if c := ready(); c.Reason != "Expired" {
+		t.Errorf("expired profile shows %+v, want Expired", c)
+	}
+}

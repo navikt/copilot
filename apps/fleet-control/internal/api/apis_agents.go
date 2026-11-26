@@ -685,7 +685,15 @@ func (d *DB) buildProfile(ctx context.Context, row profileRow) (AgentProfileV1, 
 	}
 	at := func(actions ...string) time.Time { return latest(ev, row.Created, actions...) }
 	published := pub != nil && !row.Revoked
-	expired := published && pub.ExpiresAt != nil && !pub.ExpiresAt.After(time.Now())
+	expired := false
+	if published && pub.ExpiresAt != nil {
+		// DB time, like enforcement (txNow), so status and refusals agree under pod clock drift.
+		var now time.Time
+		if err := d.pool.QueryRow(ctx, `SELECT now()`).Scan(&now); err != nil {
+			return obj, err
+		}
+		expired = !pub.ExpiresAt.After(now)
+	}
 	verified := st.IdentityVerifiedAt != nil
 	pubReason := "NeverApproved"
 	switch {

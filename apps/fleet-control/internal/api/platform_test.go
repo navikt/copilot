@@ -175,16 +175,22 @@ func TestRealPostgresRiskLoweringWaits(t *testing.T) {
 	m := decodeServer(t, e.want(201, "POST", base, person("B444444"), body("", map[string]any{"rosRef": "ros-1", "dataCategory": "Fortrolig"})))
 	wg.Add(1)
 	m = decodeServer(t, e.want(200, "POST", base+"/svc/approval", person("C222222"), approval(1, m.Status.Pending.ContentHash)))
-	m = decodeServer(t, e.want(200, "PUT", base+"/svc", person("B444444"),
-		body(m.Metadata.ResourceVersion, map[string]any{"toolRisk": map[string]string{"delete_all": "read"}, "dataCategory": "Aapen"})))
-	if m.Status.PublishedGeneration != 1 || m.Status.Pending == nil {
-		t.Fatalf("risk lowering must wait for the platform team: %+v", m.Status)
+	// One PUT per guard, each changing a single field, so removing any guard fails here.
+	for what, spec := range map[string]map[string]any{
+		"risk lowering":   {"rosRef": "ros-1", "dataCategory": "Fortrolig", "toolRisk": map[string]string{"delete_all": "read"}},
+		"category change": {"rosRef": "ros-1", "dataCategory": "Aapen"},
+		"rosRef change":   {"rosRef": "ros-2", "dataCategory": "Fortrolig"},
+	} {
+		m = decodeServer(t, e.want(200, "PUT", base+"/svc", person("B444444"), body(m.Metadata.ResourceVersion, spec)))
+		if m.Status.PublishedGeneration != 1 || m.Status.Pending == nil {
+			t.Fatalf("%s must wait for the platform team: %+v", what, m.Status)
+		}
 	}
 	// A readme change still auto-publishes, with a Slack notice naming the field.
 	wg.Add(1)
 	m = decodeServer(t, e.want(200, "PUT", base+"/svc", person("B444444"),
 		body(m.Metadata.ResourceVersion, map[string]any{"rosRef": "ros-1", "dataCategory": "Fortrolig", "readme": "x"})))
-	if m.Status.PublishedGeneration != 3 {
+	if m.Status.PublishedGeneration != 5 {
 		t.Fatalf("readme change must auto-publish: %+v", m.Status)
 	}
 	wg.Wait()
@@ -192,6 +198,53 @@ func TestRealPostgresRiskLoweringWaits(t *testing.T) {
 	defer f.mu.Unlock()
 	if len(f.texts) != 2 || !strings.Contains(f.texts[1], "uten godkjenning") || !strings.Contains(f.texts[1], "endret: readme") {
 		t.Errorf("auto-publish notice: %q", f.texts)
+	}
+}
+
+// Auto-publish runs the team budget check: a non-escalating change that
+// pushes the team over its share is refused and leaves no trace (#3085).
+func TestRealPostgresAutoPublishOverTeamBudget(t *testing.T) {
+	e := newApisEnv(t)
+	e.srv.cluster = "prod-gcp"
+	e.srv.operatorTeam = "copilot"
+	ctx := context.Background()
+	base := nsBase + "team-b/mcpservers"
+	body := func(rv string, spec map[string]any) string {
+		meta := map[string]any{"name": "svc", "namespace": "team-b"}
+		if rv != "" {
+			meta["resourceVersion"] = rv
+		}
+		spec["rosRef"], spec["dataCategory"], spec["allowedTools"] = "ros-1", "Intern", []string{"t1"}
+		spec["upstream"] = map[string]any{"app": "svc", "url": "http://svc.team-b/mcp"}
+		raw, _ := json.Marshal(map[string]any{"apiVersion": apiGroupVersion, "kind": "MCPServer", "metadata": meta, "spec": spec})
+		return string(raw)
+	}
+	m := decodeServer(t, e.want(201, "POST", base, person("B444444"), body("", map[string]any{})))
+	m = decodeServer(t, e.want(200, "POST", base+"/svc/approval", person("C222222"), approval(1, m.Status.Pending.ContentHash)))
+	snap, err := e.srv.resolve(ctx, "routes")
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := maxTeamRoutesBytes
+	t.Cleanup(func() { maxTeamRoutesBytes = old })
+	maxTeamRoutesBytes = 1
+	count := func(q string) (n int) {
+		_ = e.db.pool.QueryRow(ctx, q).Scan(&n)
+		return n
+	}
+	gens, autos := count(`SELECT count(*) FROM server_versions WHERE name = 'svc'`), count(`SELECT count(*) FROM audit_events WHERE action = 'auto_published'`)
+	// An explicit write entry is the same risk (no escalation) but adds tool_risk to the route.
+	if code, out := e.do("PUT", base+"/svc", person("B444444"), body(m.Metadata.ResourceVersion, map[string]any{"toolRisk": map[string]string{"t1": "write"}})); code != 409 {
+		t.Fatalf("auto-publish over team budget: %d %s, want 409", code, out)
+	}
+	if got := count(`SELECT count(*) FROM server_versions WHERE name = 'svc'`); got != gens {
+		t.Errorf("refused auto-publish wrote %d generations", got-gens)
+	}
+	if got := count(`SELECT count(*) FROM audit_events WHERE action = 'auto_published'`); got != autos {
+		t.Errorf("refused auto-publish wrote %d auto_published rows", got-autos)
+	}
+	if s, err := e.srv.resolve(ctx, "routes"); err != nil || s.ETag != snap.ETag || s.Generation != snap.Generation {
+		t.Errorf("refused auto-publish changed the published snapshot: err=%v", err)
 	}
 }
 
