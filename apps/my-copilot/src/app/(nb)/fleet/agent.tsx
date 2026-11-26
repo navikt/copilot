@@ -1,9 +1,11 @@
 "use client";
 
 import NextLink from "next/link";
+import { ArrowRightIcon } from "@navikt/aksel-icons";
 import { type ReactNode } from "react";
 import {
   Alert,
+  Box,
   BodyLong,
   BodyShort,
   Button,
@@ -13,6 +15,7 @@ import {
   HStack,
   ReadMore,
   Show,
+  Stack,
   Table,
   Tag,
   VStack,
@@ -22,46 +25,46 @@ import type { AgentProfile, AuditEvent, ServerRef } from "@/lib/fleet-control";
 import { CardList, Detaljer, FleetTable, Historikk, StatusTag, type TeamData, linkClass } from "./fleet-ui";
 import { agentNextStep, agentStatus, date, n } from "./fleet-status";
 
-/** App, profile and MCP server, with the owner team's approval on the last step. Text in the SVG scales with it. */
+/** App, profile and MCP server, with the owner team's approval on the last step. Stacks vertically on narrow screens. */
 function AgentFlow() {
-  const box = (x: number, label: string, strong?: boolean) => (
-    <g>
-      <rect
-        x={x}
-        y={8}
-        width={150}
-        height={48}
-        rx={8}
-        fill={strong ? "var(--ax-bg-accent-moderate)" : "var(--ax-bg-neutral-soft)"}
-        stroke={strong ? "var(--ax-border-accent)" : "var(--ax-border-neutral-subtle)"}
-      />
-      <text x={x + 75} y={37} textAnchor="middle" fontSize={15} fontWeight={600} fill="var(--ax-text-neutral)">
-        {label}
-      </text>
-    </g>
+  const box = (label: string, strong?: boolean) => (
+    <Box
+      paddingBlock="space-12"
+      paddingInline="space-16"
+      borderRadius="8"
+      borderWidth="1"
+      borderColor={strong ? "accent" : "neutral-subtle"}
+      background={strong ? "accent-moderate" : "neutral-soft"}
+      className="text-center sm:w-36"
+    >
+      <BodyShort weight="semibold">{label}</BodyShort>
+    </Box>
   );
-  const arrow = (x: number) => (
-    <path d={`M${x} 32h36m-7-6 7 6-7 6`} fill="none" stroke="var(--ax-text-neutral-subtle)" strokeWidth={2} />
+  // Same block padding and line height as a box, so the arrow lines up with the box text in a row.
+  const arrow = (
+    <Box paddingBlock={{ xs: "space-0", sm: "space-12" }} className="self-center sm:self-start">
+      <BodyShort as="span" className="flex">
+        <ArrowRightIcon aria-hidden className="rotate-90 text-2xl sm:rotate-0" />
+      </BodyShort>
+    </Box>
   );
   return (
-    <svg
-      viewBox="0 0 530 92"
+    <Stack
+      direction={{ xs: "column", sm: "row" }}
+      gap="space-8"
+      align={{ xs: "stretch", sm: "start" }}
       role="img"
-      aria-labelledby="agentflyt-tittel"
-      className="block h-auto w-full max-w-[530px]"
+      aria-label="En app bruker en agentprofil for å kalle verktøy på en MCP-server. Eierteamet til MCP-serveren godkjenner."
     >
-      <title id="agentflyt-tittel">
-        En app bruker en agentprofil for å kalle verktøy på en MCP-server. Eierteamet til MCP-serveren godkjenner.
-      </title>
-      {box(0, "App")}
-      {arrow(157)}
-      {box(190, "Agentprofil", true)}
-      {arrow(347)}
-      {box(380, "MCP-server")}
-      <text x={455} y={80} textAnchor="middle" fontSize={13} fill="var(--ax-text-neutral-subtle)">
-        Eierteamet godkjenner
-      </text>
-    </svg>
+      {box("App")}
+      {arrow}
+      {box("Agentprofil", true)}
+      {arrow}
+      <VStack gap="space-4">
+        {box("MCP-server")}
+        <Detail className="text-center">Eierteamet godkjenner</Detail>
+      </VStack>
+    </Stack>
   );
 }
 
@@ -84,11 +87,11 @@ export function AgentEmptyState({ team }: { team: string }) {
       <AgentFlow />
       <VStack gap="space-8">
         <Heading level="3" size="small">
-          Hvorfor det betyr noe
+          Hvem som godkjenner tilgang
         </Heading>
         <BodyLong>
-          Eierteamet til hver MCP-server bestemmer om profilen får tilgang. Ingen agent får bruke et verktøy før teamet
-          som eier det, har sagt ja.
+          Eierteamet til hver MCP-server bestemmer om profilen får tilgang. Ingen agent får kalle serveren før
+          eierteamet har godkjent profilen.
         </BodyLong>
       </VStack>
       <VStack gap="space-8">
@@ -97,10 +100,10 @@ export function AgentEmptyState({ team }: { team: string }) {
         </Heading>
         <BodyLong>Registrer MCP-serverne teamet har, så agentene kan bruke dem når de kommer.</BodyLong>
         <HStack gap="space-8">
-          <Button as={NextLink} href={`/fleet/registrer?team=${team}`} size="small">
+          <Button as={NextLink} href={`/fleet/registrer?team=${team}`} size="small" role="link">
             Registrer MCP-server
           </Button>
-          <Button as={NextLink} href="/mcp" size="small" variant="secondary">
+          <Button as={NextLink} href="/mcp" size="small" variant="secondary" role="link">
             Les om MCP i Nav
           </Button>
         </HStack>
