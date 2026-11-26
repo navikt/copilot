@@ -235,8 +235,9 @@ func TestRealPostgresRoutesSizeLimit(t *testing.T) {
 	if got := audits(); got != before {
 		t.Errorf("refused rollback wrote %d audit events", got-before)
 	}
-	if s, _ := srv.resolve(ctx, "routes"); string(s.Items) != string(cur.Items) {
-		t.Error("refused rollback changed the published snapshot")
+	// Compare ETag and generation, not Items: a repeat resolve reads jsonb back from Postgres, so bytes differ in key order and whitespace.
+	if s, err := srv.resolve(ctx, "routes"); err != nil || s.ETag != cur.ETag || s.Generation != cur.Generation {
+		t.Errorf("refused rollback changed the published snapshot: err=%v", err)
 	}
 }
 
