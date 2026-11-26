@@ -82,11 +82,23 @@ function McpToolList({
 
 // Only github.com URLs get /tree/main/<subfolder>; unsafe subfolders fall back to the repo root.
 export function repoLink(repo?: { url: string; subfolder?: string }): string | undefined {
-  if (!repo?.url.startsWith("https://")) return undefined;
-  if (!repo.subfolder || !repo.url.startsWith("https://github.com/")) return repo.url;
+  const url = safeHttpsUrl(repo?.url);
+  if (!repo || !url) return undefined;
+  if (!repo.subfolder || !url.startsWith("https://github.com/")) return url;
   const segs = repo.subfolder.split("/");
-  if (segs.some((s) => !s || s === "." || s === ".." || /[?#\\]/.test(s))) return repo.url;
-  return `${repo.url.replace(/\/+$/, "")}/tree/main/${segs.map(encodeURIComponent).join("/")}`;
+  if (segs.some((s) => !s || s === "." || s === ".." || /[?#\\]/.test(s))) return url;
+  return `${url.replace(/\/+$/, "")}/tree/main/${segs.map(encodeURIComponent).join("/")}`;
+}
+
+// https only, parsed: no javascript:/data:/http:, no protocol-relative, no userinfo, no malformed URLs.
+export function safeHttpsUrl(url?: string): string | undefined {
+  if (!url) return undefined;
+  try {
+    const u = new URL(url);
+    return u.protocol === "https:" && !u.username && !u.password ? url : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export function McpDetails({ item }: { item: EnrichedCustomization }) {
@@ -96,6 +108,7 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
   const hasLaunchRecipe = item.remotes.length > 0 || (item.packages?.length ?? 0) > 0;
   const tools = item.tools ?? [];
   const repoHref = repoLink(item.repository);
+  const websiteHref = safeHttpsUrl(item.websiteUrl);
   const offByDefault = tools.filter((tool) => ["external", "host-exec"].includes(riskOf(item.toolRisk, tool)));
   const hostExec = tools.filter((tool) => riskOf(item.toolRisk, tool) === "host-exec");
   const isGitHub = item.remotes.some(
@@ -343,15 +356,15 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
         </Box>
       )}
 
-      {(item.websiteUrl || repoHref) && (
+      {(websiteHref || repoHref) && (
         <VStack gap="space-8">
           <Heading size="xsmall" level="4">
             Lenker
           </Heading>
           <VStack gap="space-4">
-            {item.websiteUrl && (
+            {websiteHref && (
               <a
-                href={item.websiteUrl}
+                href={websiteHref}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={`inline-flex items-center gap-1 text-sm ${linkClass}`}

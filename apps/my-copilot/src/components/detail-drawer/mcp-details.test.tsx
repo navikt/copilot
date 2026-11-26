@@ -92,6 +92,41 @@ describe("McpDetails", () => {
     expect(repoLink({ url: gh, subfolder: "a/b?x#y" })).toBe(gh);
     expect(repoLink({ url: "https://gitlab.com/a/b", subfolder: "x" })).toBe("https://gitlab.com/a/b");
     expect(repoLink({ url: "javascript:alert(1)", subfolder: "x" })).toBeUndefined();
+    expect(repoLink({ url: "https://u:p@github.com/a/b" })).toBeUndefined();
+    expect(repoLink({ url: "https://" })).toBeUndefined();
+  });
+
+  it("renders the Dokumentasjon link only for https websiteUrl", () => {
+    const base = {
+      id: "mcp-x/y",
+      name: "y",
+      description: "d",
+      type: "mcp",
+      serverId: "x/y",
+      domain: "testing",
+      filePath: "",
+      repoPath: "",
+      rawGitHubUrl: "",
+      installUrl: null,
+      insidersInstallUrl: null,
+      version: "1",
+      remotes: [],
+    };
+    const withSite = (websiteUrl: string) => ({ ...base, websiteUrl }) as unknown as EnrichedCustomization;
+    const docLink = () => screen.queryByRole("link", { name: /Dokumentasjon/ });
+    const { rerender } = render(<McpDetails item={withSite("https://example.com/docs")} />);
+    expect(docLink()?.getAttribute("href")).toBe("https://example.com/docs");
+    for (const bad of [
+      "javascript:alert(1)",
+      "http://example.com",
+      "data:text/html,x",
+      "//example.com",
+      "https://u:p@example.com",
+      "https://",
+    ]) {
+      rerender(<McpDetails item={withSite(bad)} />);
+      expect(docLink()).toBeNull();
+    }
   });
 
   it("shows nav-pilot mcp enable with the full registry name in the default tab", () => {

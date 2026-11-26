@@ -241,8 +241,9 @@ func TestProbeOBOFailures(t *testing.T) {
 		err  error
 		kind string
 	}{
-		"access missing": {&teamtoken.AccessMissingError{App: "app"}, "access"},
-		"texas down":     {errors.New("texas exchange request failed"), "unavailable"},
+		"access missing":          {&teamtoken.AccessMissingError{App: "app"}, "access"},
+		"target app has no Entra": {&teamtoken.TargetAppError{App: "app", Code: "AADSTS500011"}, "access"},
+		"texas down":              {errors.New("texas exchange request failed"), "unavailable"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			// The answer depends only on the caller's own team and app: the target is never called.
