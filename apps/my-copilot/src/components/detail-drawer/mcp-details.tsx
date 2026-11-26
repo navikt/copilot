@@ -167,7 +167,7 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
                   </BodyShort>
                   {offByDefault.length > 0 && (
                     <BodyShort size="small">
-                      Den slår bare på verktøy som leser eller endrer prosjektet. Vil du også ha{" "}
+                      Den slår bare på verktøy som leser eller endrer filer. Vil du også ha{" "}
                       {offByDefault.length === 1 ? "verktøyet" : "verktøyene"} som er av, kjører du kommandoen i en
                       terminal og velger dem, eller legger til <code className="verktoy-code-inline">--tools</code> med
                       alle verktøyene du vil ha på, skilt med komma:{" "}
