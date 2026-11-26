@@ -399,6 +399,7 @@ func TestProbeRefusesTargets(t *testing.T) {
 		"intern ingress": "https://app.intern.dev.nav.no/mcp",
 		"non-ascii host": "http://\u0430pp.team-a",
 		"punycode":       "http://xn--pp-8cd.team-a",
+		"kelvin sign":    "http://Kpp.team-a", // ToLower folds U+212A to "k"
 		"nested label":   "http://a.b.team-a",
 		"suffix trick":   "http://app.team-a.evil.com",
 	} {
