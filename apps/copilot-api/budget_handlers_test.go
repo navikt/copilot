@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
 )
 
 // TestBudgetHandlersHandleGetBudget verifies handleGetBudget relies on
@@ -29,7 +31,7 @@ func TestBudgetHandlersHandleGetBudget(t *testing.T) {
 		h := newBudgetHandlers(budgetClient)
 
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/budget", nil)
-		ctx := context.WithValue(req.Context(), resolvedIdentityContextKey, &ResolvedIdentity{GitHubUsername: "hans", Source: "test"})
+		ctx := context.WithValue(req.Context(), auth.ResolvedIdentityContextKey, &auth.ResolvedIdentity{GitHubUsername: "hans", Source: "test"})
 		req = req.WithContext(ctx)
 		rec := httptest.NewRecorder()
 

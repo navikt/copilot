@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
 )
 
 // BudgetHandlers handles the enterprise AI credit budget endpoint.
@@ -25,7 +27,7 @@ func newBudgetHandlers(budgetClient *BudgetClient) *BudgetHandlers {
 // resolved the caller's GitHub username — mechanism-agnostic, works
 // identically whether resolution came from SAML or X-On-Behalf-Of.
 func (h *BudgetHandlers) handleGetBudget(w http.ResponseWriter, r *http.Request) {
-	identity, ok := GetResolvedIdentity(r.Context())
+	identity, ok := auth.GetResolvedIdentity(r.Context())
 	if !ok {
 		respondError(w, "unauthorized", "Caller identity could not be determined", http.StatusUnauthorized)
 		return

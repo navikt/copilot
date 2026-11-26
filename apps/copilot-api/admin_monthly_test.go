@@ -12,6 +12,8 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"google.golang.org/api/option"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
 )
 
 func f(v float64) *float64 { return &v }
@@ -392,13 +394,13 @@ func derefInt(v *int64) any {
 func TestAdminMonthlyRouteRequiresAdmin(t *testing.T) {
 	const group = "11111111-2222-3333-4444-555555555555"
 	t.Setenv(adminGroupEnv, group)
-	router := makeAPIRouter(&Config{}, &BigQueryHandlers{bqClient: &mockBigQueryClient{}}, nil, nil, NewIdentityResolverChain(), nil)
+	router := makeAPIRouter(&Config{}, &BigQueryHandlers{bqClient: &mockBigQueryClient{}}, nil, nil, auth.NewIdentityResolverChain(), nil)
 	for _, tc := range []struct {
 		groups []string
 		want   int
 	}{{[]string{group}, http.StatusOK}, {[]string{"other"}, http.StatusNotFound}} {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/billing/monthly", nil)
-		req = req.WithContext(context.WithValue(req.Context(), userContextKey, &User{Groups: tc.groups}))
+		req = req.WithContext(context.WithValue(req.Context(), auth.UserContextKey, &auth.User{Groups: tc.groups}))
 		rec := httptest.NewRecorder()
 		router.ServeHTTP(rec, req)
 		if rec.Code != tc.want {

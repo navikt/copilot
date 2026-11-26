@@ -1,13 +1,24 @@
-package main
+package auth
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/http"
+	"regexp"
+	"slices"
 	"strings"
 )
+
+// validGitHubUsername matches GitHub's username rules: alphanumeric + hyphens, 1-39 chars
+var validGitHubUsername = regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$`)
+
+// IsValidGitHubUsername reports whether s is a well-formed GitHub username.
+func IsValidGitHubUsername(s string) bool {
+	return validGitHubUsername.MatchString(s)
+}
 
 // OnBehalfOfIdentityResolver trusts the X-On-Behalf-Of header as the
 // caller's verified GitHub username, for requests authenticated as one of a
@@ -17,7 +28,7 @@ import (
 //
 // This resolver does not itself verify the requested path username matches
 // the header; that comparison happens in the ownership-check step shared by
-// all resolvers (see requireOwnership), since it's identical regardless of
+// all resolvers (see RequireOwnership), since it's identical regardless of
 // which resolver produced the ResolvedIdentity.
 type OnBehalfOfIdentityResolver struct {
 	// trustedClientIDs is the set of Entra ID client IDs (azp claim values)
@@ -38,7 +49,7 @@ func NewOnBehalfOfIdentityResolver(trustedClientIDs map[string]bool) *OnBehalfOf
 // onBehalfOfRoutes are the only routes X-On-Behalf-Of is honoured on: the
 // per-user usage reads copilot-cli forwards for nav-pilot. Keyed on the
 // ServeMux pattern, so it matches only in the per-route
-// requireResolvedIdentity. The global IdentityMiddleware pass sees the outer
+// RequireResolvedIdentity. The global IdentityMiddleware pass sees the outer
 // mux's pattern, "/api/v1/", so it never resolves (and never writes the
 // audit line).
 var onBehalfOfRoutes = map[string]bool{
@@ -47,9 +58,15 @@ var onBehalfOfRoutes = map[string]bool{
 	"GET /api/v1/copilot/usage/user/{username}/daily-credits": true,
 }
 
+// OnBehalfOfRoutePatterns returns a copy of onBehalfOfRoutes, so main can test
+// that each pattern is one its router registers.
+func OnBehalfOfRoutePatterns() []string {
+	return slices.Collect(maps.Keys(onBehalfOfRoutes))
+}
+
 // CanResolve applies only when all of these hold:
 //
-//   - the token is an app token (User.isAppToken), not a user's OBO token;
+//   - the token is an app token (User.IsAppToken), not a user's OBO token;
 //   - its azp is in the trusted set (copilot-cli);
 //   - the request is a GET on a route in onBehalfOfRoutes.
 //
@@ -64,7 +81,7 @@ var onBehalfOfRoutes = map[string]bool{
 // claim to resolve via SAML in the first place.
 func (o *OnBehalfOfIdentityResolver) CanResolve(user *User, r *http.Request) bool {
 	return user != nil && r != nil && r.Method == http.MethodGet && onBehalfOfRoutes[r.Pattern] &&
-		user.isAppToken() && len(o.trustedClientIDs) > 0 && o.trustedClientIDs[user.AZP]
+		user.IsAppToken() && len(o.trustedClientIDs) > 0 && o.trustedClientIDs[user.AZP]
 }
 
 // Resolve trusts the X-On-Behalf-Of header value as the caller's GitHub
@@ -82,7 +99,7 @@ func (o *OnBehalfOfIdentityResolver) Resolve(ctx context.Context, user *User, r 
 	if username == "" {
 		return nil, ErrIdentityHeaderMissing
 	}
-	if !isValidGitHubUsername(username) {
+	if !IsValidGitHubUsername(username) {
 		return nil, ErrInvalidIdentityHeader
 	}
 
@@ -94,13 +111,13 @@ func (o *OnBehalfOfIdentityResolver) Resolve(ctx context.Context, user *User, r 
 		"github_username", logSafe(username),
 		"intermediary_azp", azp,
 		"method", logSafe(r.Method),
-		"path", logSafe(redactPath(r.URL.Path)),
+		"path", logSafe(RedactPath(r.URL.Path)),
 	)
 
 	return &ResolvedIdentity{GitHubUsername: username, Source: "on-behalf-of"}, nil
 }
 
-// trustedClientIDForApp extracts the Entra ID client ID of a pre-authorized
+// TrustedClientIDForApp extracts the Entra ID client ID of a pre-authorized
 // inbound app by its NAIS application name from the raw
 // AZURE_APP_PRE_AUTHORIZED_APPS JSON that NAIS injects (auto-populated from
 // accessPolicy.inbound.rules). Entries look like:
@@ -113,7 +130,7 @@ func (o *OnBehalfOfIdentityResolver) Resolve(ctx context.Context, user *User, r 
 // ("", nil); malformed JSON yields ("", error); more than one entry matching
 // appName yields ("", nil) with a warning logged — granting X-On-Behalf-Of
 // trust to the wrong client must never happen by accident.
-func trustedClientIDForApp(preAuthorizedApps, appName string) (string, error) {
+func TrustedClientIDForApp(preAuthorizedApps, appName string) (string, error) {
 	matches, err := clientIDsForApp(preAuthorizedApps, appName)
 	if err != nil {
 		return "", err
@@ -132,7 +149,7 @@ func trustedClientIDForApp(preAuthorizedApps, appName string) (string, error) {
 }
 
 // clientIDsForApp returns the client id of every pre-authorized app named
-// appName (see trustedClientIDForApp). For fencing, not trusting: an
+// appName (see TrustedClientIDForApp). For fencing, not trusting: an
 // ambiguous name yields every match.
 func clientIDsForApp(preAuthorizedApps, appName string) ([]string, error) {
 	if strings.TrimSpace(preAuthorizedApps) == "" {

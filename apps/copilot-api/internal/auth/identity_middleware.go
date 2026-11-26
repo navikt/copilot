@@ -1,4 +1,4 @@
-package main
+package auth
 
 import (
 	"context"
@@ -6,15 +6,17 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/problem"
 )
 
-const resolvedIdentityContextKey contextKey = "resolved_identity"
+const ResolvedIdentityContextKey contextKey = "resolved_identity"
 
 // IdentityMiddleware resolves "who is this caller, as a GitHub username?"
 // once per request (via the given chain) and stores the result in the
 // request context, so downstream handlers never need to know which auth
 // mechanism (SAML, X-On-Behalf-Of, ...) produced it — see
-// GetResolvedIdentity and requireOwnership.
+// GetResolvedIdentity and RequireOwnership.
 //
 // If required is false, resolution failures are logged but the request
 // proceeds without a ResolvedIdentity in context (for endpoints that don't
@@ -23,15 +25,15 @@ const resolvedIdentityContextKey contextKey = "resolved_identity"
 // error response.
 //
 // This middleware must run after the authentication middleware
-// (makeAuthMiddleware), since it depends on *User already being present in
+// (Middleware), since it depends on *User already being present in
 // the request context.
 func IdentityMiddleware(chain *IdentityResolverChain, required bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			user, ok := getUserFromContext(r.Context())
+			user, ok := UserFromContext(r.Context())
 			if !ok || user == nil {
 				if required {
-					respondError(w, "unauthorized", "Authentication required", http.StatusUnauthorized)
+					problem.Respond(w, "unauthorized", "Authentication required", http.StatusUnauthorized)
 					return
 				}
 				next.ServeHTTP(w, r)
@@ -40,8 +42,8 @@ func IdentityMiddleware(chain *IdentityResolverChain, required bool) func(http.H
 
 			// A user's own token never asserts someone else: refuse the
 			// header rather than ignore it.
-			if r.Header.Get("X-On-Behalf-Of") != "" && !user.isAppToken() {
-				respondError(w, "unauthorized", "X-On-Behalf-Of is not accepted on a user token", http.StatusUnauthorized)
+			if r.Header.Get("X-On-Behalf-Of") != "" && !user.IsAppToken() {
+				problem.Respond(w, "unauthorized", "X-On-Behalf-Of is not accepted on a user token", http.StatusUnauthorized)
 				return
 			}
 
@@ -56,7 +58,7 @@ func IdentityMiddleware(chain *IdentityResolverChain, required bool) func(http.H
 				return
 			}
 
-			ctx := context.WithValue(r.Context(), resolvedIdentityContextKey, identity)
+			ctx := context.WithValue(r.Context(), ResolvedIdentityContextKey, identity)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -69,16 +71,16 @@ func IdentityMiddleware(chain *IdentityResolverChain, required bool) func(http.H
 func writeIdentityResolutionError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, ErrNoApplicableResolver):
-		respondError(w, "unauthorized", "Caller identity could not be determined", http.StatusUnauthorized)
+		problem.Respond(w, "unauthorized", "Caller identity could not be determined", http.StatusUnauthorized)
 	case errors.Is(err, ErrNoGitHubAccount):
-		respondError(w, "no_github_account", "No GitHub account linked to your identity", http.StatusForbidden)
+		problem.Respond(w, "no_github_account", "No GitHub account linked to your identity", http.StatusForbidden)
 	case errors.Is(err, ErrIdentityHeaderMissing):
-		respondError(w, "unauthorized", "Missing required identity header", http.StatusUnauthorized)
+		problem.Respond(w, "unauthorized", "Missing required identity header", http.StatusUnauthorized)
 	case errors.Is(err, ErrInvalidIdentityHeader):
-		respondError(w, "unauthorized", "Invalid identity header", http.StatusUnauthorized)
+		problem.Respond(w, "unauthorized", "Invalid identity header", http.StatusUnauthorized)
 	default:
 		slog.Error("Identity resolution failed", "error", err)
-		respondError(w, "identity_check_failed", "Failed to verify user identity", http.StatusInternalServerError)
+		problem.Respond(w, "identity_check_failed", "Failed to verify user identity", http.StatusInternalServerError)
 	}
 }
 
@@ -87,22 +89,22 @@ func writeIdentityResolutionError(w http.ResponseWriter, err error) {
 // route where IdentityMiddleware was configured with required=false and
 // resolution failed or was skipped).
 func GetResolvedIdentity(ctx context.Context) (*ResolvedIdentity, bool) {
-	identity, ok := ctx.Value(resolvedIdentityContextKey).(*ResolvedIdentity)
+	identity, ok := ctx.Value(ResolvedIdentityContextKey).(*ResolvedIdentity)
 	return identity, ok && identity != nil
 }
 
-// requireResolvedIdentity wraps a per-user handler so that identity
+// RequireResolvedIdentity wraps a per-user handler so that identity
 // resolution is mandatory for this specific route, regardless of how
 // IdentityMiddleware was configured globally. This makes it structurally
 // impossible to add a new per-user route that forgets to call
-// requireOwnership/GetResolvedIdentity: if resolution fails or was skipped
+// RequireOwnership/GetResolvedIdentity: if resolution fails or was skipped
 // upstream, the request is rejected here before the handler ever runs.
-func requireResolvedIdentity(chain *IdentityResolverChain, next http.HandlerFunc) http.HandlerFunc {
+func RequireResolvedIdentity(chain *IdentityResolverChain, next http.HandlerFunc) http.HandlerFunc {
 	wrapped := IdentityMiddleware(chain, true)(next)
 	return wrapped.ServeHTTP
 }
 
-// requireOwnership verifies that the resolved caller identity matches the
+// RequireOwnership verifies that the resolved caller identity matches the
 // requested username, regardless of which IdentityResolver produced it. This
 // is the single ownership-check call site every per-user handler should use
 // once IdentityMiddleware is wired in front of it (see Phase 3 cutover) —
@@ -111,10 +113,10 @@ func requireResolvedIdentity(chain *IdentityResolverChain, next http.HandlerFunc
 //
 // Writes an appropriate error response and returns false on failure; callers
 // should return immediately when this returns false.
-func requireOwnership(w http.ResponseWriter, r *http.Request, requestedUsername string) bool {
+func RequireOwnership(w http.ResponseWriter, r *http.Request, requestedUsername string) bool {
 	identity, ok := GetResolvedIdentity(r.Context())
 	if !ok {
-		respondError(w, "unauthorized", "Caller identity could not be determined", http.StatusUnauthorized)
+		problem.Respond(w, "unauthorized", "Caller identity could not be determined", http.StatusUnauthorized)
 		return false
 	}
 	if !strings.EqualFold(identity.GitHubUsername, requestedUsername) {
@@ -122,7 +124,7 @@ func requireOwnership(w http.ResponseWriter, r *http.Request, requestedUsername 
 			"requested_username", logSafe(requestedUsername),
 			"resolved_source", identity.Source,
 		)
-		respondError(w, "forbidden", "You can only view your own usage data", http.StatusForbidden)
+		problem.Respond(w, "forbidden", "You can only view your own usage data", http.StatusForbidden)
 		return false
 	}
 	return true
@@ -132,4 +134,28 @@ func requireOwnership(w http.ResponseWriter, r *http.Request, requestedUsername 
 // logged, so it cannot forge a log line.
 func logSafe(s string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(s, "\n", ""), "\r", "")
+}
+
+// RedactPath replaces the path segments that name a person, so a request log
+// or a span never says who was active when: everything after /saml/ (the
+// caller's Nav e-mail), and the GitHub username in /usage/user/{username}
+// and /seats/{username}. Case-insensitive, so /SAML/<e-mail> (a 404, but
+// logged first) is caught too.
+func RedactPath(p string) string {
+	// Slice the lowered string: ToLower can change a rune's byte length.
+	low := strings.ToLower(p)
+	if i := strings.Index(low, "/saml/"); i >= 0 {
+		return low[:i] + "/saml/{identity}"
+	}
+	for _, m := range []string{"/usage/user/", "/seats/"} {
+		if i := strings.Index(low, m); i >= 0 {
+			// TrimLeft: %2F before the name decodes to a leading slash.
+			_, tail, _ := strings.Cut(strings.TrimLeft(low[i+len(m):], "/"), "/")
+			if tail != "" {
+				tail = "/" + tail
+			}
+			return low[:i] + m + "{username}" + tail
+		}
+	}
+	return p
 }

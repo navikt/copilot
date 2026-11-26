@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"os"
 	"slices"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
 )
 
 // adminGroupEnv names the Entra ID object ID of the Nais team copilot's
@@ -13,7 +15,7 @@ const adminGroupEnv = "COPILOT_ADMIN_GROUP_ID"
 
 // isAdmin reports whether the user is in the admin group. It fails closed:
 // no user, no configured group or no match all give false.
-func isAdmin(u *User) bool {
+func isAdmin(u *auth.User) bool {
 	group := os.Getenv(adminGroupEnv)
 	return u != nil && group != "" && slices.Contains(u.Groups, group)
 }
@@ -22,7 +24,7 @@ func isAdmin(u *User) bool {
 // endpoints do not reveal that they exist. Put it inside authMiddleware.
 func requireAdmin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		user, _ := getUserFromContext(r.Context())
+		user, _ := auth.UserFromContext(r.Context())
 		if !isAdmin(user) {
 			http.NotFound(w, r)
 			return

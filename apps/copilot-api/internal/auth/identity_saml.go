@@ -1,4 +1,4 @@
-package main
+package auth
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 // interface (interface segregation) — SAMLIdentityResolver has no business
 // depending on billing/seat-management methods it never calls.
 type samlUsernameLookup interface {
-	getUsernameBySamlIdentity(ctx context.Context, identity string) (string, error)
+	GetUsernameBySamlIdentity(ctx context.Context, identity string) (string, error)
 }
 
 // SAMLIdentityResolver resolves an Azure AD-authenticated caller's GitHub
@@ -38,7 +38,7 @@ func (s *SAMLIdentityResolver) CanResolve(user *User, _ *http.Request) bool {
 
 // Resolve looks up the caller's GitHub username via SAML/SCIM.
 func (s *SAMLIdentityResolver) Resolve(ctx context.Context, user *User, _ *http.Request) (*ResolvedIdentity, error) {
-	username, err := s.githubClient.getUsernameBySamlIdentity(ctx, user.Email)
+	username, err := s.githubClient.GetUsernameBySamlIdentity(ctx, user.Email)
 	if err != nil {
 		return nil, fmt.Errorf("SAML identity resolution failed: %w", err)
 	}

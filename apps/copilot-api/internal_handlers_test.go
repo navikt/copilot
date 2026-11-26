@@ -1,18 +1,18 @@
 package main
 
 import (
-	"github.com/navikt/copilot/apps/copilot-api/internal/cache"
-
 	"bytes"
 	"context"
 	"errors"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
+	"github.com/navikt/copilot/apps/copilot-api/internal/cache"
 )
 
 func TestSAMLNameIDHandler(t *testing.T) {
@@ -21,7 +21,7 @@ func TestSAMLNameIDHandler(t *testing.T) {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
 	t.Cleanup(func() { slog.SetDefault(prev) })
 
-	survey := &User{AZP: "survey-id", Idtyp: "app"}
+	survey := &auth.User{AZP: "survey-id", Idtyp: "app"}
 	lookup := func(_ context.Context, login string) (string, error) {
 		switch login {
 		case "hans":
@@ -35,7 +35,7 @@ func TestSAMLNameIDHandler(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		clientID string
-		user     *User
+		user     *auth.User
 		lookup   func(context.Context, string) (string, error)
 		body     string
 		want     int
@@ -44,9 +44,9 @@ func TestSAMLNameIDHandler(t *testing.T) {
 		{"no SAML identity", "survey-id", survey, lookup, `{"login":"nosso"}`, 404},
 		{"GitHub fails", "survey-id", survey, lookup, `{"login":"broken"}`, 503},
 		{"GitHub not configured", "survey-id", survey, nil, `{"login":"hans"}`, 503},
-		{"another app", "survey-id", &User{AZP: "copilot-cli-id", Idtyp: "app"}, lookup, `{"login":"hans"}`, 403},
-		{"a user token via copilot-survey", "survey-id", &User{AZP: "survey-id", NAVident: "Z123456", Email: "ola@nav.no"}, lookup, `{"login":"hans"}`, 403},
-		{"copilot-survey not pre-authorized", "", &User{Idtyp: "app"}, lookup, `{"login":"hans"}`, 403},
+		{"another app", "survey-id", &auth.User{AZP: "copilot-cli-id", Idtyp: "app"}, lookup, `{"login":"hans"}`, 403},
+		{"a user token via copilot-survey", "survey-id", &auth.User{AZP: "survey-id", NAVident: "Z123456", Email: "ola@nav.no"}, lookup, `{"login":"hans"}`, 403},
+		{"copilot-survey not pre-authorized", "", &auth.User{Idtyp: "app"}, lookup, `{"login":"hans"}`, 403},
 		{"no user", "survey-id", nil, lookup, `{"login":"hans"}`, 403},
 		{"malformed login", "survey-id", survey, lookup, `{"login":"inv@lid"}`, 400},
 		{"unknown field", "survey-id", survey, lookup, `{"login":"hans","x":1}`, 400},
@@ -57,7 +57,7 @@ func TestSAMLNameIDHandler(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodPost, "/internal/v1/saml/name-id", strings.NewReader(tc.body))
 			if tc.user != nil {
-				req = req.WithContext(context.WithValue(req.Context(), userContextKey, tc.user))
+				req = req.WithContext(context.WithValue(req.Context(), auth.UserContextKey, tc.user))
 			}
 			rec := httptest.NewRecorder()
 			samlNameIDHandler(tc.clientID, tc.lookup)(rec, req)
@@ -80,7 +80,7 @@ func TestRegisterInternalRoutes(t *testing.T) {
 	mux := http.NewServeMux()
 	auth := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if _, err := extractBearerToken(r); err != nil {
+			if _, err := auth.ExtractBearerToken(r); err != nil {
 				respondError(w, "unauthorized", err.Error(), http.StatusUnauthorized)
 				return
 			}
@@ -157,73 +157,11 @@ func TestGetSamlNameIDByLogin(t *testing.T) {
 	}
 }
 
-// copilot-survey's tokens pass only on the name-id route; Nais inbound access
-// is pod-wide. Nothing on that route logs the caller's identity.
-func TestBearerAuthSurveyScope(t *testing.T) {
-	var buf bytes.Buffer
-	prev := slog.Default()
-	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
-	t.Cleanup(func() { slog.SetDefault(prev) })
-
-	users := map[string]*User{
-		"survey": {AZP: "survey-id", Idtyp: "app"},
-		"user":   {AZP: "survey-id", NAVident: "Z999999"},
-		"other":  {AZP: "my-copilot-id", NAVident: "Z123456"},
-		// A second pre-authorized app named copilot-survey is fenced too.
-		"survey2": {AZP: "survey-id-2", Idtyp: "app"},
-	}
-	validate := func(tok string) (*User, error) { return users[tok], nil }
-	h := bearerAuth(validate, []string{"survey-id", "survey-id-2"})(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {}))
-	for _, tc := range []struct {
-		token, path string
-		want        int
-	}{
-		{"survey", samlNameIDPath, 200},
-		{"survey", "/api/v1/copilot/usage/metrics", 403},
-		{"survey", "/api/v1/budget", 403},
-		{"survey2", "/api/v1/budget", 403},
-		{"user", samlNameIDPath, 200},
-		{"other", "/api/v1/copilot/usage/metrics", 200},
-	} {
-		req := httptest.NewRequest(http.MethodPost, tc.path, nil)
-		req.Header.Set("Authorization", "Bearer "+tc.token)
-		rec := httptest.NewRecorder()
-		h.ServeHTTP(rec, req)
-		if rec.Code != tc.want {
-			t.Errorf("%s on %s = %d, want %d", tc.token, tc.path, rec.Code, tc.want)
-		}
-	}
-	if strings.Contains(buf.String(), "Z999999") {
-		t.Fatalf("an identity on the name-id route reached the log: %s", buf.String())
-	}
-	if strings.Contains(buf.String(), "Z123456") {
-		t.Fatalf("a NAVident reached the log: %s", buf.String())
-	}
-}
-
-// The survey fence fails closed: an ambiguous name yields every match.
-func TestClientIDsForApp(t *testing.T) {
-	for _, tc := range []struct {
-		raw  string
-		want []string
-	}{
-		{"", nil},
-		{`[{"name":"dev-gcp:copilot:my-copilot","clientId":"a"}]`, nil},
-		{`[{"name":"dev-gcp:copilot:copilot-survey","clientId":"a"}]`, []string{"a"}},
-		{`[{"name":"dev-gcp:copilot:copilot-survey","clientId":"a"},{"name":"dev-gcp:other:copilot-survey","clientId":"b"}]`, []string{"a", "b"}},
-	} {
-		got, err := clientIDsForApp(tc.raw, "copilot-survey")
-		if err != nil || !slices.Equal(got, tc.want) {
-			t.Errorf("clientIDsForApp(%s) = %v, %v, want %v", tc.raw, got, err, tc.want)
-		}
-	}
-}
-
 // A copilot-survey token through the real mux: only POST on the exact
 // name-id path reaches a handler.
 func TestSurveyTokenThroughMux(t *testing.T) {
-	validate := func(string) (*User, error) { return &User{AZP: "survey-id", Idtyp: "app"}, nil }
-	auth := bearerAuth(validate, []string{"survey-id"})
+	validate := func(string) (*auth.User, error) { return &auth.User{AZP: "survey-id", Idtyp: "app"}, nil }
+	auth := auth.BearerAuth(validate, []string{"survey-id"})
 	mux := http.NewServeMux()
 	mux.Handle("/api/v1/", auth(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})))
 	registerInternalRoutes(mux, auth, "survey-id", nil, "cli-id", nil)
@@ -252,7 +190,7 @@ func TestOrgMembershipHandler(t *testing.T) {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
 	t.Cleanup(func() { slog.SetDefault(prev) })
 
-	cli := &User{AZP: "cli-id", Idtyp: "app"}
+	cli := &auth.User{AZP: "cli-id", Idtyp: "app"}
 	check := func(_ context.Context, login string) (bool, error) {
 		switch login {
 		case "hans":
@@ -265,7 +203,7 @@ func TestOrgMembershipHandler(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		clientID string
-		user     *User
+		user     *auth.User
 		check    func(context.Context, string) (bool, error)
 		body     string
 		want     int
@@ -275,9 +213,9 @@ func TestOrgMembershipHandler(t *testing.T) {
 		{"not a member", "cli-id", cli, check, `{"login":"outsider"}`, 200, `{"active":false}`},
 		{"GitHub fails", "cli-id", cli, check, `{"login":"broken"}`, 503, ""},
 		{"GitHub not configured", "cli-id", cli, nil, `{"login":"hans"}`, 503, ""},
-		{"copilot-survey", "cli-id", &User{AZP: "survey-id", Idtyp: "app"}, check, `{"login":"hans"}`, 403, ""},
-		{"a user token via copilot-cli", "cli-id", &User{AZP: "cli-id", NAVident: "Z123456", Email: "ola@nav.no"}, check, `{"login":"hans"}`, 403, ""},
-		{"copilot-cli not pre-authorized", "", &User{Idtyp: "app"}, check, `{"login":"hans"}`, 403, ""},
+		{"copilot-survey", "cli-id", &auth.User{AZP: "survey-id", Idtyp: "app"}, check, `{"login":"hans"}`, 403, ""},
+		{"a user token via copilot-cli", "cli-id", &auth.User{AZP: "cli-id", NAVident: "Z123456", Email: "ola@nav.no"}, check, `{"login":"hans"}`, 403, ""},
+		{"copilot-cli not pre-authorized", "", &auth.User{Idtyp: "app"}, check, `{"login":"hans"}`, 403, ""},
 		{"no user", "cli-id", nil, check, `{"login":"hans"}`, 403, ""},
 		{"malformed login", "cli-id", cli, check, `{"login":"inv@lid"}`, 400, ""},
 		{"unknown field", "cli-id", cli, check, `{"login":"hans","org":"x"}`, 400, ""},
@@ -287,7 +225,7 @@ func TestOrgMembershipHandler(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodPost, orgMembershipPath, strings.NewReader(tc.body))
 			if tc.user != nil {
-				req = req.WithContext(context.WithValue(req.Context(), userContextKey, tc.user))
+				req = req.WithContext(context.WithValue(req.Context(), auth.UserContextKey, tc.user))
 			}
 			rec := httptest.NewRecorder()
 			orgMembershipHandler(tc.clientID, tc.check)(rec, req)
@@ -311,9 +249,9 @@ func TestOrgMembershipThroughMux(t *testing.T) {
 		azp  string
 		want int
 	}{{"cli-id", 200}, {"survey-id", 403}, {"my-copilot-id", 403}} {
-		validate := func(string) (*User, error) { return &User{AZP: tc.azp, Idtyp: "app"}, nil }
+		validate := func(string) (*auth.User, error) { return &auth.User{AZP: tc.azp, Idtyp: "app"}, nil }
 		mux := http.NewServeMux()
-		registerInternalRoutes(mux, bearerAuth(validate, []string{"survey-id"}), "survey-id", nil, "cli-id",
+		registerInternalRoutes(mux, auth.BearerAuth(validate, []string{"survey-id"}), "survey-id", nil, "cli-id",
 			func(context.Context, string) (bool, error) { return true, nil })
 		req := httptest.NewRequest(http.MethodPost, orgMembershipPath, strings.NewReader(`{"login":"hans"}`))
 		req.Header.Set("Authorization", "Bearer t")

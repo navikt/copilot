@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/navikt/copilot/apps/copilot-api/internal/cache"
-
 	"bytes"
 	"context"
 	"crypto/rsa"
@@ -21,6 +19,8 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/cache"
 )
 
 // GitHubClient wraps GitHub API operations
@@ -377,9 +377,9 @@ func (g *GitHubClient) unassignUserFromCopilot(ctx context.Context, username str
 	return &UnassignResult{SeatsCancelled: result.SeatsCancelled}, nil
 }
 
-// getUsernameBySamlIdentity looks up a GitHub username by SAML identity using GraphQL.
+// GetUsernameBySamlIdentity looks up a GitHub username by SAML identity using GraphQL.
 // Results are cached for 10 minutes to avoid repeated GraphQL calls for the same identity.
-func (g *GitHubClient) getUsernameBySamlIdentity(ctx context.Context, identity string) (string, error) {
+func (g *GitHubClient) GetUsernameBySamlIdentity(ctx context.Context, identity string) (string, error) {
 	cacheKey := "saml_" + strings.ToLower(identity)
 	if cached, ok := g.samlCache.Get(cacheKey); ok {
 		return cached.(string), nil
@@ -723,7 +723,7 @@ var errNoSAMLIdentity = errors.New("no SAML identity linked to this GitHub accou
 
 // getSamlNameIDByLogin returns the nameId (the Nav e-mail) of login's SAML
 // SSO identity in the org, for current members only. It is the reverse of
-// getUsernameBySamlIdentity. The answer is personal data, used only by
+// GetUsernameBySamlIdentity. The answer is personal data, used only by
 // copilot-survey for its dedup hash, so it is neither cached nor logged.
 func (g *GitHubClient) getSamlNameIDByLogin(ctx context.Context, login string) (string, error) {
 	query := `query($org: String!, $login: String!) {

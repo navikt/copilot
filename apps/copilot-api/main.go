@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
 )
 
 func main() {
@@ -136,13 +138,13 @@ func main() {
 	// separate manual secret — the same data that already gates M2M auth in
 	// newTokenValidator. If copilot-cli isn't a pre-authorized inbound app the
 	// trust path stays disabled (fails closed).
-	var identityResolvers []IdentityResolver
-	copilotCLIClientID, err := trustedClientIDForApp(config.PreAuthorizedApps, "copilot-cli")
+	var identityResolvers []auth.IdentityResolver
+	copilotCLIClientID, err := auth.TrustedClientIDForApp(config.PreAuthorizedApps, "copilot-cli")
 	if err != nil {
 		slog.Warn("Could not parse AZURE_APP_PRE_AUTHORIZED_APPS — X-On-Behalf-Of trust disabled", "error", err)
 	}
 	if copilotCLIClientID != "" {
-		identityResolvers = append(identityResolvers, NewOnBehalfOfIdentityResolver(map[string]bool{
+		identityResolvers = append(identityResolvers, auth.NewOnBehalfOfIdentityResolver(map[string]bool{
 			copilotCLIClientID: true,
 		}))
 		slog.Info("copilot-cli trusted for X-On-Behalf-Of on read-only per-user endpoints", "client_id", copilotCLIClientID)
@@ -150,17 +152,23 @@ func main() {
 		slog.Debug("copilot-cli not found in pre-authorized apps — X-On-Behalf-Of trust disabled")
 	}
 	if githubClient != nil {
-		identityResolvers = append(identityResolvers, NewSAMLIdentityResolver(githubClient))
+		identityResolvers = append(identityResolvers, auth.NewSAMLIdentityResolver(githubClient))
 	}
-	identityChain := NewIdentityResolverChain(identityResolvers...)
+	identityChain := auth.NewIdentityResolverChain(identityResolvers...)
 	// required=false: identity resolution failures only matter to the
 	// specific per-user handlers that call requireOwnership/GetResolvedIdentity
 	// (which return their own 401/403). Team/org-level aggregate endpoints
 	// must keep working even for callers with no resolvable GitHub identity.
-	identityMiddleware := IdentityMiddleware(identityChain, false)
+	identityMiddleware := auth.IdentityMiddleware(identityChain, false)
 
 	// Middleware
-	authMiddleware := makeAuthMiddleware(config)
+	authMiddleware := auth.Middleware(auth.Config{
+		Environment:       config.Environment,
+		AzureIssuer:       config.AzureIssuer,
+		AzureClientID:     config.AzureClientID,
+		AzureJWKSURI:      config.AzureJWKSURI,
+		PreAuthorizedApps: config.PreAuthorizedApps,
+	})
 	videoHandlers := newVideoHandlers(config)
 
 	// Set up routing on a local mux (not global DefaultServeMux)
@@ -189,7 +197,7 @@ func main() {
 	// /api/v1/, so no identity chain, request log or trace (see
 	// samlNameIDHandler). Off unless copilot-survey is pre-authorized.
 	// authMiddleware refuses copilot-survey's tokens on every other path.
-	copilotSurveyClientID, err := trustedClientIDForApp(config.PreAuthorizedApps, "copilot-survey")
+	copilotSurveyClientID, err := auth.TrustedClientIDForApp(config.PreAuthorizedApps, "copilot-survey")
 	if err != nil {
 		slog.Warn("Could not parse AZURE_APP_PRE_AUTHORIZED_APPS — SAML name-id route disabled", "error", err)
 	}
@@ -281,7 +289,7 @@ func traceAPI(h http.Handler, opts ...otelhttp.Option) http.Handler {
 		}),
 	}, opts...)...)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if p := redactPath(r.URL.Path); p != r.URL.Path {
+		if p := auth.RedactPath(r.URL.Path); p != r.URL.Path {
 			redacted := *r.URL
 			redacted.Path, redacted.RawPath = p, ""
 			r = r.WithContext(context.WithValue(r.Context(), realURL{}, r.URL))

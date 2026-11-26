@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
 )
 
 // days builds daily gross from start: weekdays get wd, weekends we.
@@ -106,7 +108,7 @@ func TestCostAnomaliesAdminOnly(t *testing.T) {
 		want   int
 	}{{nil, http.StatusNotFound}, {[]string{"admins"}, http.StatusOK}} {
 		req := httptest.NewRequest("GET", "/api/v1/admin/billing/anomalies", nil)
-		req = req.WithContext(context.WithValue(req.Context(), userContextKey, &User{Groups: tc.groups}))
+		req = req.WithContext(context.WithValue(req.Context(), auth.UserContextKey, &auth.User{Groups: tc.groups}))
 		rec := httptest.NewRecorder()
 		mux.ServeHTTP(rec, req)
 		if rec.Code != tc.want {

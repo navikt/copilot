@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
 )
 
 func optionalIntParam(r *http.Request, name string, defaultValue, minValue, maxValue int) (int, bool) {
@@ -25,7 +27,7 @@ func optionalIntParam(r *http.Request, name string, defaultValue, minValue, maxV
 }
 
 func isValidUsageUsername(username string) bool {
-	return username != "" && len(username) <= 39 && !strings.Contains(username, "/") && isValidGitHubUsername(username)
+	return username != "" && len(username) <= 39 && !strings.Contains(username, "/") && auth.IsValidGitHubUsername(username)
 }
 
 func optionalMonthParam(r *http.Request, name string) (string, bool) {
@@ -168,7 +170,7 @@ func (h *BigQueryHandlers) previousTeamMonth(ctx context.Context, month string, 
 }
 
 func (h *BigQueryHandlers) handleMyTeams(w http.ResponseWriter, r *http.Request) {
-	identity, ok := GetResolvedIdentity(r.Context())
+	identity, ok := auth.GetResolvedIdentity(r.Context())
 	if !ok || identity == nil {
 		respondError(w, "unauthorized", "Authentication required", http.StatusUnauthorized)
 		return
@@ -190,7 +192,7 @@ func (h *BigQueryHandlers) handleUserMetrics(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if !requireOwnership(w, r, username) {
+	if !auth.RequireOwnership(w, r, username) {
 		return
 	}
 
@@ -297,7 +299,7 @@ func (h *BigQueryHandlers) handleUserWeeklyTrends(w http.ResponseWriter, r *http
 		return
 	}
 
-	if !requireOwnership(w, r, username) {
+	if !auth.RequireOwnership(w, r, username) {
 		return
 	}
 
@@ -325,7 +327,7 @@ func (h *BigQueryHandlers) handleUserDailyCredits(w http.ResponseWriter, r *http
 		return
 	}
 
-	if !requireOwnership(w, r, username) {
+	if !auth.RequireOwnership(w, r, username) {
 		return
 	}
 

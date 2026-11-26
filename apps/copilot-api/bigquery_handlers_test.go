@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"cloud.google.com/go/civil"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
 )
 
 func ptr[T any](v T) *T { return &v }
@@ -335,7 +337,7 @@ func TestHandleMyTeamsRequiresResolvedIdentity(t *testing.T) {
 
 	recorder = httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/my-teams", nil)
-	request = request.WithContext(context.WithValue(request.Context(), resolvedIdentityContextKey, &ResolvedIdentity{GitHubUsername: "alice"}))
+	request = request.WithContext(context.WithValue(request.Context(), auth.ResolvedIdentityContextKey, &auth.ResolvedIdentity{GitHubUsername: "alice"}))
 	h.handleMyTeams(recorder, request)
 	if recorder.Code != http.StatusOK || recorder.Body.String() != "[\"team-a\"]\n" {
 		t.Fatalf("status %d, body %s", recorder.Code, recorder.Body.String())
@@ -883,7 +885,7 @@ func requestWithUsername(path, username string) *http.Request {
 	// Simulate IdentityMiddleware having already resolved the caller's
 	// identity (see identity_middleware.go) — handleUserMetrics and friends
 	// call requireOwnership, which reads this from context.
-	ctx := context.WithValue(req.Context(), resolvedIdentityContextKey, &ResolvedIdentity{GitHubUsername: username, Source: "test"})
+	ctx := context.WithValue(req.Context(), auth.ResolvedIdentityContextKey, &auth.ResolvedIdentity{GitHubUsername: username, Source: "test"})
 	return req.WithContext(ctx)
 }
 
