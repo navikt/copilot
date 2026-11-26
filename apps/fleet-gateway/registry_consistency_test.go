@@ -2,11 +2,14 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/url"
 	"os"
 	"sort"
 	"strings"
 	"testing"
+
+	"go.yaml.in/yaml/v3"
 
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
@@ -85,10 +88,68 @@ func diffPaths(have map[string]string, wantRoutes map[string]bool) (missingEntry
 	return
 }
 
+// routesSourceFromFleetControl reports whether the nais vars say routes come
+// from fleet-control. Missing or unknown values fail, so a rename cannot
+// silently disable the check.
+func routesSourceFromFleetControl(raw []byte) (bool, error) {
+	var vars struct {
+		RoutesSource string `yaml:"routes_source"`
+	}
+	if err := yaml.Unmarshal(raw, &vars); err != nil {
+		return false, err
+	}
+	switch vars.RoutesSource {
+	case "fleet-control":
+		return true, nil
+	case "git":
+		return false, nil
+	}
+	return false, fmt.Errorf("routes_source %q is not fleet-control or git", vars.RoutesSource)
+}
+
+func prodRoutesFromFleetControl(t *testing.T) bool {
+	t.Helper()
+	raw, err := os.ReadFile(".nais/prod-gcp.yaml")
+	if err != nil {
+		t.Fatalf("read prod nais vars: %v", err)
+	}
+	fc, err := routesSourceFromFleetControl(raw)
+	if err != nil {
+		t.Fatalf("prod-gcp.yaml: %v", err)
+	}
+	return fc
+}
+
+func TestRoutesSourceFromFleetControl(t *testing.T) {
+	for _, c := range []struct {
+		in      string
+		want    bool
+		wantErr bool
+	}{
+		{"routes_source: fleet-control\n", true, false},
+		{"routes_source: \"fleet-control\"\n", true, false},
+		{"routes_source: git\n", false, false},
+		{"other: 1\n", false, true},
+		{"routes_source: bogus\n", false, true},
+	} {
+		got, err := routesSourceFromFleetControl([]byte(c.in))
+		if got != c.want || (err != nil) != c.wantErr {
+			t.Errorf("%q: got %v, %v", c.in, got, err)
+		}
+	}
+}
+
 func TestRegistryMatchesProdRoutes(t *testing.T) {
 	missingEntry, missingRoute := diffPaths(registryGatewayPaths(t), enabledProdRoutes(t))
 	for _, r := range missingEntry {
 		t.Errorf("enabled prod route %s has no registry entry in apps/mcp-registry/allowlist.json", r)
+	}
+	// Prod loads routes from fleet-control and teams self-register there, so such
+	// routes never appear in pilot-routes.prod.yaml. mcp-registry reading from
+	// fleet-control (#2765) replaces this check; it tightens again if prod goes
+	// back to git.
+	if prodRoutesFromFleetControl(t) {
+		missingRoute = nil
 	}
 	for _, p := range missingRoute {
 		t.Errorf("registry gateway path %s has no enabled route in pilot-routes.prod.yaml", p)

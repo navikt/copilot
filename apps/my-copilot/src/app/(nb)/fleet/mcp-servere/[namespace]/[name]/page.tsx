@@ -111,7 +111,6 @@ export default async function ServerPage({ params, searchParams }: Props) {
       ) : (
         <ServerDetail
           submitted={submitted}
-          discoveryEnabled={!!process.env.FLEET_GATEWAY_URL}
           server={result.data.server}
           events={result.data.events}
           me={result.data.me}

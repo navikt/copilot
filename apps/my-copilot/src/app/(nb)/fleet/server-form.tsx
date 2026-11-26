@@ -2,7 +2,7 @@
 
 import NextLink from "next/link";
 import { ListItem } from "@navikt/ds-react/List";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import {
   Alert,
   BodyLong,
@@ -12,19 +12,12 @@ import {
   CopyButton,
   Detail,
   HStack,
-  Radio,
-  RadioGroup,
   List,
   Heading,
-  Select,
-  Textarea,
-  TextField,
   VStack,
 } from "@navikt/ds-react";
-import { RISK_LABEL, type Risk } from "@/lib/fleet-wizard";
-import type { MCPServer } from "@/lib/fleet-control";
-import { ActionError, linkClass, useFleetPost } from "./fleet-ui";
-import { DATA_CATEGORIES } from "./fleet-status";
+import type { DiscoveredTool } from "@/lib/fleet-tools";
+import { linkClass } from "./fleet-ui";
 
 const FLEET_GATEWAY_POLICY = `spec:
   accessPolicy:
@@ -64,8 +57,6 @@ export function AccessPolicy({ app }: { app?: string }) {
 /** The path of an address, or "" (the route then uses /mcp). Never the host. */
 export const pathOf = (url?: string) => (url && URL.canParse(url) ? new URL(url).pathname : "");
 
-export type FoundTool = { name: string; description?: string; suggestedRisk: Risk; destructive: boolean };
-
 type Discovery =
   { state: "idle" | "busy" } | { state: "ok"; count: number } | { state: "error"; kind: string; message: string };
 
@@ -73,7 +64,7 @@ const RETRY = "Fleet kunne ikke hente verktøyene akkurat nå. Prøv igjen om li
 
 /**
  * «Hent verktøy» through fleet-gateway's probe, for the wizard and the edit
- * form. The answer only pre-fills; the team decides. «Skriv inn verktøyene
+ * page. The answer only pre-fills; the team decides. «Skriv inn verktøyene
  * selv» is always there.
  */
 export function ToolDiscovery({
@@ -86,7 +77,7 @@ export function ToolDiscovery({
   namespace: string;
   app: string;
   path: string;
-  onTools: (tools: FoundTool[]) => void;
+  onTools: (tools: DiscoveredTool[]) => void;
   onManual: () => void;
 }) {
   const [d, setD] = useState<Discovery>({ state: "idle" });
@@ -98,7 +89,7 @@ export function ToolDiscovery({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ namespace, app, path }),
       });
-      const out = (await res.json().catch(() => ({}))) as { tools?: FoundTool[]; error?: string; kind?: string };
+      const out = (await res.json().catch(() => ({}))) as { tools?: DiscoveredTool[]; error?: string; kind?: string };
       if (!res.ok || !out.tools) {
         setD({ state: "error", kind: out.kind ?? "unavailable", message: out.error ?? RETRY });
         return;
@@ -124,7 +115,7 @@ export function ToolDiscovery({
       </BodyShort>
       {d.state === "ok" && (
         <Alert variant="success" size="small" role="status">
-          Fant {d.count} verktøy. Verktøy som kan endre data, er ikke krysset av.
+          Fant {d.count} verktøy. Nye verktøy som kan endre noe, er ikke krysset av.
         </Alert>
       )}
       {d.state === "error" && (
@@ -172,136 +163,5 @@ export function ToolDiscovery({
         </Alert>
       )}
     </VStack>
-  );
-}
-
-/** Register a new MCP server, or with server: edit it, which submits a new version for approval. */
-export function ServerForm({
-  teams = [],
-  server,
-  discoveryEnabled = false,
-}: {
-  teams?: string[];
-  server?: MCPServer;
-  discoveryEnabled?: boolean;
-}) {
-  const post = useFleetPost(server ? "edit" : "register");
-  const toolsRef = useRef<HTMLTextAreaElement>(null);
-  const [found, setFound] = useState<FoundTool[]>([]);
-  const spec = server?.status.pending?.spec ?? server?.spec;
-  // ToolDiscovery asks the app and path in the fields now, not the ones the page loaded with.
-  const [app, setApp] = useState(spec?.upstream?.app ?? "");
-  const [url, setUrl] = useState(spec?.upstream?.url ?? "");
-  const err = post.error?.fields;
-  return (
-    <form onSubmit={post.onSubmit}>
-      <VStack gap="space-16" align="start">
-        {server ? (
-          <>
-            <input type="hidden" name="namespace" value={server.metadata.namespace} />
-            <input type="hidden" name="name" value={server.metadata.name} />
-            <input type="hidden" name="resourceVersion" value={server.metadata.resourceVersion ?? ""} />
-          </>
-        ) : (
-          <>
-            <Select label="Team" name="namespace" required>
-              {teams.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </Select>
-            <TextField
-              label="Navn"
-              name="name"
-              error={err?.name}
-              description="Små bokstaver, tall og bindestrek."
-              required
-            />
-          </>
-        )}
-        <TextField
-          label="App"
-          name="app"
-          defaultValue={spec?.upstream?.app}
-          onChange={(e) => setApp(e.target.value.trim())}
-          error={err?.app}
-          description="Nais-appen som kjører MCP-serveren."
-          required
-        />
-        <TextField
-          label="Intern adresse"
-          name="url"
-          defaultValue={spec?.upstream?.url}
-          onChange={(e) => setUrl(e.target.value.trim())}
-          error={err?.url}
-          description="For eksempel http://min-app.mitt-team/mcp eller http://min-app.mitt-team.svc.cluster.local/mcp"
-          required
-        />
-        {server && discoveryEnabled && (
-          <ToolDiscovery
-            namespace={server.metadata.namespace}
-            app={app}
-            path={pathOf(url)}
-            onTools={(tools) => {
-              // Destructive tools stay out of the field; the team adds them by hand if they belong.
-              if (toolsRef.current)
-                toolsRef.current.value = tools
-                  .filter((t) => !t.destructive)
-                  .map((t) => t.name)
-                  .join("\n");
-              setFound(tools);
-            }}
-            onManual={() => toolsRef.current?.focus()}
-          />
-        )}
-        {found.length > 0 && (
-          <VStack gap="space-4" as="ul" aria-label="Verktøyene MCP-serveren oppgir">
-            {found.map((t) => (
-              <li key={t.name}>
-                <BodyShort size="small">
-                  <code>{t.name}</code>: MCP-serveren oppgir {RISK_LABEL[t.suggestedRisk].toLowerCase()}
-                  {t.destructive && ". Kan endre data, ikke lagt inn i feltet"}
-                </BodyShort>
-              </li>
-            ))}
-          </VStack>
-        )}
-        <Textarea
-          label="Verktøy"
-          name="tools"
-          ref={toolsRef}
-          defaultValue={spec?.allowedTools?.join("\n")}
-          error={err?.tools}
-          description="Verktøyene som skal være tilgjengelige, ett per linje."
-          required
-        />
-        <Textarea
-          label="Beskrivelse (valgfritt)"
-          name="readme"
-          defaultValue={spec?.readme}
-          error={err?.readme}
-          description="Fortell hva MCP-serveren gjør og hvordan den brukes. Du kan bruke Markdown. Høyst 64 KiB."
-        />
-        <RadioGroup
-          legend="Hva slags data gir verktøyene ut?"
-          name="dataCategory"
-          defaultValue={spec?.dataCategory}
-          error={err?.dataCategory}
-          description="Velg den strengeste kategorien som passer. Strengt fortrolig krever egen risikovurdering og godkjenning først."
-        >
-          {DATA_CATEGORIES.map(([value, label, help]) => (
-            <Radio key={value} value={value} description={help}>
-              {label}
-            </Radio>
-          ))}
-        </RadioGroup>
-        {!server && <AccessPolicy />}
-        <ActionError error={post.error} />
-        <Button loading={post.busy}>
-          {server ? "Send inn ny versjon til godkjenning" : "Send inn til godkjenning"}
-        </Button>
-      </VStack>
-    </form>
   );
 }

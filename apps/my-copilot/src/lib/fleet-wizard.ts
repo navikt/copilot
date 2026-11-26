@@ -3,6 +3,7 @@
 import type { MCPServerSpec } from "@/lib/fleet-control";
 import { isName } from "@/lib/fleet-names";
 import { EFFECT } from "@/lib/mcp-labels";
+import type { DiscoveredTool } from "@/lib/fleet-tools";
 
 export type Risk = "read" | "propose" | "write";
 export const RISKS: Risk[] = ["read", "propose", "write"];
@@ -154,3 +155,85 @@ export const DATA_LABEL: Record<string, [string, string]> = {
     "Kan skade personer eller Nav hvis det kommer på avveie, for eksempel personopplysninger. Velg Fortrolige data hvis du er i tvil.",
   ],
 };
+
+const isRisk = (r: unknown): r is Risk => typeof r === "string" && (RISKS as string[]).includes(r);
+
+/** The edit form's state from the spec fleet-control holds. No defaultRisk means write (#2968), so say so. */
+export function fromSpec(team: string, name: string, spec: MCPServerSpec = {}): WizardState {
+  const docs = new Map((spec.tools ?? []).map((d) => [d.name, d.description]));
+  return {
+    team,
+    name,
+    app: spec.upstream?.app ?? "",
+    url: spec.upstream?.url ?? "",
+    tools: (spec.allowedTools ?? []).map((t) => {
+      const r = spec.toolRisk?.[t];
+      return { name: t, description: docs.get(t), allowed: true, risk: isRisk(r) ? r : "" };
+    }),
+    defaultRisk: isRisk(spec.defaultRisk) ? spec.defaultRisk : "write",
+    rosRef: spec.rosRef ?? "",
+    dataCategory: spec.dataCategory ?? "",
+    readme: spec.readme ?? "",
+  };
+}
+
+/**
+ * «Hent verktøy» into the list: a tool already there keeps its tick and level and gets the new hints; a new
+ * tool gets the server's level and starts unticked if it can change something. Tools the server no longer
+ * lists stay, so nothing allowed disappears without the team seeing it.
+ */
+export function mergeDiscovered(tools: WizardTool[], found: DiscoveredTool[]): WizardTool[] {
+  const known = new Map(tools.map((t) => [t.name, t]));
+  const seen = new Set(found.map((f) => f.name));
+  return [
+    ...found.map((f): WizardTool => {
+      const hints = { suggested: f.suggestedRisk, destructive: f.destructive };
+      const old = known.get(f.name);
+      if (old) return { ...old, description: f.description ?? old.description, ...hints };
+      const writes = f.destructive || f.suggestedRisk === "write";
+      return { name: f.name, description: f.description, allowed: !writes, risk: f.suggestedRisk, ...hints };
+    }),
+    ...tools.filter((t) => !seen.has(t.name)),
+  ];
+}
+
+export type SpecChange = { text: string; approval: boolean };
+
+/** Each tool's level as fleet-control resolves it: toolRisk, else defaultRisk, else write. */
+const levels = (s: MCPServerSpec) =>
+  new Map((s.allowedTools ?? []).map((t) => [t, s.toolRisk?.[t] ?? (s.defaultRisk || "write")]));
+const label = (r: string) => (isRisk(r) ? RISK_LABEL[r] : r);
+const dataLabel = (c?: string) => (c && DATA_LABEL[c]?.[0]) || c || "ingen";
+
+/**
+ * What an edit changes against the published spec, and which changes team copilot must approve. Mirrors
+ * Classify in apps/fleet-control/internal/model/escalation.go; fleet-control decides, this only previews.
+ * published undefined: no published version (or revoked), so everything waits for approval.
+ */
+export function specChanges(published: MCPServerSpec | undefined, next: MCPServerSpec): SpecChange[] {
+  if (!published) return [{ text: "Ingen versjon er publisert ennå", approval: true }];
+  const out: SpecChange[] = [];
+  const [p, n] = [published.upstream, next.upstream];
+  if (p?.app !== n?.app) out.push({ text: `App: ${p?.app ?? "ingen"} til ${n?.app}`, approval: true });
+  if (p?.url !== n?.url) out.push({ text: `Intern adresse: ${p?.url ?? "ingen"} til ${n?.url}`, approval: true });
+  const [pl, nl] = [levels(published), levels(next)];
+  for (const [t, r] of nl) {
+    const old = pl.get(t);
+    if (old === undefined) out.push({ text: `Nytt verktøy: ${t} (${label(r)})`, approval: true });
+    else if (old !== r) out.push({ text: `${t}: ${label(old)} til ${label(r)}`, approval: true });
+  }
+  for (const t of pl.keys()) if (!nl.has(t)) out.push({ text: `Fjernet verktøy: ${t}`, approval: false });
+  if ((published.dataCategory ?? "") !== (next.dataCategory ?? ""))
+    out.push({
+      text: `Datakategori: ${dataLabel(published.dataCategory)} til ${dataLabel(next.dataCategory)}`,
+      approval: true,
+    });
+  if ((published.rosRef ?? "") !== (next.rosRef ?? ""))
+    // Adding a ROS gives no access; changing or removing one does.
+    out.push({ text: next.rosRef ? "Ny lenke til ROS" : "Lenken til ROS er fjernet", approval: !!published.rosRef });
+  if ((published.readme ?? "") !== (next.readme ?? "")) out.push({ text: "Beskrivelsen", approval: false });
+  // Only tools both versions allow: a removed tool's description going with it is not news.
+  const docs = (x: MCPServerSpec) => JSON.stringify((x.tools ?? []).filter((d) => pl.has(d.name) && nl.has(d.name)));
+  if (docs(published) !== docs(next)) out.push({ text: "Beskrivelser av verktøy", approval: false });
+  return out;
+}

@@ -14,7 +14,7 @@ type Body = Record<string, unknown>;
 
 const str = (b: Body, k: string) => (typeof b[k] === "string" ? (b[k] as string).trim() : "");
 
-/** The wizard's spec, or a message when its shape is wrong. Names, levels and sizes only: fleet-control validates the rest. */
+/** The wizard's or edit page's spec, or a message when its shape is wrong. Names, levels and sizes only: fleet-control validates the rest. */
 function parseRegisterSpec(v: unknown): MCPServerSpec | string {
   const bad = "Noe er galt med skjemaet. Last inn siden på nytt.";
   if (!v || typeof v !== "object") return bad;
@@ -59,41 +59,6 @@ function parseRegisterSpec(v: unknown): MCPServerSpec | string {
   };
 }
 
-/** The spec from the register and edit forms, or the message for the field that is wrong. */
-function specFrom(b: Body): MCPServerSpec | [string, string] | string {
-  const app = str(b, "app");
-  if (!isName(app)) return "App må være små bokstaver, tall og bindestrek, høyst 63 tegn.";
-  const dataCategory = str(b, "dataCategory");
-  if (!dataCategory) return ["dataCategory", "Velg hva slags data MCP-serveren gir ut."];
-  const allowedTools = str(b, "tools")
-    .split(/[\s,]+/)
-    .filter(Boolean);
-  // Not trimmed: leading whitespace is Markdown (indented code).
-  const readme = typeof b.readme === "string" && b.readme.trim() ? b.readme : "";
-  if (new TextEncoder().encode(readme).length > 64 << 10) return "Beskrivelsen kan være høyst 64 KiB.";
-  return { dataCategory, upstream: { app, url: str(b, "url") }, allowedTools, ...(readme && { readme }) };
-}
-
-/**
- * The edit form shows only app, url, tools, readme and data category. Start from the spec fleet-control holds (the
- * pending version, else the published one, as ServerForm shows it) so risk levels, rosRef, tool descriptions and
- * registry survive; never from the client. A stale resourceVersion still fails the PUT with 409.
- */
-async function editedSpec(ns: string, name: string, form: MCPServerSpec): Promise<MCPServerSpec | string> {
-  const server = await fleetApi.server(ns, name);
-  const base = server.status.pending?.spec ?? server.spec ?? {};
-  const tools = form.allowedTools ?? [];
-  const merged = parseRegisterSpec({
-    ...base,
-    ...form,
-    readme: form.readme,
-    toolRisk: Object.fromEntries(Object.entries(base.toolRisk ?? {}).filter(([t]) => tools.includes(t))),
-    tools: base.tools?.filter((d) => tools.includes(d.name)),
-  });
-  if (typeof merged === "string") return merged;
-  return { ...merged, ...(base.registry && { registry: base.registry }) };
-}
-
 const reasonOf = (b: Body) => {
   const reason = str(b, "reason");
   return reason && reason.length <= 500 ? reason : null;
@@ -122,14 +87,15 @@ export async function POST(request: Request) {
         break;
       }
       case "edit": {
-        const spec = specFrom(b);
+        // The edit page sends the whole spec (toSpec), checked like the wizard's. registry is not on the page,
+        // so it comes from what fleet-control holds (the pending version, else the published one), never the client.
+        const spec = parseRegisterSpec(b.spec);
         if (typeof spec === "string") return fail(spec, 400);
-        if (Array.isArray(spec)) return fail(spec[1], 400, undefined, { [spec[0]]: spec[1] });
         const rv = str(b, "resourceVersion");
         if (!rv) return fail("Noe er galt med skjemaet. Last inn siden på nytt.", 400);
-        const merged = await editedSpec(ns, name, spec);
-        if (typeof merged === "string") return fail(merged, 400);
-        await fleetApi.updateServer(ns, name, rv, merged);
+        const server = await fleetApi.server(ns, name);
+        const registry = (server.status.pending?.spec ?? server.spec)?.registry;
+        await fleetApi.updateServer(ns, name, rv, { ...spec, ...(registry && { registry }) });
         break;
       }
       case "approve": {
@@ -169,6 +135,6 @@ export async function POST(request: Request) {
   } catch (err) {
     return failure(err, ns, name, Number(b.generation));
   }
-  // ?sendt=1 shows the «sendt til godkjenning» receipt on the MCP server page.
+  // ?sendt=1 shows the receipt on the MCP server page: «sendt til godkjenning», or «publisert» when nothing waits.
   return NextResponse.json({ href: b.action === "register" || b.action === "edit" ? `${href}?sendt=1` : href });
 }
