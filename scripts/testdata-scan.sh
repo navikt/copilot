@@ -1,7 +1,8 @@
 #!/bin/sh
 # Fail when public test data (testdata/, fixtures, *golden* files) contains a
 # UUID or a host under .nav.no, .intern.nav.no or .nais.io that is not listed in
-# .github/testdata-allowlist.txt. The repo is public: dev-seed client IDs once
+# .github/testdata-allowlist.txt. UUIDs under docs/golden-baselines/ are
+# benchmark session IDs and are not checked there; hostnames are. The repo is public: dev-seed client IDs once
 # leaked into goldens this way (#3124).
 #
 #   scripts/testdata-scan.sh           scan tracked files
@@ -19,15 +20,18 @@ values='[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{
 hits=$(git ls-files | grep -E "$paths" | tr '\n' '\0' |
   xargs -0 grep -IonE "$values" /dev/null || true)
 
+# Benchmark transcripts carry fresh session UUIDs; only hostnames count there.
+skip='function skip(p, v) { return p ~ /^docs\/golden-baselines\// && v !~ /\.(nav\.no|nais\.io)$/ }'
+
 if [ "${1:-}" = "--seed" ]; then
-  printf '%s\n' "$hits" | awk -F: 'NF>=3 {print $NF}' | sort -u
+  printf '%s\n' "$hits" | awk -F: "$skip"' NF>=3 && !skip($1, $NF) {print $NF}' | sort -u
   exit 0
 fi
 
 new=$(printf '%s\n' "$hits" |
-  awk -F: -v list="$allowlist" '
+  awk -F: -v list="$allowlist" "$skip"'
     BEGIN { while ((getline l < list) > 0) if (l !~ /^#/ && l != "") ok[l] = 1 }
-    NF >= 3 && !($NF in ok)')
+    NF >= 3 && !($NF in ok) && !skip($1, $NF)')
 
 if [ -n "$new" ]; then
   printf '%s\n' "$new" | sed 's/^/::error::test data value not in allowlist: /'
