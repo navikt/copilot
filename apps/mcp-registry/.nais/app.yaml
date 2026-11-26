@@ -46,7 +46,8 @@ spec:
           - id: "{{admin_group_id}}"
   env:
     {{#if registry_source}}
-    # Static entries from fleet-control (#2641); allowlist.json serves until the first good snapshot.
+    # fleet-control (#2641) serves the static entries, allowlist.json until the first good snapshot.
+    # shadow (#2765) fetches the snapshot for comparison and keeps serving allowlist.json.
     - name: REGISTRY_SOURCE
       value: "{{registry_source}}"
     - name: FLEET_CONTROL_URL
@@ -86,3 +87,43 @@ spec:
   {{#each ingresses as |url|}}
     - {{url}}
   {{/each}}
+{{#if registry_source}}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: mcp-registry-alerts
+  namespace: copilot
+  labels:
+    team: copilot
+spec:
+  groups:
+    - name: mcp-registry
+      rules:
+        - alert: McpRegistrySnapshotStale
+          expr: max(registry_fleet_control_snapshot_age_seconds{namespace="copilot"}) > 600
+          for: 5m
+          labels:
+            namespace: copilot
+            severity: warning
+            alert_type: custom
+            app: mcp-registry
+          annotations:
+            summary: An mcp-registry pod has not fetched a fleet-control registry snapshot for more than 10 minutes
+            consequence: The pod keeps serving its last server list (allowlist.json in shadow mode), so changes published in fleet-control do not reach the registry.
+            action: "Check fleet-control health, then search mcp-registry pod logs for `keeping last good set` or `Shadow fleet-control snapshot not compared`."
+            runbook_url: https://github.com/navikt/copilot/blob/main/apps/mcp-registry/README.md#fleet-control-source
+        - alert: McpRegistrySnapshotFetchFailing
+          expr: sum(increase(registry_fleet_control_fetch_failures_total{namespace="copilot"}[15m])) > 0
+          for: 15m
+          labels:
+            namespace: copilot
+            severity: warning
+            alert_type: custom
+            app: mcp-registry
+          annotations:
+            summary: mcp-registry has failed to fetch or validate fleet-control registry snapshots for 15 minutes
+            consequence: The pods keep serving their last server list, so changes published in fleet-control do not reach the registry.
+            action: "Search mcp-registry pod logs for the error; it says whether Texas or fleet-control is down or the snapshot is refused (size, schema, generation, validation)."
+            runbook_url: https://github.com/navikt/copilot/blob/main/apps/mcp-registry/README.md#fleet-control-source
+{{/if}}

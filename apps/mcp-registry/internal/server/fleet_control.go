@@ -19,9 +19,12 @@ import (
 // Static entries come from allowlist.json unless REGISTRY_SOURCE is
 // fleet-control (#2641). Then the file is still loaded at startup and serves
 // until the first good snapshot, and whenever fleet-control never answers.
+// REGISTRY_SOURCE=shadow fetches the snapshot the same way but keeps serving
+// allowlist.json; it only logs and counts the differences (#2765).
 const (
 	registrySourceGit          = "git"
 	registrySourceFleetControl = "fleet-control"
+	registrySourceShadow       = "shadow"
 
 	FleetControlSyncInterval = 30 * time.Second
 	maxSnapshotBytes         = 4 << 20
@@ -34,6 +37,9 @@ var errNotModified = errors.New("snapshot not modified")
 type FleetControlRegistry struct {
 	baseURL, tokenEndpoint, audience string
 	client                           *http.Client
+	shadow                           bool // serve allowlist.json, compare only
+
+	lastSuccess time.Time // guarded by Store.reloadMu; process start until the first good fetch
 
 	etag       string // guarded by Store.reloadMu, with the applied generation
 	generation int64
@@ -42,14 +48,17 @@ type FleetControlRegistry struct {
 // FleetControlFromEnv returns nil for REGISTRY_SOURCE=git (the default) and
 // an error for anything it cannot use, so a bad config stops startup.
 func FleetControlFromEnv() (*FleetControlRegistry, error) {
-	switch src := strings.TrimSpace(os.Getenv("REGISTRY_SOURCE")); src {
+	src := strings.TrimSpace(os.Getenv("REGISTRY_SOURCE"))
+	switch src {
 	case "", registrySourceGit:
 		return nil, nil
-	case registrySourceFleetControl:
+	case registrySourceFleetControl, registrySourceShadow:
 	default:
-		return nil, fmt.Errorf("unsupported REGISTRY_SOURCE %q (git or fleet-control)", src)
+		return nil, fmt.Errorf("unsupported REGISTRY_SOURCE %q (git, shadow or fleet-control)", src)
 	}
 	f := &FleetControlRegistry{
+		shadow:        src == registrySourceShadow,
+		lastSuccess:   time.Now(),
 		baseURL:       strings.TrimRight(strings.TrimSpace(os.Getenv("FLEET_CONTROL_URL")), "/"),
 		tokenEndpoint: strings.TrimSpace(os.Getenv("NAIS_TOKEN_ENDPOINT")),
 		audience:      strings.TrimSpace(os.Getenv("FLEET_CONTROL_AUDIENCE")),
@@ -60,11 +69,11 @@ func FleetControlFromEnv() (*FleetControlRegistry, error) {
 	}
 	for name, v := range map[string]string{"FLEET_CONTROL_URL": f.baseURL, "NAIS_TOKEN_ENDPOINT": f.tokenEndpoint} {
 		if u, err := url.Parse(v); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-			return nil, fmt.Errorf("REGISTRY_SOURCE=fleet-control needs a valid %s", name)
+			return nil, fmt.Errorf("REGISTRY_SOURCE=%s needs a valid %s", src, name)
 		}
 	}
 	if f.audience == "" {
-		return nil, errors.New("REGISTRY_SOURCE=fleet-control needs FLEET_CONTROL_AUDIENCE")
+		return nil, fmt.Errorf("REGISTRY_SOURCE=%s needs FLEET_CONTROL_AUDIENCE", src)
 	}
 	return f, nil
 }
@@ -97,6 +106,19 @@ func (f *FleetControlRegistry) m2mToken(ctx context.Context) (string, error) {
 		return "", errors.New("invalid texas token response")
 	}
 	return token, nil
+}
+
+// fetch wraps load with the fetch metrics: failures counted, age since the last
+// good fetch (200 or 304) exported.
+func (f *FleetControlRegistry) fetch(ctx context.Context, parse func([]byte, time.Time) ([]registry.ServerResponse, map[string]bool, error)) ([]registry.ServerResponse, map[string]bool, error) {
+	servers, names, err := f.load(ctx, parse)
+	if err == nil || errors.Is(err, errNotModified) {
+		f.lastSuccess = time.Now()
+	} else {
+		fleetControlFetchFailures.Inc()
+	}
+	fleetControlSnapshotAge.Set(time.Since(f.lastSuccess).Seconds())
+	return servers, names, err
 }
 
 // load fetches the snapshot and validates it with parse, the same path as

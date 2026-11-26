@@ -11,6 +11,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus/testutil"
 )
 
 type fakeFleetControl struct {
@@ -150,6 +152,12 @@ func TestFleetControlFailsClosed(t *testing.T) {
 			f.texasStatus, f.body = http.StatusInternalServerError, regSnap(2, allowlistEntries(t, 3))
 		},
 		"malformed json": func(_ *testing.T, f *fakeFleetControl) { f.body = "not an object" },
+		"oversized": func(_ *testing.T, f *fakeFleetControl) {
+			// valid snapshot (newer generation, real servers): only the size guard rejects it
+			b := regSnap(2, allowlistEntries(t, 3))
+			b["pad"] = strings.Repeat("x", maxSnapshotBytes)
+			f.body = b
+		},
 	}
 	for name, breakIt := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -162,7 +170,11 @@ func TestFleetControlFailsClosed(t *testing.T) {
 
 			breakIt(t, f)
 			f.etag = `"e2"`
+			failures := testutil.ToFloat64(fleetControlFetchFailures)
 			_ = s.Reload(t.Context())
+			if testutil.ToFloat64(fleetControlFetchFailures) != failures+1 {
+				t.Fatal("failed fetch was not counted")
+			}
 			if got := serverNames(t, s); !slices.Equal(got, good) {
 				t.Fatalf("bad snapshot replaced the servers: %v, want %v", got, good)
 			}
@@ -195,6 +207,8 @@ func TestFleetControlFromEnv(t *testing.T) {
 	}{
 		{name: "default is git", unset: "REGISTRY_SOURCE", wantNil: true},
 		{name: "git", override: "git", wantNil: true},
+		{name: "shadow", override: "shadow"},
+		{name: "shadow needs URL", override: "shadow", unset: "FLEET_CONTROL_URL", wantErr: "REGISTRY_SOURCE=shadow needs a valid FLEET_CONTROL_URL"},
 		{name: "unknown source", override: "fleetcontrol", wantErr: "unsupported REGISTRY_SOURCE"},
 		{name: "no URL", unset: "FLEET_CONTROL_URL", wantErr: "FLEET_CONTROL_URL"},
 		{name: "no Texas", unset: "NAIS_TOKEN_ENDPOINT", wantErr: "NAIS_TOKEN_ENDPOINT"},
@@ -273,5 +287,73 @@ func TestFleetControlReloadsDoNotInterleave(t *testing.T) {
 	}
 	if err := <-second; err != nil {
 		t.Fatal(err)
+	}
+}
+
+// Shadow keeps serving allowlist.json and only reports how the snapshot differs.
+func TestShadowServesAllowlistAndReportsDiff(t *testing.T) {
+	f := newFakeFleetControl(t)
+	s := fleetStore(t, f)
+	t.Setenv("REGISTRY_SOURCE", "shadow")
+	var err error
+	if s.Fleet, err = FleetControlFromEnv(); err != nil {
+		t.Fatal(err)
+	}
+	if !s.Fleet.shadow {
+		t.Fatal("REGISTRY_SOURCE=shadow did not set shadow mode")
+	}
+	file := serverNames(t, s)
+	if err := s.Reload(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if got := serverNames(t, s); !slices.Equal(got, file) {
+		t.Fatalf("shadow changed the served servers: %v, want %v", got, file)
+	}
+	if f.requests.Load() == 0 || s.Fleet.lastSuccess.IsZero() {
+		t.Fatal("shadow did not fetch a snapshot successfully")
+	}
+	if got := testutil.ToFloat64(fleetControlShadowDiff.WithLabelValues("only_allowlist")); int(got) != len(file)-2 {
+		t.Fatalf("only_allowlist = %v, want %d", got, len(file)-2)
+	}
+	if got := testutil.ToFloat64(fleetControlShadowDiff.WithLabelValues("only_fleet_control")); got != 0 {
+		t.Fatalf("only_fleet_control = %v, want 0", got)
+	}
+
+	f.status, f.etag = http.StatusServiceUnavailable, `"e2"`
+	_ = s.Reload(t.Context())
+	if got := serverNames(t, s); !slices.Equal(got, file) {
+		t.Fatalf("fleet-control down changed shadow servers: %v", got)
+	}
+}
+
+func TestSnapshotAgeTracksLastGoodFetch(t *testing.T) {
+	f := newFakeFleetControl(t)
+	s := fleetStore(t, f)
+	s.Fleet.lastSuccess = time.Now().Add(-time.Hour)
+	f.status = http.StatusServiceUnavailable
+	_ = s.Reload(t.Context())
+	if age := testutil.ToFloat64(fleetControlSnapshotAge); age < 3500 {
+		t.Fatalf("age after failure = %v, want about an hour", age)
+	}
+	f.status = http.StatusOK
+	if err := s.Reload(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if age := testutil.ToFloat64(fleetControlSnapshotAge); age > 5 {
+		t.Fatalf("age after good fetch = %v, want near 0", age)
+	}
+}
+
+// A body cut at the limit also fails to parse, so only the error text proves
+// the size guard (not the parser) rejected it.
+func TestFleetControlOversizedHitsSizeGuard(t *testing.T) {
+	f := newFakeFleetControl(t)
+	s := fleetStore(t, f)
+	b := regSnap(2, allowlistEntries(t, 3))
+	b["pad"] = strings.Repeat("x", maxSnapshotBytes)
+	f.body = b
+	_, _, err := s.Fleet.fetch(t.Context(), s.parseStatic)
+	if err == nil || !strings.Contains(err.Error(), "too large") {
+		t.Fatalf("err = %v, want snapshot too large", err)
 	}
 }
