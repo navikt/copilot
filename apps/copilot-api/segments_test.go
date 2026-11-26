@@ -136,7 +136,7 @@ func TestUserDaysDeduplicatesScopes(t *testing.T) {
 		}
 	}
 	src := ""
-	for _, f := range []string{"segments.go", "monthly_trends.go"} {
+	for _, f := range []string{"segments_query.go", "monthly_trends_query.go"} {
 		b, err := os.ReadFile(f)
 		if err != nil {
 			t.Fatal(err)
