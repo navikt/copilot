@@ -22,7 +22,8 @@ export default async function FleetPage({ searchParams }: Props) {
   requireFleet();
   const { team } = await searchParams;
   // ?team= (empty) asks for the chooser; no ?team falls back to the remembered team.
-  const asked = team ?? (await cookies()).get(TEAM_COOKIE)?.value;
+  const last = (await cookies()).get(TEAM_COOKIE)?.value;
+  const asked = team ?? last;
   const wanted = asked && DNS_LABEL.test(asked) ? asked : undefined;
   const result = await fleetLoad(async () => {
     const me = await fleetApi.whoami();
@@ -55,8 +56,12 @@ export default async function FleetPage({ searchParams }: Props) {
 
   return (
     <FleetFrame
-      title={picked ? picked.team : "Fleet"}
-      description={picked ? "MCP-servere teamet eier, og det som venter på dere." : "Velg hvilket team du vil se."}
+      title={picked ? picked.team : "Velg team"}
+      description={
+        picked
+          ? "MCP-servere teamet eier, og det som venter på dere."
+          : "Du er med i flere team. Fleet viser alltid ett team om gangen. Vi husker valget ditt til neste gang."
+      }
       nav={
         picked
           ? {
@@ -68,17 +73,19 @@ export default async function FleetPage({ searchParams }: Props) {
           : undefined
       }
     >
-      <KortFortalt>
-        <BodyLong>
-          Teamet registrerer en <strong>MCP-server</strong>. En annen i teamet godkjenner. Da får MCP-serveren en{" "}
-          <strong>rute</strong> i fleet-gateway, adressen <code>/mcp/team/navn</code>, og team dere gir tilgang, kan
-          bruke den.
-        </BodyLong>
-        <BodyLong>
-          En <strong>agentprofil</strong> bestemmer hvilken app som får bruke hvilke verktøy på hvilke MCP-servere, på
-          vegne av en innlogget bruker. Eierteamet til MCP-serveren gir tilgang.
-        </BodyLong>
-      </KortFortalt>
+      {picked && (
+        <KortFortalt>
+          <BodyLong>
+            Teamet registrerer en <strong>MCP-server</strong>. En annen i teamet godkjenner. Da får MCP-serveren en{" "}
+            <strong>rute</strong> i fleet-gateway, adressen <code>/mcp/team/navn</code>, og team dere gir tilgang, kan
+            bruke den.
+          </BodyLong>
+          <BodyLong>
+            En <strong>agentprofil</strong> bestemmer hvilken app som får bruke hvilke verktøy på hvilke MCP-servere, på
+            vegne av en innlogget bruker. Eierteamet til MCP-serveren gir tilgang.
+          </BodyLong>
+        </KortFortalt>
+      )}
       {picked ? (
         <>
           {pending.length > 0 && <PendingInbox agents={pending} />}
@@ -88,6 +95,7 @@ export default async function FleetPage({ searchParams }: Props) {
         <>
           {unknown && <UnknownTeam team={unknown} />}
           <TeamChooser
+            last={last}
             teams={teams.map((t) => ({
               team: t.team,
               servers: t.servers.length,

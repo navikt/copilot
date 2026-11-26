@@ -235,6 +235,9 @@ describe("/fleet", () => {
     cookieJar.set("fleet-team", "team-d");
     render(await FleetPage(sp("")));
     expect(screen.getByRole("heading", { name: "Velg team" })).toBeInTheDocument();
+    // VelgTeam: the remembered team is marked, and the way to the catalogue is there.
+    expect(within(screen.getByRole("list", { name: "Teamene dine" })).getByText("Sist brukt")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "katalogen og Kom i gang" })).toHaveAttribute("href", "/fleet/katalog");
   });
 
   it("explains an unknown team and offers the chooser; ignores an invalid one", async () => {

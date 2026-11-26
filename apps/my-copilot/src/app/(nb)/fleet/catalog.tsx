@@ -5,6 +5,7 @@ import NextLink from "next/link";
 import {
   Alert,
   BodyLong,
+  Box,
   BodyShort,
   Detail,
   Heading,
@@ -117,28 +118,43 @@ export function Catalog({ entries }: { entries: CatalogEntry[] }) {
 export type TeamSummary = { team: string; servers: number; pending: number };
 
 /** Shown when a person in several teams has not picked one yet. */
-export function TeamChooser({ teams }: { teams: TeamSummary[] }) {
+export function TeamChooser({ teams, last }: { teams: TeamSummary[]; last?: string }) {
   return (
-    <VStack gap="space-16">
-      <Heading level="2" size="medium">
-        Velg team
-      </Heading>
-      <BodyLong>
-        Du er med i flere team. Fleet viser ett team om gangen, og vi husker valget ditt til neste gang.
-      </BodyLong>
-      <VStack gap="space-8" as="ul">
-        {teams.map((t) => (
-          <li key={t.team}>
-            <Link as={NextLink} href={`/fleet?team=${t.team}`}>
-              {t.team}
-            </Link>
-            <BodyShort size="small">
-              {t.servers === 1 ? "1 MCP-server" : `${t.servers} MCP-servere`}
-              {t.pending > 0 && ` · ${t.pending} venter på godkjenning`}
-            </BodyShort>
-          </li>
-        ))}
-      </VStack>
+    <VStack gap="space-24">
+      <Box background="default" borderWidth="1" borderColor="neutral-subtle" borderRadius="12">
+        <VStack as="ul" aria-label="Teamene dine">
+          {teams.map((t, i) => (
+            <Box
+              as="li"
+              key={t.team}
+              paddingBlock="space-16"
+              paddingInline="space-24"
+              borderWidth={i ? "1 0 0 0" : "0"}
+              borderColor="neutral-subtle"
+            >
+              <HStack gap="space-16" justify="space-between" align="center">
+                <VStack gap="space-4">
+                  <Link as={NextLink} href={`/fleet?team=${t.team}`} underline={false}>
+                    <strong>{t.team}</strong>
+                  </Link>
+                  <BodyShort size="small">
+                    {t.servers === 1 ? "1 MCP-server" : `${t.servers} MCP-servere`}
+                    {t.pending > 0 && ` · ${t.pending} venter på godkjenning`}
+                  </BodyShort>
+                </VStack>
+                {t.team === last && <BodyShort size="small">Sist brukt</BodyShort>}
+              </HStack>
+            </Box>
+          ))}
+        </VStack>
+      </Box>
+      <BodyShort>
+        Bare ett team? Da kommer du rett til teamet. Ingen team? Da ser du{" "}
+        <Link as={NextLink} href="/fleet/katalog">
+          katalogen og Kom i gang
+        </Link>
+        .
+      </BodyShort>
     </VStack>
   );
 }
