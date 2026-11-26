@@ -103,7 +103,7 @@ describe("agents nav-pilot launches by default", () => {
   it("toolsEntries reads block and flow lists", () => {
     expect(toolsEntries("---\nname: a\n---\n")).toBeNull();
     expect(toolsEntries("---\ntools: [read, 'github/x']\n---\n")).toEqual(["read", "github/x"]);
-    expect(toolsEntries("---\ntools:\n  - read\n  - \"*\"\nmodel: x\n---\n")).toEqual(["read", "*"]);
+    expect(toolsEntries('---\ntools:\n  - read\n  - "*"\nmodel: x\n---\n')).toEqual(["read", "*"]);
     expect(toolsEntries("---\ntools: ['*']\n---\n")).toEqual(["*"]);
   });
 });
@@ -119,7 +119,12 @@ function toolsEntries(src: string): string[] | null {
   if (i < 0) return null;
   const unquote = (t: string) => t.trim().replace(/^['"]|['"]$/g, "");
   const inline = lines[i].replace(/^tools\s*:/, "").trim();
-  if (inline) return inline.replace(/^\[|\]$/g, "").split(",").map(unquote).filter(Boolean);
+  if (inline)
+    return inline
+      .replace(/^\[|\]$/g, "")
+      .split(",")
+      .map(unquote)
+      .filter(Boolean);
   const out: string[] = [];
   for (const l of lines.slice(i + 1)) {
     const m = l.match(/^\s+-\s*(.*)$/);
