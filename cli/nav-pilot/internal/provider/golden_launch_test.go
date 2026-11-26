@@ -109,7 +109,7 @@ func TestGoldenBuildCopilotArgs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := BuildCopilotArgs(tt.cliName, tt.resolved)
+			got := withoutGitHubMCPTools(BuildCopilotArgs(tt.cliName, tt.resolved))
 			if !slices.Equal(got, tt.want) {
 				t.Errorf("BuildCopilotArgs(%q, %+v)\n got: %q\nwant: %q", tt.cliName, tt.resolved, got, tt.want)
 			}
@@ -377,7 +377,7 @@ func TestGoldenOpenCodeAgentArgs(t *testing.T) {
 // launch, or [BuildCopilotArgs] alone for a plain copilot binary.
 func copilotLaunchArgs(cliName string, resolved domain.ResolvedConfig, skillsDir string) []string {
 	if cliName != "cplt" {
-		return BuildCopilotArgs(cliName, resolved)
+		return withoutGitHubMCPTools(BuildCopilotArgs(cliName, resolved))
 	}
-	return cpltArgv(copilotSpec(resolved, skillsDir))
+	return withoutGitHubMCPTools(cpltArgv(copilotSpec(resolved, skillsDir)))
 }

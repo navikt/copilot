@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import manifest from "./copilot-manifest.json";
 
@@ -90,12 +92,39 @@ describe("GitHub MCP agent tools", () => {
 // nav-pilot launches Copilot CLI with `--agent nav-pilot`. A `tools:` allowlist on that
 // agent hides every MCP server the user has enabled (Figma, Aksel, fleet-gateway) from the
 // model, and it is not a security boundary: cplt, fleet-gateway and server-side auth are.
+// The launch asks for the read-only GitHub MCP tools with --add-github-mcp-tool instead.
+// Reads the agent files, not the manifest: the generator writes [] for a flow list.
 describe("agents nav-pilot launches by default", () => {
   it.each(["nav-pilot", "nav-pilot-opus"])("%s has no tools allowlist", (agentId) => {
-    const agent = manifest.items.find((item) => item.type === "agent" && item.id === agentId);
-    expect(agent, `${agentId} missing from manifest`).toBeDefined();
-    const tools = (agent as { tools?: string[] }).tools;
-    // The generator writes [] for an agent without a tools: key.
-    expect(!tools?.length || tools.includes("*"), `${agentId} restricts tools: ${tools}`).toBe(true);
+    const entries = toolsEntries(readFileSync(join(AGENTS_DIR, `${agentId}.agent.md`), "utf8"));
+    expect(entries === null || entries.every((t) => t === "*"), `${agentId} restricts tools: ${entries}`).toBe(true);
+  });
+
+  it("toolsEntries reads block and flow lists", () => {
+    expect(toolsEntries("---\nname: a\n---\n")).toBeNull();
+    expect(toolsEntries("---\ntools: [read, 'github/x']\n---\n")).toEqual(["read", "github/x"]);
+    expect(toolsEntries("---\ntools:\n  - read\n  - \"*\"\nmodel: x\n---\n")).toEqual(["read", "*"]);
+    expect(toolsEntries("---\ntools: ['*']\n---\n")).toEqual(["*"]);
   });
 });
+
+const AGENTS_DIR = join(__dirname, "../../../../agents");
+
+// toolsEntries returns the frontmatter tools: entries (block or flow list, or a scalar),
+// or null when there is no tools: key.
+function toolsEntries(src: string): string[] | null {
+  const fm = src.match(/^---\n([\s\S]*?)\n---/)?.[1] ?? "";
+  const lines = fm.split("\n");
+  const i = lines.findIndex((l) => /^tools\s*:/.test(l));
+  if (i < 0) return null;
+  const unquote = (t: string) => t.trim().replace(/^['"]|['"]$/g, "");
+  const inline = lines[i].replace(/^tools\s*:/, "").trim();
+  if (inline) return inline.replace(/^\[|\]$/g, "").split(",").map(unquote).filter(Boolean);
+  const out: string[] = [];
+  for (const l of lines.slice(i + 1)) {
+    const m = l.match(/^\s+-\s*(.*)$/);
+    if (!m) break;
+    out.push(unquote(m[1]));
+  }
+  return out;
+}

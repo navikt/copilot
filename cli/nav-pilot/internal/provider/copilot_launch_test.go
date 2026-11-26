@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -125,7 +126,7 @@ func TestBuildCopilotArgs(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := BuildCopilotArgs(tt.cliName, tt.resolved)
+			got := withoutGitHubMCPTools(BuildCopilotArgs(tt.cliName, tt.resolved))
 			if len(got) != len(tt.want) {
 				t.Fatalf("BuildCopilotArgs(%q, ...) = %v, want %v", tt.cliName, got, tt.want)
 			}
@@ -474,5 +475,48 @@ func TestSayAutopilotNote(t *testing.T) {
 	say(domain.ResolvedConfig{}, false)
 	if !say(autopilot, false) {
 		t.Error("autopilot after a default-mode launch did not print the note")
+	}
+}
+
+// withoutGitHubMCPTools drops the --add-github-mcp-tool pairs every copilot
+// launch carries, so argument tests can state the rest of the vector.
+// TestBuildCopilotArgsGitHubMCPTools asserts the pairs themselves.
+func withoutGitHubMCPTools(args []string) []string {
+	var out []string
+	for i := 0; i < len(args); i++ {
+		if args[i] == "--add-github-mcp-tool" && i+1 < len(args) {
+			i++
+			continue
+		}
+		out = append(out, args[i])
+	}
+	return out
+}
+
+// The agents nav-pilot launches have no tools: list, so Copilot CLI would give
+// its built-in GitHub MCP server only the default subset. The launch asks for
+// the read-only set (#898) instead, and nothing that writes.
+func TestBuildCopilotArgsGitHubMCPTools(t *testing.T) {
+	for _, cliName := range []string{"cplt", "copilot"} {
+		args := BuildCopilotArgs(cliName, domain.ResolvedConfig{Client: "copilot", AskUser: true})
+		var got []string
+		for i, a := range args {
+			if a == "--add-github-mcp-tool" && i+1 < len(args) {
+				got = append(got, args[i+1])
+			}
+		}
+		want := []string{
+			"get_file_contents", "search_code", "search_repositories", "list_commits",
+			"issue_read", "list_issues", "search_issues", "pull_request_read",
+			"search_pull_requests", "get_latest_release", "list_releases",
+		}
+		if !slices.Equal(got, want) {
+			t.Errorf("%s: GitHub MCP tools = %q, want %q", cliName, got, want)
+		}
+		for _, tool := range got {
+			if strings.ContainsAny(tool, "*") || strings.HasPrefix(tool, "create_") || strings.HasPrefix(tool, "update_") || strings.HasPrefix(tool, "delete_") || strings.HasPrefix(tool, "merge_") || strings.HasPrefix(tool, "push_") {
+				t.Errorf("%s: GitHub MCP tool %q is not read-only", cliName, tool)
+			}
+		}
 	}
 }
