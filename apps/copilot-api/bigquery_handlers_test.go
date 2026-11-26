@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"testing"
 
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
+
 	"cloud.google.com/go/civil"
 
 	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
@@ -18,7 +20,7 @@ func ptr[T any](v T) *T { return &v }
 
 // A month that has not happened yet must reach the page as null, not 0.
 func TestHandleCohortRetentionNullForFutureMonths(t *testing.T) {
-	h := newBigQueryHandlers(&mockBigQueryClient{cohortRetention: []CohortRetention{
+	h := newBigQueryHandlers(&mockBigQueryClient{cohortRetention: []bqstore.CohortRetention{
 		{CohortMonth: "2026-08", CohortSize: 40, M1: ptr(int64(70))},
 	}})
 	rec := httptest.NewRecorder()
@@ -31,72 +33,72 @@ func TestHandleCohortRetentionNullForFutureMonths(t *testing.T) {
 
 // mockBigQueryClient implements BigQueryQuerier for testing
 type mockBigQueryClient struct {
-	factAggregates       *FactAggregates
-	dailyMetrics         []EnterpriseMetrics
+	factAggregates       *bqstore.FactAggregates
+	dailyMetrics         []bqstore.EnterpriseMetrics
 	dailyMetricsErr      error
-	adoptionSummary      *AdoptionSummary
+	adoptionSummary      *bqstore.AdoptionSummary
 	adoptionSummaryErr   error
-	teamAdoption         []TeamAdoption
+	teamAdoption         []bqstore.TeamAdoption
 	teamAdoptionErr      error
-	custDetails          []CustomizationDetail
+	custDetails          []bqstore.CustomizationDetail
 	custDetailsErr       error
-	custUsage            []CustomizationUsage
+	custUsage            []bqstore.CustomizationUsage
 	custUsageErr         error
-	langAdoption         []LanguageAdoption
+	langAdoption         []bqstore.LanguageAdoption
 	langAdoptionErr      error
-	stalenessFiles       []StalenessFile
+	stalenessFiles       []bqstore.StalenessFile
 	stalenessErr         error
-	teamGross            *TeamGrossOverview
+	teamGross            *bqstore.TeamGrossOverview
 	teamGrossErr         error
-	teamNet              *TeamNetOverview
-	anomalies            []Anomaly
-	spendBands           *SpendBands
+	teamNet              *bqstore.TeamNetOverview
+	anomalies            []bqstore.Anomaly
+	spendBands           *bqstore.SpendBands
 	teamNetErr           error
-	grossByMonth         map[string]*TeamGrossOverview
-	netByMonth           map[string]*TeamNetOverview
-	teamYear             *TeamYearOverview
+	grossByMonth         map[string]*bqstore.TeamGrossOverview
+	netByMonth           map[string]*bqstore.TeamNetOverview
+	teamYear             *bqstore.TeamYearOverview
 	teamYearArgs         []any
 	userTeams            []string
-	userMetrics          *UserMetricsSummary
+	userMetrics          *bqstore.UserMetricsSummary
 	userMetricsErr       error
-	monthlyTrends        []MonthlyTrend
+	monthlyTrends        []bqstore.MonthlyTrend
 	monthlyTrendsErr     error
-	monthlyBilling       []MonthlyBillingUsage
+	monthlyBilling       []bqstore.MonthlyBillingUsage
 	monthlyBillingErr    error
-	billingModelDaily    []BillingModelDailyCost
+	billingModelDaily    []bqstore.BillingModelDailyCost
 	billingModelErr      error
-	billingForecast      *BillingModelForecast
+	billingForecast      *bqstore.BillingModelForecast
 	billingForecastErr   error
-	weeklyTrends         []WeeklyTrend
+	weeklyTrends         []bqstore.WeeklyTrend
 	weeklyTrendsErr      error
-	cohorts              []AdoptionCohortDay
+	cohorts              []bqstore.AdoptionCohortDay
 	cohortsErr           error
-	usageDistribution    *UsageDistribution
+	usageDistribution    *bqstore.UsageDistribution
 	usageDistErr         error
-	repositoryUsage      []RepositoryUsage
+	repositoryUsage      []bqstore.RepositoryUsage
 	repositoryUsageErr   error
-	clientUsage          []ClientUsage
+	clientUsage          []bqstore.ClientUsage
 	clientUsageErr       error
-	editorUsage          []EditorUsage
+	editorUsage          []bqstore.EditorUsage
 	editorUsageErr       error
-	creditsPerUser       []CreditsPerUserMonth
+	creditsPerUser       []bqstore.CreditsPerUserMonth
 	creditsPerUserErr    error
-	copilotPRs           []CopilotPRMonth
+	copilotPRs           []bqstore.CopilotPRMonth
 	copilotPRsErr        error
-	cohortRetention      []CohortRetention
+	cohortRetention      []bqstore.CohortRetention
 	cohortRetentionErr   error
-	segments             *UserSegments
+	segments             *bqstore.UserSegments
 	segmentsErr          error
-	navPilotTelemetry    *NavPilotTelemetry
+	navPilotTelemetry    *bqstore.NavPilotTelemetry
 	navPilotTelemetryErr error
 }
 
-func (m *mockBigQueryClient) GetNavPilotTelemetry(_ context.Context) (*NavPilotTelemetry, error) {
+func (m *mockBigQueryClient) GetNavPilotTelemetry(_ context.Context) (*bqstore.NavPilotTelemetry, error) {
 	return m.navPilotTelemetry, m.navPilotTelemetryErr
 }
 
 func TestHandleNavPilotTelemetry(t *testing.T) {
-	agg := aggregateNavPilotTelemetry([]mimirTelemetryRow{
+	agg := bqstore.AggregateNavPilotTelemetry([]bqstore.MimirTelemetryRow{
 		{LatestDay: "2026-10-14", IsLatest: true, Family: "nav_pilot_reach", Metric: "nav_pilot_info", Operation: "7d", Devices: 217},
 		{LatestDay: "2026-10-14", IsLatest: true, Family: "nav_pilot_reach", Metric: "nav_pilot_info", Operation: "rtk_7d", Outcome: "true", Devices: 136},
 		{LatestDay: "2026-10-14", IsLatest: true, Family: "nav_pilot_reach", Metric: "nav_pilot_config_info", Client: "copilot", Devices: 160},
@@ -156,7 +158,7 @@ func TestHandleNavPilotTelemetry(t *testing.T) {
 		t.Fatalf("unexpected guardrail telemetry: %+v", agg)
 	}
 
-	legacyOnly := aggregateNavPilotTelemetry([]mimirTelemetryRow{
+	legacyOnly := bqstore.AggregateNavPilotTelemetry([]bqstore.MimirTelemetryRow{
 		{LatestDay: "2026-10-14", IsLatest: true, Family: "nav_pilot_config", Metric: "nav_pilot_config_info", Client: "copilot", Devices: 90},
 		{LatestDay: "2026-10-14", IsLatest: true, Family: "nav_pilot_config", Metric: "nav_pilot_config_info", Client: "opencode", Devices: 30},
 	})
@@ -172,15 +174,15 @@ func TestHandleNavPilotTelemetry(t *testing.T) {
 	}
 }
 
-func (m *mockBigQueryClient) GetUserSegments(_ context.Context) (*UserSegments, error) {
+func (m *mockBigQueryClient) GetUserSegments(_ context.Context) (*bqstore.UserSegments, error) {
 	return m.segments, m.segmentsErr
 }
 
 // The response carries display-ready shares and no field that could name a
 // person or a team.
 func TestHandleUserSegments(t *testing.T) {
-	h := newBigQueryHandlers(&mockBigQueryClient{segments: &UserSegments{
-		Intensity: buildChart([]segmentRow{{Month: "2026-08", A: 60, B: 57, C: 3}}, intensityBands),
+	h := newBigQueryHandlers(&mockBigQueryClient{segments: &bqstore.UserSegments{
+		Intensity: bqstore.BuildChart([]bqstore.SegmentRow{{Month: "2026-08", A: 60, B: 57, C: 3}}, bqstore.IntensityBands),
 	}})
 	rec := httptest.NewRecorder()
 	h.handleUserSegments(rec, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/segments", nil))
@@ -207,59 +209,59 @@ func TestHandleUserSegments(t *testing.T) {
 	}
 }
 
-func (m *mockBigQueryClient) GetCohortRetention(_ context.Context) ([]CohortRetention, error) {
+func (m *mockBigQueryClient) GetCohortRetention(_ context.Context) ([]bqstore.CohortRetention, error) {
 	return m.cohortRetention, m.cohortRetentionErr
 }
 
-func (m *mockBigQueryClient) GetDailyMetrics(_ context.Context, _ *int) ([]EnterpriseMetrics, error) {
+func (m *mockBigQueryClient) GetDailyMetrics(_ context.Context, _ *int) ([]bqstore.EnterpriseMetrics, error) {
 	return m.dailyMetrics, m.dailyMetricsErr
 }
 
-func (m *mockBigQueryClient) GetAdoptionSummary(_ context.Context) (*AdoptionSummary, error) {
+func (m *mockBigQueryClient) GetAdoptionSummary(_ context.Context) (*bqstore.AdoptionSummary, error) {
 	return m.adoptionSummary, m.adoptionSummaryErr
 }
 
-func (m *mockBigQueryClient) GetTeamAdoption(_ context.Context) ([]TeamAdoption, error) {
+func (m *mockBigQueryClient) GetTeamAdoption(_ context.Context) ([]bqstore.TeamAdoption, error) {
 	return m.teamAdoption, m.teamAdoptionErr
 }
 
-func (m *mockBigQueryClient) GetCustomizationDetails(_ context.Context) ([]CustomizationDetail, error) {
+func (m *mockBigQueryClient) GetCustomizationDetails(_ context.Context) ([]bqstore.CustomizationDetail, error) {
 	return m.custDetails, m.custDetailsErr
 }
 
-func (m *mockBigQueryClient) GetCustomizationUsage(_ context.Context) ([]CustomizationUsage, error) {
+func (m *mockBigQueryClient) GetCustomizationUsage(_ context.Context) ([]bqstore.CustomizationUsage, error) {
 	return m.custUsage, m.custUsageErr
 }
 
-func (m *mockBigQueryClient) GetLanguageAdoption(_ context.Context) ([]LanguageAdoption, error) {
+func (m *mockBigQueryClient) GetLanguageAdoption(_ context.Context) ([]bqstore.LanguageAdoption, error) {
 	return m.langAdoption, m.langAdoptionErr
 }
 
-func (m *mockBigQueryClient) GetStalenessData(_ context.Context) ([]StalenessFile, error) {
+func (m *mockBigQueryClient) GetStalenessData(_ context.Context) ([]bqstore.StalenessFile, error) {
 	return m.stalenessFiles, m.stalenessErr
 }
 
-func (m *mockBigQueryClient) GetTeamGrossOverview(_ context.Context, month string) (*TeamGrossOverview, error) {
+func (m *mockBigQueryClient) GetTeamGrossOverview(_ context.Context, month string) (*bqstore.TeamGrossOverview, error) {
 	if m.grossByMonth != nil {
 		return m.grossByMonth[month], nil
 	}
 	return m.teamGross, m.teamGrossErr
 }
 
-func (m *mockBigQueryClient) GetTeamNetOverview(_ context.Context, month string) (*TeamNetOverview, error) {
+func (m *mockBigQueryClient) GetTeamNetOverview(_ context.Context, month string) (*bqstore.TeamNetOverview, error) {
 	if m.netByMonth != nil {
 		return m.netByMonth[month], nil
 	}
 	return m.teamNet, m.teamNetErr
 }
 
-func (m *mockBigQueryClient) GetTeamYearOverview(_ context.Context, team string, year int) (*TeamYearOverview, error) {
+func (m *mockBigQueryClient) GetTeamYearOverview(_ context.Context, team string, year int) (*bqstore.TeamYearOverview, error) {
 	m.teamYearArgs = []any{team, year}
 	return m.teamYear, nil
 }
 
-func (m *mockBigQueryClient) GetAdminMonthlyOverview(_ context.Context, year int) (*AdminMonthlyOverview, error) {
-	return &AdminMonthlyOverview{Year: year}, nil
+func (m *mockBigQueryClient) GetAdminMonthlyOverview(_ context.Context, year int) (*bqstore.AdminMonthlyOverview, error) {
+	return &bqstore.AdminMonthlyOverview{Year: year}, nil
 }
 
 func (m *mockBigQueryClient) GetUserTeams(_ context.Context, _ string) ([]string, error) {
@@ -267,10 +269,10 @@ func (m *mockBigQueryClient) GetUserTeams(_ context.Context, _ string) ([]string
 }
 
 func TestTeamGrossOverviewHandler(t *testing.T) {
-	mock := &mockBigQueryClient{teamGross: &TeamGrossOverview{
-		Month: "2026-09", Teams: []TeamSpend{{TeamID: "123", TeamSlug: "team-a", Users: 5, AmountUSD: 42, PerUserUSD: 8.4}},
-		Comparison: comparisonIncomplete,
-		Usage: map[string]TeamUsageComposition{
+	mock := &mockBigQueryClient{teamGross: &bqstore.TeamGrossOverview{
+		Month: "2026-09", Teams: []bqstore.TeamSpend{{TeamID: "123", TeamSlug: "team-a", Users: 5, AmountUSD: 42, PerUserUSD: 8.4}},
+		Comparison: bqstore.ComparisonIncomplete,
+		Usage: map[string]bqstore.TeamUsageComposition{
 			"123": {Providers: []string{"Anthropic", "OpenAI"}, Categories: []string{"Versatile", "Powerful", "Unclassified"}, Feature: "chat", Language: "go"},
 		},
 	}}
@@ -288,7 +290,7 @@ func TestTeamGrossOverviewHandler(t *testing.T) {
 			t.Errorf("month %q: status %d, want %d", tc.month, recorder.Code, tc.code)
 		}
 		if tc.code == http.StatusOK {
-			var got TeamGrossOverview
+			var got bqstore.TeamGrossOverview
 			if err := json.Unmarshal(recorder.Body.Bytes(), &got); err != nil {
 				t.Fatal(err)
 			}
@@ -300,8 +302,8 @@ func TestTeamGrossOverviewHandler(t *testing.T) {
 }
 
 func TestTeamNetOverviewHandler(t *testing.T) {
-	h := newBigQueryHandlers(&mockBigQueryClient{teamNet: &TeamNetOverview{
-		Month: "2026-09", Teams: []TeamSpend{teamSpend("123", "team-a", 5, 35)},
+	h := newBigQueryHandlers(&mockBigQueryClient{teamNet: &bqstore.TeamNetOverview{
+		Month: "2026-09", Teams: []bqstore.TeamSpend{bqstore.NewTeamSpend("123", "team-a", 5, 35)},
 	}})
 	for _, tc := range []struct {
 		month string
@@ -316,7 +318,7 @@ func TestTeamNetOverviewHandler(t *testing.T) {
 			t.Errorf("month %q: status %d, want %d", tc.month, recorder.Code, tc.code)
 		}
 		if tc.code == http.StatusOK {
-			var got TeamNetOverview
+			var got bqstore.TeamNetOverview
 			if err := json.Unmarshal(recorder.Body.Bytes(), &got); err != nil {
 				t.Fatal(err)
 			}
@@ -344,71 +346,71 @@ func TestHandleMyTeamsRequiresResolvedIdentity(t *testing.T) {
 	}
 }
 
-func (m *mockBigQueryClient) GetUserMetrics(_ context.Context, _ string, _ int) (*UserMetricsSummary, error) {
+func (m *mockBigQueryClient) GetUserMetrics(_ context.Context, _ string, _ int) (*bqstore.UserMetricsSummary, error) {
 	return m.userMetrics, m.userMetricsErr
 }
 
-func (m *mockBigQueryClient) GetMonthlyTrends(_ context.Context, _ int) ([]MonthlyTrend, error) {
+func (m *mockBigQueryClient) GetMonthlyTrends(_ context.Context, _ int) ([]bqstore.MonthlyTrend, error) {
 	return m.monthlyTrends, m.monthlyTrendsErr
 }
 
-func (m *mockBigQueryClient) GetMonthlyBillingUsage(_ context.Context, _ int) ([]MonthlyBillingUsage, error) {
+func (m *mockBigQueryClient) GetMonthlyBillingUsage(_ context.Context, _ int) ([]bqstore.MonthlyBillingUsage, error) {
 	return m.monthlyBilling, m.monthlyBillingErr
 }
 
-func (m *mockBigQueryClient) GetBillingModelDailyCosts(_ context.Context, _ string) ([]BillingModelDailyCost, error) {
+func (m *mockBigQueryClient) GetBillingModelDailyCosts(_ context.Context, _ string) ([]bqstore.BillingModelDailyCost, error) {
 	return m.billingModelDaily, m.billingModelErr
 }
 
-func (m *mockBigQueryClient) GetBillingModelForecast(_ context.Context, _ string) (*BillingModelForecast, error) {
+func (m *mockBigQueryClient) GetBillingModelForecast(_ context.Context, _ string) (*bqstore.BillingModelForecast, error) {
 	return m.billingForecast, m.billingForecastErr
 }
 
-func (m *mockBigQueryClient) GetUserWeeklyTrends(_ context.Context, _ string, _ int) ([]WeeklyTrend, error) {
+func (m *mockBigQueryClient) GetUserWeeklyTrends(_ context.Context, _ string, _ int) ([]bqstore.WeeklyTrend, error) {
 	return m.weeklyTrends, m.weeklyTrendsErr
 }
 
-func (m *mockBigQueryClient) GetUserDailyCredits(_ context.Context, _ string, _ int) ([]DailyCredits, error) {
+func (m *mockBigQueryClient) GetUserDailyCredits(_ context.Context, _ string, _ int) ([]bqstore.DailyCredits, error) {
 	return nil, nil
 }
 
-func (m *mockBigQueryClient) GetAdoptionCohorts(_ context.Context, _ int) ([]AdoptionCohortDay, error) {
+func (m *mockBigQueryClient) GetAdoptionCohorts(_ context.Context, _ int) ([]bqstore.AdoptionCohortDay, error) {
 	return m.cohorts, m.cohortsErr
 }
 
-func (m *mockBigQueryClient) GetBillingMonthlyTrend(_ context.Context, _ int) ([]BillingMonthlyTrend, error) {
+func (m *mockBigQueryClient) GetBillingMonthlyTrend(_ context.Context, _ int) ([]bqstore.BillingMonthlyTrend, error) {
 	return nil, nil
 }
 
-func (m *mockBigQueryClient) GetBillingModelBreakdown(_ context.Context, _ int) ([]BillingModelBreakdown, error) {
+func (m *mockBigQueryClient) GetBillingModelBreakdown(_ context.Context, _ int) ([]bqstore.BillingModelBreakdown, error) {
 	return nil, nil
 }
 
-func (m *mockBigQueryClient) GetFactAggregates(_ context.Context) (*FactAggregates, error) {
+func (m *mockBigQueryClient) GetFactAggregates(_ context.Context) (*bqstore.FactAggregates, error) {
 	return m.factAggregates, nil
 }
 
-func (m *mockBigQueryClient) GetDailySummary(_ context.Context) (*DailySummary, error) {
+func (m *mockBigQueryClient) GetDailySummary(_ context.Context) (*bqstore.DailySummary, error) {
 	return nil, nil
 }
 
-func (m *mockBigQueryClient) GetUsageDistribution(_ context.Context, _ string, _ float64) (*UsageDistribution, error) {
+func (m *mockBigQueryClient) GetUsageDistribution(_ context.Context, _ string, _ float64) (*bqstore.UsageDistribution, error) {
 	return m.usageDistribution, m.usageDistErr
 }
 
-func (m *mockBigQueryClient) GetRepositoryUsage(_ context.Context) ([]RepositoryUsage, error) {
+func (m *mockBigQueryClient) GetRepositoryUsage(_ context.Context) ([]bqstore.RepositoryUsage, error) {
 	return m.repositoryUsage, m.repositoryUsageErr
 }
 
-func (m *mockBigQueryClient) GetClientUsage(_ context.Context) ([]ClientUsage, error) {
+func (m *mockBigQueryClient) GetClientUsage(_ context.Context) ([]bqstore.ClientUsage, error) {
 	return m.clientUsage, m.clientUsageErr
 }
 
-func (m *mockBigQueryClient) GetCreditsPerUserMonthly(_ context.Context) ([]CreditsPerUserMonth, error) {
+func (m *mockBigQueryClient) GetCreditsPerUserMonthly(_ context.Context) ([]bqstore.CreditsPerUserMonth, error) {
 	return m.creditsPerUser, m.creditsPerUserErr
 }
 
-func (m *mockBigQueryClient) GetCopilotPRsMonthly(_ context.Context) ([]CopilotPRMonth, error) {
+func (m *mockBigQueryClient) GetCopilotPRsMonthly(_ context.Context) ([]bqstore.CopilotPRMonth, error) {
 	return m.copilotPRs, m.copilotPRsErr
 }
 
@@ -417,7 +419,7 @@ func TestHandleDailyMetrics(t *testing.T) {
 		name             string
 		method           string
 		query            string
-		mockMetrics      []EnterpriseMetrics
+		mockMetrics      []bqstore.EnterpriseMetrics
 		mockErr          error
 		wantStatus       int
 		wantBodyContains string
@@ -425,13 +427,13 @@ func TestHandleDailyMetrics(t *testing.T) {
 		{
 			name:        "returns metrics on success",
 			method:      http.MethodGet,
-			mockMetrics: []EnterpriseMetrics{{"day": "2024-01-01", "total_active_users": 10}},
+			mockMetrics: []bqstore.EnterpriseMetrics{{"day": "2024-01-01", "total_active_users": 10}},
 			wantStatus:  http.StatusOK,
 		},
 		{
 			name:        "returns empty list when no data",
 			method:      http.MethodGet,
-			mockMetrics: []EnterpriseMetrics{},
+			mockMetrics: []bqstore.EnterpriseMetrics{},
 			wantStatus:  http.StatusOK,
 		},
 		{
@@ -493,14 +495,14 @@ func TestHandleAdoptionSummary(t *testing.T) {
 	tests := []struct {
 		name       string
 		method     string
-		summary    *AdoptionSummary
+		summary    *bqstore.AdoptionSummary
 		mockErr    error
 		wantStatus int
 	}{
 		{
 			name:       "returns summary when available",
 			method:     http.MethodGet,
-			summary:    &AdoptionSummary{TotalRepos: 42},
+			summary:    &bqstore.AdoptionSummary{TotalRepos: 42},
 			wantStatus: http.StatusOK,
 		},
 		{
@@ -540,7 +542,7 @@ func TestHandleAdoptionSummary(t *testing.T) {
 
 func TestHandleAdoptionStaleness(t *testing.T) {
 	t.Run("computes summary from file list", func(t *testing.T) {
-		files := []StalenessFile{
+		files := []bqstore.StalenessFile{
 			{Category: "instructions", FileName: "copilot-instructions.md", TotalRepos: 100, InSyncRepos: 80, OutOfSyncRepos: 20},
 			{Category: "agents", FileName: "nav-pilot.agent.md", TotalRepos: 50, InSyncRepos: 50, OutOfSyncRepos: 0},
 		}
@@ -555,7 +557,7 @@ func TestHandleAdoptionStaleness(t *testing.T) {
 			t.Fatalf("status: got %d, want 200", rec.Code)
 		}
 
-		var result StalenessSummary
+		var result bqstore.StalenessSummary
 		if err := json.NewDecoder(rec.Body).Decode(&result); err != nil {
 			t.Fatalf("decode response: %v", err)
 		}
@@ -582,7 +584,7 @@ func TestHandleAdoptionStaleness(t *testing.T) {
 	})
 
 	t.Run("handles empty file list with zero sync rate", func(t *testing.T) {
-		mock := &mockBigQueryClient{stalenessFiles: []StalenessFile{}}
+		mock := &mockBigQueryClient{stalenessFiles: []bqstore.StalenessFile{}}
 		h := newBigQueryHandlers(mock)
 
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/adoption/staleness", nil)
@@ -593,7 +595,7 @@ func TestHandleAdoptionStaleness(t *testing.T) {
 			t.Fatalf("status: got %d, want 200", rec.Code)
 		}
 
-		var result StalenessSummary
+		var result bqstore.StalenessSummary
 		if err := json.NewDecoder(rec.Body).Decode(&result); err != nil {
 			t.Fatalf("decode: %v", err)
 		}
@@ -629,7 +631,7 @@ func TestHandleAdoptionStaleness(t *testing.T) {
 
 func TestHandleTeamAdoption(t *testing.T) {
 	t.Run("returns team adoption data", func(t *testing.T) {
-		mock := &mockBigQueryClient{teamAdoption: []TeamAdoption{{ScanDate: civil.Date{Year: 2026, Month: 6, Day: 2}, TeamSlug: "team-a", TeamName: "Team A", TeamRepos: 5, ActiveRepos: 5}}}
+		mock := &mockBigQueryClient{teamAdoption: []bqstore.TeamAdoption{{ScanDate: civil.Date{Year: 2026, Month: 6, Day: 2}, TeamSlug: "team-a", TeamName: "Team A", TeamRepos: 5, ActiveRepos: 5}}}
 		h := newBigQueryHandlers(mock)
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/adoption/teams", nil)
 		rec := httptest.NewRecorder()
@@ -671,7 +673,7 @@ func TestHandleNewStatsEndpoints(t *testing.T) {
 	}{
 		{
 			name:       "user metrics success",
-			mock:       &mockBigQueryClient{userMetrics: &UserMetricsSummary{UserLogin: "octocat", DaysInPeriod: 7}},
+			mock:       &mockBigQueryClient{userMetrics: &bqstore.UserMetricsSummary{UserLogin: "octocat", DaysInPeriod: 7}},
 			req:        requestWithUsername("/api/v1/copilot/usage/user/octocat", "octocat"),
 			handle:     (*BigQueryHandlers).handleUserMetrics,
 			wantStatus: http.StatusOK,
@@ -699,7 +701,7 @@ func TestHandleNewStatsEndpoints(t *testing.T) {
 		},
 		{
 			name:       "monthly trends success",
-			mock:       &mockBigQueryClient{monthlyTrends: []MonthlyTrend{{Month: "2026-06", UniqueUsers: 10}}},
+			mock:       &mockBigQueryClient{monthlyTrends: []bqstore.MonthlyTrend{{Month: "2026-06", UniqueUsers: 10}}},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/trends", nil),
 			handle:     (*BigQueryHandlers).handleMonthlyTrends,
 			wantStatus: http.StatusOK,
@@ -713,7 +715,7 @@ func TestHandleNewStatsEndpoints(t *testing.T) {
 		},
 		{
 			name:       "monthly billing success",
-			mock:       &mockBigQueryClient{monthlyBilling: []MonthlyBillingUsage{{Month: "2026-06", Model: "gpt", SKU: "premium", GrossRequests: 2}}},
+			mock:       &mockBigQueryClient{monthlyBilling: []bqstore.MonthlyBillingUsage{{Month: "2026-06", Model: "gpt", SKU: "premium", GrossRequests: 2}}},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/billing/monthly", nil),
 			handle:     (*BigQueryHandlers).handleMonthlyBillingUsage,
 			wantStatus: http.StatusOK,
@@ -727,7 +729,7 @@ func TestHandleNewStatsEndpoints(t *testing.T) {
 		},
 		{
 			name:       "billing model daily success",
-			mock:       &mockBigQueryClient{billingModelDaily: []BillingModelDailyCost{{Day: "2026-06-01", Model: "gpt-5", NetAmount: 10.2}}},
+			mock:       &mockBigQueryClient{billingModelDaily: []bqstore.BillingModelDailyCost{{Day: "2026-06-01", Model: "gpt-5", NetAmount: 10.2}}},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/billing/model-daily?month=2026-06", nil),
 			handle:     (*BigQueryHandlers).handleBillingModelDaily,
 			wantStatus: http.StatusOK,
@@ -748,7 +750,7 @@ func TestHandleNewStatsEndpoints(t *testing.T) {
 		},
 		{
 			name:       "billing model forecast success",
-			mock:       &mockBigQueryClient{billingForecast: &BillingModelForecast{Month: "2026-06", ProjectedEOMNetAmount: 120}},
+			mock:       &mockBigQueryClient{billingForecast: &bqstore.BillingModelForecast{Month: "2026-06", ProjectedEOMNetAmount: 120}},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/billing/model-forecast?month=2026-06", nil),
 			handle:     (*BigQueryHandlers).handleBillingModelForecast,
 			wantStatus: http.StatusOK,
@@ -769,7 +771,7 @@ func TestHandleNewStatsEndpoints(t *testing.T) {
 		},
 		{
 			name:       "weekly trends success",
-			mock:       &mockBigQueryClient{weeklyTrends: []WeeklyTrend{{Week: "2026-W23", Interactions: 3}}},
+			mock:       &mockBigQueryClient{weeklyTrends: []bqstore.WeeklyTrend{{Week: "2026-W23", Interactions: 3}}},
 			req:        requestWithUsername("/api/v1/copilot/usage/user/octocat/weekly", "octocat"),
 			handle:     (*BigQueryHandlers).handleUserWeeklyTrends,
 			wantStatus: http.StatusOK,
@@ -783,7 +785,7 @@ func TestHandleNewStatsEndpoints(t *testing.T) {
 		},
 		{
 			name:       "cohorts success",
-			mock:       &mockBigQueryClient{cohorts: []AdoptionCohortDay{{Day: validDate, Phase: 1, UserCount: 4}}},
+			mock:       &mockBigQueryClient{cohorts: []bqstore.AdoptionCohortDay{{Day: validDate, Phase: 1, UserCount: 4}}},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/adoption/cohorts", nil),
 			handle:     (*BigQueryHandlers).handleAdoptionCohorts,
 			wantStatus: http.StatusOK,
@@ -797,7 +799,7 @@ func TestHandleNewStatsEndpoints(t *testing.T) {
 		},
 		{
 			name:       "repository usage success",
-			mock:       &mockBigQueryClient{repositoryUsage: []RepositoryUsage{{RepoName: "repo-a", RepoVisibility: "INTERNAL", PRCreatedByCopilot: 3}}},
+			mock:       &mockBigQueryClient{repositoryUsage: []bqstore.RepositoryUsage{{RepoName: "repo-a", RepoVisibility: "INTERNAL", PRCreatedByCopilot: 3}}},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/repositories", nil),
 			handle:     (*BigQueryHandlers).handleRepositoryUsage,
 			wantStatus: http.StatusOK,
@@ -811,7 +813,7 @@ func TestHandleNewStatsEndpoints(t *testing.T) {
 		},
 		{
 			name:       "client usage success",
-			mock:       &mockBigQueryClient{clientUsage: []ClientUsage{{Client: "some_new_client", Requests: 12, Sessions: 3}}},
+			mock:       &mockBigQueryClient{clientUsage: []bqstore.ClientUsage{{Client: "some_new_client", Requests: 12, Sessions: 3}}},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/clients", nil),
 			handle:     (*BigQueryHandlers).handleClientUsage,
 			wantStatus: http.StatusOK,
@@ -825,7 +827,7 @@ func TestHandleNewStatsEndpoints(t *testing.T) {
 		},
 		{
 			name:       "credits per user success",
-			mock:       &mockBigQueryClient{creditsPerUser: []CreditsPerUserMonth{{Month: "2026-06", Median: 40, Mean: 55, ActiveUsers: 600}}},
+			mock:       &mockBigQueryClient{creditsPerUser: []bqstore.CreditsPerUserMonth{{Month: "2026-06", Median: 40, Mean: 55, ActiveUsers: 600}}},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/credits-per-user", nil),
 			handle:     (*BigQueryHandlers).handleCreditsPerUserMonthly,
 			wantStatus: http.StatusOK,
@@ -839,7 +841,7 @@ func TestHandleNewStatsEndpoints(t *testing.T) {
 		},
 		{
 			name:       "copilot prs success",
-			mock:       &mockBigQueryClient{copilotPRs: []CopilotPRMonth{{Month: "2026-08", CreatedByCopilot: 12, ReviewedByCopilot: 300, Days: 31}}},
+			mock:       &mockBigQueryClient{copilotPRs: []bqstore.CopilotPRMonth{{Month: "2026-08", CreatedByCopilot: 12, ReviewedByCopilot: 300, Days: 31}}},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/copilot-prs", nil),
 			handle:     (*BigQueryHandlers).handleCopilotPRsMonthly,
 			wantStatus: http.StatusOK,
@@ -853,7 +855,7 @@ func TestHandleNewStatsEndpoints(t *testing.T) {
 		},
 		{
 			name:       "cohort retention success",
-			mock:       &mockBigQueryClient{cohortRetention: []CohortRetention{{CohortMonth: "2026-08", CohortSize: 40, M1: ptr(int64(70))}}},
+			mock:       &mockBigQueryClient{cohortRetention: []bqstore.CohortRetention{{CohortMonth: "2026-08", CohortSize: 40, M1: ptr(int64(70))}}},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/cohort-retention", nil),
 			handle:     (*BigQueryHandlers).handleCohortRetention,
 			wantStatus: http.StatusOK,
@@ -910,42 +912,42 @@ func containsString(s, sub string) bool {
 		}())
 }
 
-func (m *mockBigQueryClient) GetCostDays(_ context.Context, _ string) ([]CostDay, error) {
+func (m *mockBigQueryClient) GetCostDays(_ context.Context, _ string) ([]bqstore.CostDay, error) {
 	return nil, nil
 }
 
-func (m *mockBigQueryClient) GetCostUserDays(_ context.Context, _ string) ([]UserDay, error) {
+func (m *mockBigQueryClient) GetCostUserDays(_ context.Context, _ string) ([]bqstore.UserDay, error) {
 	return nil, nil
 }
 
-func (m *mockBigQueryClient) GetCostAnomalies(_ context.Context) ([]Anomaly, error) {
+func (m *mockBigQueryClient) GetCostAnomalies(_ context.Context) ([]bqstore.Anomaly, error) {
 	return m.anomalies, nil
 }
 
-func (m *mockBigQueryClient) GetLimitSnapshots(_ context.Context) ([]LimitChange, error) {
+func (m *mockBigQueryClient) GetLimitSnapshots(_ context.Context) ([]bqstore.LimitChange, error) {
 	return nil, nil
 }
 
-func (m *mockBigQueryClient) GetSpendBands(_ context.Context) (*SpendBands, error) {
+func (m *mockBigQueryClient) GetSpendBands(_ context.Context) (*bqstore.SpendBands, error) {
 	return m.spendBands, nil
 }
 
-func (m *mockBigQueryClient) GetActiveUsersMonthly(_ context.Context) ([]ActiveUsersMonth, error) {
-	return []ActiveUsersMonth{{Month: "2026-09", ActiveUsers: 719}}, nil
+func (m *mockBigQueryClient) GetActiveUsersMonthly(_ context.Context) ([]bqstore.ActiveUsersMonth, error) {
+	return []bqstore.ActiveUsersMonth{{Month: "2026-09", ActiveUsers: 719}}, nil
 }
 
-func (m *mockBigQueryClient) GetModelFamilyUsers(_ context.Context) ([]ModelFamilyUsers, error) {
-	return []ModelFamilyUsers{}, nil
+func (m *mockBigQueryClient) GetModelFamilyUsers(_ context.Context) ([]bqstore.ModelFamilyUsers, error) {
+	return []bqstore.ModelFamilyUsers{}, nil
 }
 
-func (m *mockBigQueryClient) GetVolumeMonthly(_ context.Context, _ int) ([]VolumeMonth, error) {
-	return []VolumeMonth{{Month: "2026-09", AICredits: 100}}, nil
+func (m *mockBigQueryClient) GetVolumeMonthly(_ context.Context, _ int) ([]bqstore.VolumeMonth, error) {
+	return []bqstore.VolumeMonth{{Month: "2026-09", AICredits: 100}}, nil
 }
 
-func (m *mockBigQueryClient) GetBudgetDays(_ context.Context) ([]BudgetDay, error) {
-	return []BudgetDay{}, nil
+func (m *mockBigQueryClient) GetBudgetDays(_ context.Context) ([]bqstore.BudgetDay, error) {
+	return []bqstore.BudgetDay{}, nil
 }
 
-func (m *mockBigQueryClient) GetHighConsumers(_ context.Context) ([]HighConsumerMonth, error) {
-	return []HighConsumerMonth{}, nil
+func (m *mockBigQueryClient) GetHighConsumers(_ context.Context) ([]bqstore.HighConsumerMonth, error) {
+	return []bqstore.HighConsumerMonth{}, nil
 }

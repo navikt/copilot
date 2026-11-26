@@ -12,7 +12,7 @@ import (
 // web UI convention. Reflects copilot-api's UserMetricsSummary fields
 // (interactions/acceptances/lines/active days) — there is no per-user
 // "credits" or "subscription" concept in that endpoint (see
-// apps/copilot-api/bigquery_stats.go); a daily-credits endpoint exists
+// apps/copilot-api/internal/bigquery/bigquery_stats.go); a daily-credits endpoint exists
 // separately (GetUserDailyCredits) but is not yet wired into this command.
 func formatUsageTerminal(u *usageResponse) string {
 	var b strings.Builder

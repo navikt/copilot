@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 	"hash/fnv"
 	"log/slog"
 	"math"
@@ -24,35 +25,6 @@ import (
 
 const minPublicGroup = 20
 
-// FactAggregates is one row of Nav-wide totals. The week is the seven days up
-// to DataDay (the newest day in user_metrics), the month the 28 days up to it.
-type FactAggregates struct {
-	DataDay          string        `bigquery:"data_day"`
-	WeekUsers        int64         `bigquery:"week_users"`
-	MCPUsers         int64         `bigquery:"mcp_users"`
-	SkillUsers       int64         `bigquery:"skill_users"`
-	CustomAgentUsers int64         `bigquery:"custom_agent_users"`
-	Users3PlusModels int64         `bigquery:"users_3plus_models"`
-	MonthUsers       int64         `bigquery:"month_users"`
-	MonthUserDays    int64         `bigquery:"month_user_days"`
-	WeekendUserDays  int64         `bigquery:"weekend_user_days"`
-	WeekendUsers     int64         `bigquery:"weekend_users"`
-	WeekdayAvg       float64       `bigquery:"weekday_avg"`
-	JuneUsers        int64         `bigquery:"june_users"`
-	JuneWeekdayAvg   float64       `bigquery:"june_weekday_avg"`
-	JulyWeekdayAvg   float64       `bigquery:"july_weekday_avg"`
-	Families         []FamilyUsers `bigquery:"families"`
-	// From the weekly repo scan, not user_metrics; filled by the handler.
-	ActiveRepos            int64 `bigquery:"-"`
-	ActiveReposWithCustoms int64 `bigquery:"-"`
-}
-
-// FamilyUsers counts distinct users per model family the past week, largest first.
-type FamilyUsers struct {
-	Family string `bigquery:"family"`
-	Users  int64  `bigquery:"users"`
-}
-
 // Fact is all the public endpoint returns. WeekUsers is the rounded count of
 // people the past week for the front page's insight strip, omitted below 50.
 type Fact struct {
@@ -65,7 +37,7 @@ type factTemplate struct {
 	id     string
 	theme  string
 	href   string
-	render func(a *FactAggregates) (string, bool)
+	render func(a *bqstore.FactAggregates) (string, bool)
 }
 
 // publicPct is a whole-number share, ok only when both counts reach minPublicGroup.
@@ -90,24 +62,24 @@ func roundPeople(n float64) (string, bool) {
 
 var factTemplates = []factTemplate{
 	// Mandag: bruk og vaner
-	{"helg", "bruk", "/innsikt/bruk", func(a *FactAggregates) (string, bool) {
+	{"helg", "bruk", "/innsikt/bruk", func(a *bqstore.FactAggregates) (string, bool) {
 		p, ok := publicPct(a.WeekendUserDays, a.MonthUserDays)
 		ok = ok && a.WeekendUsers >= minPublicGroup && a.MonthUsers-a.WeekendUsers >= minPublicGroup
 		return fmt.Sprintf("%d %% av bruken de siste fire ukene skjedde i helgene.", p), ok
 	}},
-	{"fellesferie", "bruk", "/innsikt/trender", func(a *FactAggregates) (string, bool) {
+	{"fellesferie", "bruk", "/innsikt/trender", func(a *bqstore.FactAggregates) (string, bool) {
 		if a.JuneWeekdayAvg < minPublicGroup || a.JulyWeekdayAvg < minPublicGroup || a.JulyWeekdayAvg >= a.JuneWeekdayAvg {
 			return "", false
 		}
 		p := int(math.Round((1 - a.JulyWeekdayAvg/a.JuneWeekdayAvg) * 100))
 		return fmt.Sprintf("I juli var det %d %% færre som brukte Copilot på en vanlig arbeidsdag enn i juni.", p), p >= 1
 	}},
-	{"arbeidsdag", "bruk", "/innsikt/bruk", func(a *FactAggregates) (string, bool) {
+	{"arbeidsdag", "bruk", "/innsikt/bruk", func(a *bqstore.FactAggregates) (string, bool) {
 		n, ok := roundPeople(a.WeekdayAvg)
 		return "Rundt " + n + " personer bruker Copilot på en vanlig arbeidsdag.", ok
 	}},
 	// Tirsdag: modeller
-	{"modellfamilier", "modeller", "/innsikt/bruk", func(a *FactAggregates) (string, bool) {
+	{"modellfamilier", "modeller", "/innsikt/bruk", func(a *bqstore.FactAggregates) (string, bool) {
 		n := 0
 		for _, f := range a.Families {
 			if f.Users >= minPublicGroup {
@@ -116,7 +88,7 @@ var factTemplates = []factTemplate{
 		}
 		return fmt.Sprintf("%d modellfamilier hadde minst %d brukere den siste uka.", n, minPublicGroup), n >= 2
 	}},
-	{"ledende-familie", "modeller", "/innsikt/bruk", func(a *FactAggregates) (string, bool) {
+	{"ledende-familie", "modeller", "/innsikt/bruk", func(a *bqstore.FactAggregates) (string, bool) {
 		if len(a.Families) == 0 {
 			return "", false
 		}
@@ -124,37 +96,37 @@ var factTemplates = []factTemplate{
 		p, ok := publicPct(top.Users, a.WeekUsers)
 		return fmt.Sprintf("%s var den mest brukte modellfamilien den siste uka. %d %% av brukerne brukte en modell derfra.", top.Family, p), ok
 	}},
-	{"tre-modeller", "modeller", "/innsikt/bruk", func(a *FactAggregates) (string, bool) {
+	{"tre-modeller", "modeller", "/innsikt/bruk", func(a *bqstore.FactAggregates) (string, bool) {
 		p, ok := publicPct(a.Users3PlusModels, a.WeekUsers)
 		return fmt.Sprintf("%d %% av brukerne brukte minst tre ulike modeller den siste uka.", p), ok
 	}},
 	// Onsdag: kode og verktøy
-	{"mcp", "verktoy", "/innsikt/tilpasninger", func(a *FactAggregates) (string, bool) {
+	{"mcp", "verktoy", "/innsikt/tilpasninger", func(a *bqstore.FactAggregates) (string, bool) {
 		p, ok := publicPct(a.MCPUsers, a.WeekUsers)
 		return fmt.Sprintf("%d %% av brukerne brukte minst én MCP-server den siste uka.", p), ok
 	}},
-	{"skills", "verktoy", "/innsikt/tilpasninger", func(a *FactAggregates) (string, bool) {
+	{"skills", "verktoy", "/innsikt/tilpasninger", func(a *bqstore.FactAggregates) (string, bool) {
 		p, ok := publicPct(a.SkillUsers, a.WeekUsers)
 		return fmt.Sprintf("%d %% av brukerne brukte minst én skill den siste uka.", p), ok
 	}},
-	{"egne-agenter", "verktoy", "/innsikt/tilpasninger", func(a *FactAggregates) (string, bool) {
+	{"egne-agenter", "verktoy", "/innsikt/tilpasninger", func(a *bqstore.FactAggregates) (string, bool) {
 		p, ok := publicPct(a.CustomAgentUsers, a.WeekUsers)
 		return fmt.Sprintf("%d %% av brukerne brukte en egendefinert agent den siste uka.", p), ok
 	}},
 	// Torsdag: vekst og milepæler
-	{"ukebrukere", "vekst", "/innsikt/trender", func(a *FactAggregates) (string, bool) {
+	{"ukebrukere", "vekst", "/innsikt/trender", func(a *bqstore.FactAggregates) (string, bool) {
 		n, ok := roundPeople(float64(a.WeekUsers))
 		return "Rundt " + n + " personer brukte Copilot den siste uka.", ok
 	}},
-	{"maanedsbrukere", "vekst", "/innsikt/bruk", func(a *FactAggregates) (string, bool) {
+	{"maanedsbrukere", "vekst", "/innsikt/bruk", func(a *bqstore.FactAggregates) (string, bool) {
 		n, ok := roundPeople(float64(a.MonthUsers))
 		return "Rundt " + n + " personer brukte Copilot de siste 28 dagene.", ok
 	}},
-	{"repoer-tilpasninger", "verktoy", "/innsikt/tilpasninger", func(a *FactAggregates) (string, bool) {
+	{"repoer-tilpasninger", "verktoy", "/innsikt/tilpasninger", func(a *bqstore.FactAggregates) (string, bool) {
 		p, ok := publicPct(a.ActiveReposWithCustoms, a.ActiveRepos)
 		return fmt.Sprintf("%d %% av de aktive navikt-repoene har tilpasninger for Copilot.", p), ok
 	}},
-	{"vekst-juni", "vekst", "/innsikt/trender", func(a *FactAggregates) (string, bool) {
+	{"vekst-juni", "vekst", "/innsikt/trender", func(a *bqstore.FactAggregates) (string, bool) {
 		if a.JuneUsers < minPublicGroup || a.MonthUsers <= a.JuneUsers {
 			return "", false
 		}
@@ -162,14 +134,6 @@ var factTemplates = []factTemplate{
 		return fmt.Sprintf("Antallet som brukte Copilot de siste fire ukene er %d %% høyere enn i juni.", p), p >= 1
 	}},
 }
-
-var oslo = func() *time.Location {
-	loc, err := time.LoadLocation("Europe/Oslo")
-	if err != nil {
-		panic(err) // tzdata is embedded below; a wrong day boundary is worse than no start
-	}
-	return loc
-}()
 
 var weekdayTheme = map[time.Weekday]string{
 	time.Monday: "bruk", time.Tuesday: "modeller", time.Wednesday: "verktoy", time.Thursday: "vekst",
@@ -201,7 +165,7 @@ func factOrder(day time.Time) []factTemplate {
 }
 
 // pickFact renders the first template in the day's order that has enough data.
-func pickFact(day time.Time, a *FactAggregates) (*Fact, string) {
+func pickFact(day time.Time, a *bqstore.FactAggregates) (*Fact, string) {
 	if a == nil {
 		return nil, ""
 	}
@@ -220,7 +184,7 @@ func (h *BigQueryHandlers) handlePublicFact(w http.ResponseWriter, r *http.Reque
 		respondError(w, "internal_error", "Failed to fetch fact", http.StatusInternalServerError)
 		return
 	}
-	fact, id := pickFact(time.Now().In(oslo), agg)
+	fact, id := pickFact(time.Now().In(bqstore.Oslo), agg)
 	if fact != nil && id != "ukebrukere" { // the sentence already says it
 		if n := round50(float64(agg.WeekUsers)); n >= 50 {
 			fact.WeekUsers = n

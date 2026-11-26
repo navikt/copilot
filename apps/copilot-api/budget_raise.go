@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 	"hash/fnv"
 	"io"
 	"io/fs"
@@ -282,7 +283,7 @@ func decodeStrict(w http.ResponseWriter, r *http.Request, v any) bool {
 // teamSource lists GitHub org teams (owner decision on #2704: the charged team
 // is a GitHub team slug, not Teamkatalogen). CachedBigQueryClient implements it.
 type teamSource interface {
-	GetGitHubTeams(ctx context.Context) ([]GitHubTeam, error)
+	GetGitHubTeams(ctx context.Context) ([]bqstore.GitHubTeam, error)
 	GetRosterTeams(ctx context.Context, login string) ([]string, error)
 }
 
@@ -290,14 +291,14 @@ type teamSource interface {
 // «annet/ukjent». If the team source is down, only «annet» is offered and
 // accepted (fails closed), and known is false: membership is unknown, which
 // is not the same as having left a team.
-func (h *budgetRaiseHandlers) budgetTeams(ctx context.Context, login string) (teams []GitHubTeam, known bool) {
-	teams = []GitHubTeam{{Slug: budgetTeamOther, Name: "Annet/ukjent"}}
+func (h *budgetRaiseHandlers) budgetTeams(ctx context.Context, login string) (teams []bqstore.GitHubTeam, known bool) {
+	teams = []bqstore.GitHubTeam{{Slug: budgetTeamOther, Name: "Annet/ukjent"}}
 	if h.teams == nil {
 		return teams, false
 	}
 	// Names only label the list, so they load alongside the roster: two cold
 	// 12 s queries in a row would pass the BFF's 15 s deadline.
-	names := make(chan []GitHubTeam, 1)
+	names := make(chan []bqstore.GitHubTeam, 1)
 	go func() {
 		all, err := h.teams.GetGitHubTeams(ctx)
 		if err != nil {
@@ -312,10 +313,10 @@ func (h *budgetRaiseHandlers) budgetTeams(ctx context.Context, login string) (te
 	all := <-names
 	for _, slug := range mine {
 		name := slug
-		if i := slices.IndexFunc(all, func(t GitHubTeam) bool { return t.Slug == slug }); i >= 0 {
+		if i := slices.IndexFunc(all, func(t bqstore.GitHubTeam) bool { return t.Slug == slug }); i >= 0 {
 			name = all[i].Name
 		}
-		teams = append(teams, GitHubTeam{Slug: slug, Name: name})
+		teams = append(teams, bqstore.GitHubTeam{Slug: slug, Name: name})
 	}
 	return teams, true
 }

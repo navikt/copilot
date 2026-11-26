@@ -1,6 +1,7 @@
 package main
 
 import (
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 	"time"
 )
 
@@ -79,7 +80,7 @@ func weekdayFactors(gross map[string]float64, last time.Time) (f [7]float64, ok 
 // shapeByWeekday spreads the total of rem over the same days in proportion
 // to each day's weekday factor (holidays as Sundays). rem is returned as is
 // without factors.
-func shapeByWeekday(days []CostDay, month, last time.Time, rem []float64) []float64 {
+func shapeByWeekday(days []bqstore.CostDay, month, last time.Time, rem []float64) []float64 {
 	gross := map[string]float64{}
 	for _, d := range days {
 		gross[d.Day] = d.Gross

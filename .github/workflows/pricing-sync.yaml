@@ -54,7 +54,7 @@ jobs:
           set -euo pipefail
           FILE=apps/my-copilot/src/lib/model-pricing.ts
           DOC=docs/modellvalg.md
-          METADATA=apps/copilot-api/model_metadata.json
+          METADATA=apps/copilot-api/internal/bigquery/model_metadata.json
 
           # The generator stamps today's date into the file on every run, so an
           # unchanged price list still produces a diff, and we used to open a PR

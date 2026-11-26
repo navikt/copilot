@@ -1,6 +1,7 @@
 package main
 
 import (
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 	"log/slog"
 	"math"
 	"net/http"
@@ -149,13 +150,13 @@ type TeamAdoptionOverview struct {
 
 func pct(rate float64) int64 { return int64(math.Round(rate * 100)) }
 
-func teamAdoptionOverview(teams []TeamAdoption) TeamAdoptionOverview {
+func teamAdoptionOverview(teams []bqstore.TeamAdoption) TeamAdoptionOverview {
 	out := TeamAdoptionOverview{Teams: []TeamAdoptionRow{}}
 	for _, t := range teams {
 		if t.ActiveRepos <= 0 {
 			continue
 		}
-		if t.ActiveRepos < minTeamContributors {
+		if t.ActiveRepos < bqstore.MinTeamContributors {
 			out.SmallTeams++
 			continue
 		}
@@ -169,7 +170,7 @@ func teamAdoptionOverview(teams []TeamAdoption) TeamAdoptionOverview {
 			Commits30d:              t.Commits30d,
 			OpenIssuesCount:         t.OpenIssuesCount,
 		}
-		if t.PRsMerged30d >= minTeamContributors {
+		if t.PRsMerged30d >= bqstore.MinTeamContributors {
 			row.PRsMerged30d = t.PRsMerged30d
 			row.PRsReviewedByCopilot30d = t.PRsReviewedByCopilot30d
 			row.AvgMedianMergeMins30d = t.AvgMedianMergeMins30d
@@ -273,7 +274,7 @@ func (h *BigQueryHandlers) handleAdoptionStaleness(w http.ResponseWriter, r *htt
 		syncRate = float64(inSyncCount) / float64(totalInstances)
 	}
 
-	summary := StalenessSummary{
+	summary := bqstore.StalenessSummary{
 		TotalFiles:         int64(len(files)),
 		TotalFileInstances: totalInstances,
 		InSyncCount:        inSyncCount,
@@ -300,7 +301,7 @@ func (h *BigQueryHandlers) handleNavPilotTelemetry(w http.ResponseWriter, r *htt
 		return
 	}
 	if telemetry == nil {
-		telemetry = aggregateNavPilotTelemetry(nil)
+		telemetry = bqstore.AggregateNavPilotTelemetry(nil)
 	}
 
 	cacheControl(w, 3600, false)

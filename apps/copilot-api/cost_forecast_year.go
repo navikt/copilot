@@ -1,6 +1,7 @@
 package main
 
 import (
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 	"math"
 	"time"
 )
@@ -76,7 +77,7 @@ func seasonal(m time.Month) float64 {
 // absolute error in percent. Limits: horizons of one and two months only,
 // while the forecast looks further; and the holiday factors were derived from
 // June and August, so predictions of August see a little of it.
-func yearBacktest(closed []AdminMonth, au map[string]int64) (float64, int) {
+func yearBacktest(closed []bqstore.AdminMonth, au map[string]int64) (float64, int) {
 	var sum float64
 	var n int
 	for i := range closed {
@@ -88,7 +89,7 @@ func yearBacktest(closed []AdminMonth, au map[string]int64) (float64, int) {
 		base := *closed[i].EnterpriseNetUSD / seasonal(cut.Month())
 		for h := 1; h <= 2 && i+h < len(closed); h++ {
 			t := closed[i+h]
-			if t.Month < aiCreditStart || *t.EnterpriseNetUSD <= 0 {
+			if t.Month < bqstore.AiCreditStart || *t.EnterpriseNetUSD <= 0 {
 				continue
 			}
 			tm, _ := time.Parse("2006-01", t.Month)
@@ -107,7 +108,7 @@ func yearBacktest(closed []AdminMonth, au map[string]int64) (float64, int) {
 // yearGrowth fits log(active users) and log(fakturert per active user) on the
 // last yearFitMonths closed months, holiday-adjusted, and returns the damped
 // monthly log growth of fakturert. ok is false with fewer than two months.
-func yearGrowth(months []AdminMonth, users map[string]int64) (g float64, ok bool) {
+func yearGrowth(months []bqstore.AdminMonth, users map[string]int64) (g float64, ok bool) {
 	var xs, lu, lp []float64
 	for _, m := range months {
 		if m.EnterpriseNetUSD == nil || *m.EnterpriseNetUSD <= 0 || users[m.Month] <= 0 {
@@ -150,12 +151,12 @@ func slope(xs, ys []float64) float64 {
 // months as billed, the current month from cur, then each remaining month low
 // flat at cur's midpoint, mid on the damped trend (never below flat) and high
 // the backtest error (at least yearBandFloorPct) above mid. December gets christmasFactor on mid and high.
-func yearForecast(months []AdminMonth, users []ActiveUsersMonth, cur ModelForecast, month time.Time) ([]YearForecastPoint, *YearEnd) {
+func yearForecast(months []bqstore.AdminMonth, users []bqstore.ActiveUsersMonth, cur ModelForecast, month time.Time) ([]YearForecastPoint, *YearEnd) {
 	au := map[string]int64{}
 	for _, u := range users {
 		au[u.Month] = u.ActiveUsers
 	}
-	var closed []AdminMonth
+	var closed []bqstore.AdminMonth
 	out := []YearForecastPoint{}
 	var c float64
 	for _, m := range months {
@@ -178,7 +179,7 @@ func yearForecast(months []AdminMonth, users []ActiveUsersMonth, cur ModelForeca
 	end := YearEnd{BacktestErrorPct: errPct, RangePct: math.Max(yearBandFloorPct, errPct)}
 	credits := 0
 	for _, m := range closed {
-		if m.Month >= aiCreditStart && *m.EnterpriseNetUSD > 0 {
+		if m.Month >= bqstore.AiCreditStart && *m.EnterpriseNetUSD > 0 {
 			credits++
 		}
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 	"log/slog"
 	"net/http"
 	"regexp"
@@ -35,7 +36,7 @@ func optionalMonthParam(r *http.Request, name string) (string, bool) {
 	if value == "" {
 		return time.Now().UTC().Format("2006-01"), true
 	}
-	if !isValidYearMonth(value) {
+	if !bqstore.IsValidYearMonth(value) {
 		return "", false
 	}
 	return value, true
@@ -55,9 +56,9 @@ func (h *BigQueryHandlers) handleTeamGrossOverview(w http.ResponseWriter, r *htt
 	}
 	prevGross, _ := h.previousTeamMonth(r.Context(), month, false)
 	out := *usage
-	out.Comparison = teamComparison(month, time.Now(), usage.DaysWithUsage, prevGross, false, false)
-	if out.Comparison == comparisonOK {
-		out.Teams = withChanges(usage.Teams, prevGross.Teams)
+	out.Comparison = bqstore.TeamComparison(month, time.Now(), usage.DaysWithUsage, prevGross, false, false)
+	if out.Comparison == bqstore.ComparisonOK {
+		out.Teams = bqstore.WithChanges(usage.Teams, prevGross.Teams)
 	}
 	cacheControl(w, 3600, false)
 	respondJSON(w, out, http.StatusOK)
@@ -71,7 +72,7 @@ func (h *BigQueryHandlers) handleTeamNetOverview(w http.ResponseWriter, r *http.
 	}
 	usage, err := h.bqClient.GetTeamNetOverview(r.Context(), month)
 	if err != nil {
-		if errors.Is(err, errTeamNetNotReady) {
+		if errors.Is(err, bqstore.ErrTeamNetNotReady) {
 			respondJSON(w, nil, http.StatusOK)
 			return
 		}
@@ -84,12 +85,12 @@ func (h *BigQueryHandlers) handleTeamNetOverview(w http.ResponseWriter, r *http.
 		return
 	}
 	out := *usage
-	out.Comparison = comparisonIncomplete
+	out.Comparison = bqstore.ComparisonIncomplete
 	if gross, err := h.bqClient.GetTeamGrossOverview(r.Context(), month); err == nil && gross != nil {
 		prevGross, prevNet := h.previousTeamMonth(r.Context(), month, true)
-		out.Comparison = teamComparison(month, time.Now(), gross.DaysWithUsage, prevGross, true, prevNet != nil)
-		if out.Comparison == comparisonOK {
-			out.Teams = withChanges(usage.Teams, prevNet.Teams)
+		out.Comparison = bqstore.TeamComparison(month, time.Now(), gross.DaysWithUsage, prevGross, true, prevNet != nil)
+		if out.Comparison == bqstore.ComparisonOK {
+			out.Teams = bqstore.WithChanges(usage.Teams, prevNet.Teams)
 		}
 	}
 	cacheControl(w, 3600, false)
@@ -148,7 +149,7 @@ func (h *BigQueryHandlers) handleAdminMonthly(w http.ResponseWriter, r *http.Req
 const firstTeamMonth = "2026-05"
 
 // previousTeamMonth loads the month before month. Failures only remove the comparison.
-func (h *BigQueryHandlers) previousTeamMonth(ctx context.Context, month string, net bool) (*TeamGrossOverview, *TeamNetOverview) {
+func (h *BigQueryHandlers) previousTeamMonth(ctx context.Context, month string, net bool) (*bqstore.TeamGrossOverview, *bqstore.TeamNetOverview) {
 	first, _ := time.Parse("2006-01", month)
 	prev := first.AddDate(0, -1, 0).Format("2006-01")
 	if prev < firstTeamMonth {
@@ -163,7 +164,7 @@ func (h *BigQueryHandlers) previousTeamMonth(ctx context.Context, month string, 
 		return gross, nil
 	}
 	prevNet, err := h.bqClient.GetTeamNetOverview(ctx, prev)
-	if err != nil && !errors.Is(err, errTeamNetNotReady) {
+	if err != nil && !errors.Is(err, bqstore.ErrTeamNetNotReady) {
 		slog.Warn("Previous team net month unavailable")
 	}
 	return gross, prevNet
@@ -267,7 +268,7 @@ func (h *BigQueryHandlers) handleBillingModelDaily(w http.ResponseWriter, r *htt
 		return
 	}
 	if usage == nil {
-		usage = []BillingModelDailyCost{}
+		usage = []bqstore.BillingModelDailyCost{}
 	}
 
 	cacheControl(w, 900, false)
@@ -365,7 +366,7 @@ func (h *BigQueryHandlers) handleAdoptionCohorts(w http.ResponseWriter, r *http.
 	cacheControl(w, 3600, false)
 	// Nav-wide phase counts name no one, so small cells are shown as is (see the
 	// small-group rule in segments.go).
-	respondJSON(w, weeklyCohorts(cohorts), http.StatusOK)
+	respondJSON(w, bqstore.WeeklyCohorts(cohorts), http.StatusOK)
 }
 
 func (h *BigQueryHandlers) handleBillingMonthlyTrend(w http.ResponseWriter, r *http.Request) {

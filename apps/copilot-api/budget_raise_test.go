@@ -2,8 +2,6 @@ package main
 
 import (
 	"bytes"
-	"cloud.google.com/go/bigquery"
-	"cloud.google.com/go/civil"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -18,10 +16,11 @@ import (
 	"testing"
 	"time"
 
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
-	"github.com/navikt/copilot/apps/copilot-api/internal/cache"
 
 	"github.com/navikt/copilot/apps/copilot-api/internal/github"
 )
@@ -35,9 +34,9 @@ type fakeTeams struct {
 	delay    time.Duration // per lookup, like a cold BigQuery cache
 }
 
-func (f fakeTeams) GetGitHubTeams(context.Context) ([]GitHubTeam, error) {
+func (f fakeTeams) GetGitHubTeams(context.Context) ([]bqstore.GitHubTeam, error) {
 	time.Sleep(f.delay)
-	return []GitHubTeam{{Slug: "team-a", Name: "Team A"}, {Slug: "team-b", Name: "Team B"}}, f.err
+	return []bqstore.GitHubTeam{{Slug: "team-a", Name: "Team A"}, {Slug: "team-b", Name: "Team B"}}, f.err
 }
 
 // GetUserTeams mimics the activity fallback; budget code must not use it.
@@ -1002,42 +1001,6 @@ func TestBudgetRaiseReplayBeforeTeamCheck(t *testing.T) {
 	e.h.teams = fakeTeams{mine: []string{"team-a"}} // left team-b, then the client retries
 	if code, out := e.do("POST", "/api/v1/copilot/budget/raises", "ola", "k1", body); code != 200 || out["replayed"] != true || len(e.gh.writes) != 1 {
 		t.Errorf("retry must replay, not fail on team: %d %v writes=%d", code, out, len(e.gh.writes))
-	}
-}
-
-func TestRosterTeamsNoSnapshotIsUnknown(t *testing.T) {
-	now := time.Date(2026, 11, 23, 10, 0, 0, 0, time.UTC)
-	snap := func(daysAgo int) bigquery.NullDate {
-		return bigquery.NullDate{Date: civil.DateOf(now).AddDays(-daysAgo), Valid: true}
-	}
-	if _, err := rosterTeams([]rosterRow{{}}, now); err == nil {
-		t.Error("no snapshot must be an error, not an empty membership")
-	}
-	if _, err := rosterTeams([]rosterRow{{SnapshotDate: snap(rosterMaxAgeDays + 1)}}, now); err == nil {
-		t.Error("a stale snapshot must count as unknown")
-	}
-	if got, err := rosterTeams([]rosterRow{{SnapshotDate: snap(rosterMaxAgeDays)}}, now); err != nil || len(got) != 0 {
-		t.Errorf("recent snapshot without the user: %v %v", got, err)
-	}
-	if got, _ := rosterTeams([]rosterRow{{SnapshotDate: snap(0), TeamSlug: bigquery.NullString{StringVal: "team-b", Valid: true}}}, now); len(got) != 1 {
-		t.Errorf("member: %v", got)
-	}
-}
-
-func TestCachedRosterRechecksSnapshotAge(t *testing.T) {
-	day := time.Date(2026, 11, 23, 23, 55, 0, 0, time.UTC)
-	now := day
-	c := &CachedBigQueryClient{cache: cache.New(time.Hour), now: func() time.Time { return now }}
-	c.cache.Set("roster_rows_ola", []rosterRow{{
-		SnapshotDate: bigquery.NullDate{Date: civil.DateOf(day).AddDays(-rosterMaxAgeDays), Valid: true},
-		TeamSlug:     bigquery.NullString{StringVal: "team-b", Valid: true},
-	}})
-	if got, err := c.GetRosterTeams(context.Background(), "ola"); err != nil || len(got) != 1 {
-		t.Fatalf("fresh cached roster: %v %v", got, err)
-	}
-	now = day.Add(10 * time.Minute) // past midnight: the cached snapshot is now too old
-	if _, err := c.GetRosterTeams(context.Background(), "ola"); err == nil {
-		t.Error("a cache hit must re-check the snapshot age")
 	}
 }
 

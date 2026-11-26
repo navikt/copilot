@@ -5,15 +5,17 @@ import (
 	"math"
 	"testing"
 	"time"
+
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 )
 
 // synthDays builds last month and this month up to upTo: weekday gross g on
 // day k is base+k, weekends 10 % of base. The allowance pool is used up on the
 // first days of each month (prevPool last month, pool this month); after that
 // 2 % of gross stays free.
-func synthDays(until int, prevPool, pool float64) []CostDay {
+func synthDays(until int, prevPool, pool float64) []bqstore.CostDay {
 	pools := []float64{prevPool, pool}
-	var out []CostDay
+	var out []bqstore.CostDay
 	for i, m := range []time.Time{time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)} {
 		left := pools[i]
 		for d := m; d.Month() == m.Month(); d = d.AddDate(0, 0, 1) {
@@ -21,13 +23,13 @@ func synthDays(until int, prevPool, pool float64) []CostDay {
 				break
 			}
 			g := 100.0 + float64(d.YearDay())
-			if isWeekend(d) {
+			if bqstore.IsWeekend(d) {
 				g = 10
 			}
 			free := math.Min(left, g)
 			left -= free
 			net := (g - free) * 0.98
-			out = append(out, CostDay{Day: d.Format("2006-01-02"), Gross: g, Net: net})
+			out = append(out, bqstore.CostDay{Day: d.Format("2006-01-02"), Gross: g, Net: net})
 		}
 	}
 	return out
@@ -35,7 +37,7 @@ func synthDays(until int, prevPool, pool float64) []CostDay {
 
 var oct = time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
 
-func trendForecast(t *testing.T, days []CostDay) ModelForecast {
+func trendForecast(t *testing.T, days []bqstore.CostDay) ModelForecast {
 	t.Helper()
 	last, ok := lastDayIn(days, oct)
 	if !ok {
@@ -83,14 +85,14 @@ func TestTrendWithPool(t *testing.T) {
 
 func TestProjectUsersCapsAtLimitInForce(t *testing.T) {
 	sep := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
-	var users []UserDay
+	var users []bqstore.UserDay
 	for d := 1; d <= 31; d++ {
-		users = append(users, UserDay{"heavy", dayOf(time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC), d).Format("2006-01-02"), 30})
-		users = append(users, UserDay{"light", dayOf(time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC), d).Format("2006-01-02"), 1})
+		users = append(users, bqstore.UserDay{UserID: "heavy", Day: dayOf(time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC), d).Format("2006-01-02"), Gross: 30})
+		users = append(users, bqstore.UserDay{UserID: "light", Day: dayOf(time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC), d).Format("2006-01-02"), Gross: 1})
 	}
 	for d := 1; d <= 10; d++ {
-		users = append(users, UserDay{"heavy", dayOf(sep, d).Format("2006-01-02"), 30})
-		users = append(users, UserDay{"light", dayOf(sep, d).Format("2006-01-02"), 1})
+		users = append(users, bqstore.UserDay{UserID: "heavy", Day: dayOf(sep, d).Format("2006-01-02"), Gross: 30})
+		users = append(users, bqstore.UserDay{UserID: "light", Day: dayOf(sep, d).Format("2006-01-02"), Gross: 1})
 	}
 	proj, daily := projectUsers(users, sep, dayOf(sep, 10))
 	got := map[string]UserProjection{}
@@ -116,10 +118,10 @@ func TestProjectUsersCapsAtLimitInForce(t *testing.T) {
 
 func TestProjectUsersSkipsJulyReference(t *testing.T) {
 	aug := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
-	users := []UserDay{{"u", "2026-07-15", 100}}
+	users := []bqstore.UserDay{{UserID: "u", Day: "2026-07-15", Gross: 100}}
 	for d := 1; d <= 10; d++ {
-		if !isWeekend(dayOf(aug, d)) {
-			users = append(users, UserDay{"u", dayOf(aug, d).Format("2006-01-02"), 2})
+		if !bqstore.IsWeekend(dayOf(aug, d)) {
+			users = append(users, bqstore.UserDay{UserID: "u", Day: dayOf(aug, d).Format("2006-01-02"), Gross: 2})
 		}
 	}
 	proj, _ := projectUsers(users, aug, dayOf(aug, 10))
@@ -197,7 +199,7 @@ func TestBuildCostForecastDays(t *testing.T) {
 
 func TestBuildCostForecastDaysWithoutTrend(t *testing.T) {
 	// October only: no history, so neither model can run.
-	oct2 := upTo(synthDays(2, 1000, 1000), func(d CostDay) string { return d.Day }, "2026-10-31")[30:]
+	oct2 := upTo(synthDays(2, 1000, 1000), func(d bqstore.CostDay) string { return d.Day }, "2026-10-31")[30:]
 	f := buildCostForecast(oct2, nil, oct, 0, budgetMissing)
 	if len(f.Models) != 0 || len(f.Days) != 2 || f.Days[1].Forecast {
 		t.Fatalf("actual days must come without a trend: %+v", f)

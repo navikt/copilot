@@ -4,6 +4,8 @@ import (
 	"math"
 	"testing"
 	"time"
+
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 )
 
 // weekGross fills gross for every day from start to end: weekdays wd, weekends we.
@@ -11,7 +13,7 @@ func weekGross(start, end time.Time, wd, we float64) map[string]float64 {
 	g := map[string]float64{}
 	for d := start; !d.After(end); d = d.AddDate(0, 0, 1) {
 		v := wd
-		if isWeekend(d) {
+		if bqstore.IsWeekend(d) {
 			v = we
 		}
 		g[d.Format("2006-01-02")] = v
