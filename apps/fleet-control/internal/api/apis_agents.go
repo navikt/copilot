@@ -879,16 +879,23 @@ func (d *DB) grantProfile(ctx context.Context, c caller, ns, name string, gen in
 		if err != nil {
 			return err
 		}
-		if time.Now().After(g.pendingExpiresAt()) {
-			// Commit only the audit row; the caller gets 410. Earlier grants lapse with the generation.
-			expired = true
-			return auditV1(ctx, tx, c, "approval_expired", "AgentProfile", ns, name, &gen, map[string]any{"outcome": "expired", "server": ref.key(), "contentHash": hash, "expiresAt": g.pendingExpiresAt()})
-		}
 		want, ok := g.GrantHashes[ref.key()]
 		i := slices.IndexFunc(g.Spec.Grants, func(gr AgentGrantV1) bool { return gr.ServerRef.key() == ref.key() })
-		switch {
-		case !ok || i < 0:
+		if !ok || i < 0 {
+			// Before the expiry check: only a grant in this generation may write an approval_expired row.
 			return conflict("serverRef", "FieldValueNotFound", "generation %d grants nothing on %s", gen, ref.key())
+		}
+		now, err := txNow(ctx, tx)
+		if err != nil {
+			return err
+		}
+		if !now.Before(g.pendingExpiresAt()) {
+			// Commit only the audit row; the caller gets 410. Earlier grants lapse with the generation.
+			// Record the stored hash, never the caller's.
+			expired = true
+			return auditV1(ctx, tx, c, "approval_expired", "AgentProfile", ns, name, &gen, map[string]any{"outcome": "expired", "server": ref.key(), "contentHash": want, "expiresAt": g.pendingExpiresAt()})
+		}
+		switch {
 		case want != hash || !strings.HasPrefix(hash, canon.Prefix):
 			return conflict("contentHash", "FieldValueInvalid", "contentHash does not match the grant on %s", ref.key())
 		case g.SubKind != "User" || g.SubOid == nil:

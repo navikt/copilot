@@ -101,7 +101,9 @@ func TestRealPostgresProfilePartialGrantExpires(t *testing.T) {
 	}
 	e.want(200, "POST", base+"/old/approval", person(owner["copilot/dolly"]), grantBody(2, "copilot/dolly", h["copilot/dolly"]))
 	pub := decodeProfile(t, e.want(200, "GET", base+"/old", person("A111111"), ""))
-	if pub.Status.ExpiresAt == nil || pub.Status.ExpiresAt.After(time.Now().AddDate(0, 6, -9)) {
+	// Durations, not calendar months: six months from the oldest grant (10 days ago) is at most
+	// 174 days away, from the newest at least 181, on every date.
+	if pub.Status.ExpiresAt == nil || pub.Status.ExpiresAt.After(time.Now().Add(178*24*time.Hour)) {
 		t.Fatalf("expiry must run from the oldest grant: %v", pub.Status.ExpiresAt)
 	}
 }

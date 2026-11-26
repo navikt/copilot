@@ -500,6 +500,14 @@ func (v versionRow) submitter() *Actor { return &Actor{Kind: deref(v.SubKind), N
 
 func (v versionRow) expiresAt() time.Time { return v.CreatedAt.Add(pendingValidity) }
 
+// txNow is the database clock for the transaction. Every expiry decision uses it,
+// so a pod clock that drifts from Postgres cannot make the checks disagree.
+func txNow(ctx context.Context, tx pgx.Tx) (time.Time, error) {
+	var now time.Time
+	err := tx.QueryRow(ctx, `SELECT now()`).Scan(&now)
+	return now, err
+}
+
 func (v versionRow) approver() *Actor {
 	if v.ApprovedBy == nil {
 		return nil
@@ -727,6 +735,10 @@ func (d *DB) submitServer(ctx context.Context, c caller, m ObjectMeta, spec MCPS
 				sv.Namespace, sv.Name, jsonText(m.Labels), jsonText(m.Annotations)); err != nil {
 				return err
 			}
+			var now time.Time
+			if now, err = txNow(ctx, tx); err != nil {
+				return err
+			}
 			same := false
 			for _, v := range []*int{row.Pending, row.Published} {
 				if v == nil {
@@ -738,7 +750,7 @@ func (d *DB) submitServer(ctx context.Context, c caller, m ObjectMeta, spec MCPS
 					return err
 				}
 				// An expired pending generation does not count: the same content may be submitted again.
-				live := v == row.Published || time.Now().Before(at.Add(pendingValidity))
+				live := v == row.Published || now.Before(at.Add(pendingValidity))
 				same = same || (live && deref(h) == hash)
 			}
 			if same && row.Status != "revoked" {
@@ -795,10 +807,14 @@ func (d *DB) approveServer(ctx context.Context, c caller, platform, ns, name str
 		if err != nil {
 			return err
 		}
-		if time.Now().After(v.expiresAt()) {
-			// Commit only the audit row; the caller gets 410.
+		now, err := txNow(ctx, tx)
+		if err != nil {
+			return err
+		}
+		if !now.Before(v.expiresAt()) {
+			// Commit only the audit row; the caller gets 410. Record the stored hash, never the caller's.
 			expired = true
-			return auditV1(ctx, tx, c, "approval_expired", "MCPServer", ns, name, &gen, map[string]any{"outcome": "expired", "contentHash": hash, "expiresAt": v.expiresAt()})
+			return auditV1(ctx, tx, c, "approval_expired", "MCPServer", ns, name, &gen, map[string]any{"outcome": "expired", "contentHash": deref(v.Hash), "expiresAt": v.expiresAt()})
 		}
 		switch {
 		case v.Hash == nil || *v.Hash != hash || !strings.HasPrefix(hash, canon.Prefix):
