@@ -37,8 +37,6 @@ const AFFECTED_AGENT_IDS = [
   "code-review",
   "forfatter",
   "kafka-agent",
-  "nav-pilot-opus",
-  "nav-pilot",
   "research-agent",
   "rust-agent",
   "security-champion-agent",
@@ -49,8 +47,6 @@ const EXPECTED_PORTABLE_GITHUB_TOOL_COUNTS: Record<(typeof AFFECTED_AGENT_IDS)[n
   "code-review": 5,
   forfatter: 2,
   "kafka-agent": 9,
-  "nav-pilot-opus": 11,
-  "nav-pilot": 11,
   "research-agent": 15,
   "rust-agent": 3,
   "security-champion-agent": 15,
@@ -88,5 +84,18 @@ describe("GitHub MCP agent tools", () => {
     expect(portableTools, `${agentId} has an unexpected portable GitHub MCP tool count`).toHaveLength(
       EXPECTED_PORTABLE_GITHUB_TOOL_COUNTS[agentId]
     );
+  });
+});
+
+// nav-pilot launches Copilot CLI with `--agent nav-pilot`. A `tools:` allowlist on that
+// agent hides every MCP server the user has enabled (Figma, Aksel, fleet-gateway) from the
+// model, and it is not a security boundary: cplt, fleet-gateway and server-side auth are.
+describe("agents nav-pilot launches by default", () => {
+  it.each(["nav-pilot", "nav-pilot-opus"])("%s has no tools allowlist", (agentId) => {
+    const agent = manifest.items.find((item) => item.type === "agent" && item.id === agentId);
+    expect(agent, `${agentId} missing from manifest`).toBeDefined();
+    const tools = (agent as { tools?: string[] }).tools;
+    // The generator writes [] for an agent without a tools: key.
+    expect(!tools?.length || tools.includes("*"), `${agentId} restricts tools: ${tools}`).toBe(true);
   });
 });

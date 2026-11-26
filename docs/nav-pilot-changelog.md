@@ -2,6 +2,12 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-11-26
+
+### nav-pilot-agenten ser MCP-serverne dine
+
+- **`nav-pilot` og `nav-pilot-opus`**: Agentene hadde en fast liste over verktøy. Derfor så ikke KI-modellen MCP-servere du hadde slått på, som Figma, Aksel og ruter i fleet-gateway, selv om de var koblet til. Listen er fjernet, så modellen ser nå alle verktøyene som er slått på. GitHub MCP i Copilot CLI er fortsatt bare lesing (#2165).
+
 ## 2026-11-25
 
 ### Ingen falsk advarsel om fleet-gateway
