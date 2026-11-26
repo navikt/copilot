@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { BodyLong, Heading, HStack, VStack } from "@navikt/ds-react";
 import { fleetApi, fleetLoad, requireFleet } from "@/lib/fleet-control";
+import { fullName, getUser } from "@/lib/auth";
 import { TEAM_COOKIE } from "@/lib/fleet-names";
 import { FleetFrame, fleetRobots } from "./frame";
 import { LinkText } from "./nav";
@@ -48,6 +49,7 @@ export default async function FleetPage({ searchParams }: Props) {
     );
   }
   const { teams, pending, me } = result.data;
+  const myName = fullName(await getUser(false));
   // No team: the catalogue explains how to start.
   if (teams.length === 0) redirect("/fleet/katalog");
   const remembered = team === undefined ? teams.find((t) => t.team === wanted) : undefined;
@@ -89,7 +91,7 @@ export default async function FleetPage({ searchParams }: Props) {
                 </Heading>
                 <BodyLong size="small">{APPROVAL_RULE}</BodyLong>
               </HStack>
-              <ServerInbox servers={picked.servers} me={me} />
+              <ServerInbox servers={picked.servers} me={me} myName={myName} />
               {pending.length > 0 && (
                 <BodyLong>
                   {pending.length === 1 ? "1 agentprofil venter" : `${pending.length} agentprofiler venter`} på at dere

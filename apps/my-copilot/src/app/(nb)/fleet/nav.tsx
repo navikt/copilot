@@ -100,7 +100,13 @@ export function FleetNav({ team, teams = [], pending = 0, inCatalog = false }: F
           current: path.startsWith("/fleet/agenter"),
           team: true,
         },
-        { label: "Til godkjenning", href: `${base}#til-godkjenning`, count: pending, team: true },
+        {
+          label: "Til godkjenning",
+          href: `/fleet/godkjenning?team=${team}`,
+          current: path.startsWith("/fleet/godkjenning"),
+          count: pending,
+          team: true,
+        },
         { label: "Katalog", href: "/fleet/katalog", current: inCatalog || path === "/fleet/katalog" },
       ]
     : [

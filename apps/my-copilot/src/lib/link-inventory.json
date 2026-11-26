@@ -224,6 +224,10 @@
     "sources": ["apps/my-copilot/src/app/(nb)/fleet/agenter/page.tsx"],
     "anchors": {}
   },
+  "/fleet/godkjenning": {
+    "sources": ["apps/my-copilot/src/app/(nb)/fleet/godkjenning/page.tsx"],
+    "anchors": {}
+  },
   "/fleet/katalog": {
     "sources": [
       "apps/my-copilot/src/app/(nb)/fleet/catalog.tsx",
