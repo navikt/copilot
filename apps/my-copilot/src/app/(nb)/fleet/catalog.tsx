@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import NextLink from "next/link";
 import {
   Alert,
@@ -9,6 +9,7 @@ import {
   BodyShort,
   Detail,
   Heading,
+  HGrid,
   HStack,
   Link,
   List,
@@ -50,7 +51,8 @@ export function Catalog({ entries }: { entries: CatalogEntry[] }) {
   const shown = entries.filter(
     (e) =>
       (!category || e.spec.dataCategory === category) &&
-      (!q || `${e.metadata.namespace}/${e.metadata.name}`.toLowerCase().includes(q))
+      (!q ||
+        [e.metadata.namespace, e.metadata.name, ...(e.spec.allowedTools ?? [])].join(" ").toLowerCase().includes(q))
   );
   return (
     <section aria-label="Katalog">
@@ -59,15 +61,14 @@ export function Catalog({ entries }: { entries: CatalogEntry[] }) {
           <BodyShort>Ingen MCP-servere er publisert ennå.</BodyShort>
         ) : (
           <>
-            <HStack gap="space-16" align="end">
+            <HGrid columns={{ xs: 1, md: "1fr 14rem" }} gap="space-16" align="end">
               <TextField
                 label="Søk"
-                description="Navn på MCP-server eller eierteam"
-                size="small"
+                placeholder="Navn, verktøy eller team"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />
-              <Select label="Datakategori" size="small" value={category} onChange={(e) => setCategory(e.target.value)}>
+              <Select label="Datakategori" value={category} onChange={(e) => setCategory(e.target.value)}>
                 <option value="">Alle</option>
                 {Object.entries(CATEGORY).map(([value, c]) => (
                   <option key={value} value={value}>
@@ -75,7 +76,7 @@ export function Catalog({ entries }: { entries: CatalogEntry[] }) {
                   </option>
                 ))}
               </Select>
-            </HStack>
+            </HGrid>
             <BodyShort size="small" aria-live="polite">
               Viser {shown.length} av {entries.length}
             </BodyShort>
@@ -173,28 +174,67 @@ export function UnknownTeam({ team }: { team: string }) {
   );
 }
 
+const Chip = ({ children, accent = false }: { children: ReactNode; accent?: boolean }) => (
+  <Box
+    background={accent ? "info-soft" : "default"}
+    borderWidth="1"
+    borderColor={accent ? "info" : "neutral-subtle"}
+    borderRadius="8"
+    paddingBlock="space-8"
+    paddingInline="space-16"
+  >
+    {children}
+  </Box>
+);
+
 export function NoTeam() {
   return (
-    <Alert variant="info">
-      <VStack gap="space-8">
-        <Heading level="2" size="small">
-          Kom i gang
+    <Box background="default" borderWidth="1" borderColor="info" borderRadius="12" padding="space-24">
+      <VStack gap="space-16">
+        <VStack gap="space-8">
+          <Heading level="2" size="medium">
+            Kom i gang
+          </Heading>
+          <BodyLong>
+            Du er ikke med i et team i Nais ennå. Du kan se katalogen, men bare et team kan registrere MCP-servere og få
+            tilgang.
+          </BodyLong>
+        </VStack>
+        <Heading level="3" size="small">
+          Slik henger det sammen
         </Heading>
-        <BodyLong>
-          Du er ikke med i et team i Nais ennå. Du kan se katalogen, men bare team kan registrere MCP-servere og få
-          tilgang til dem.
-        </BodyLong>
-        <Heading level="3" size="xsmall">
+        <HStack gap="space-8" align="center" wrap>
+          <Chip>
+            <strong>KI-agent (konsumentteam)</strong>
+          </Chip>
+          <span aria-hidden>→</span>
+          <Chip accent>
+            <VStack>
+              <strong>fleet-gateway</strong>
+              <Detail as="code">/mcp/&lt;team&gt;/&lt;navn&gt;</Detail>
+            </VStack>
+          </Chip>
+          <span aria-hidden>→</span>
+          <Chip>
+            <strong>MCP-server (eierteam)</strong>
+          </Chip>
+        </HStack>
+        <HStack gap="space-8" wrap>
+          <Chip>Fleet: hvilke team får kalle hva</Chip>
+          <Chip>Godkjenning: to personer i eierteamet</Chip>
+        </HStack>
+        <Heading level="3" size="small">
           Gjør dette
         </Heading>
-        <List as="ol" size="small">
+        <List as="ol">
           <List.Item>
             Bli med i teamet ditt i <Link href={NAIS_CONSOLE}>Nais Console</Link>.
           </List.Item>
-          <List.Item>Kom tilbake hit. Du kommer rett til teamet ditt.</List.Item>
+          <List.Item>Kom tilbake hit. Du blir sendt rett til teamet ditt.</List.Item>
+          <List.Item>Registrer en MCP-server, eller be et eierteam om tilgang.</List.Item>
         </List>
       </VStack>
-    </Alert>
+    </Box>
   );
 }
 

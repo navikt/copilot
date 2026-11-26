@@ -205,8 +205,11 @@ describe("/fleet", () => {
     const table = () => screen.getByRole("table", { name: "Publiserte MCP-servere" });
     expect(table()).toHaveTextContent("team-b");
     expect(table()).toHaveTextContent("Fortrolige data");
-    fireEvent.change(screen.getByRole("textbox", { name: /Søk/ }), { target: { value: "SAK" } });
+    fireEvent.change(screen.getByRole("textbox", { name: /Søk/ }), { target: { value: "SAKER" } });
     expect(screen.queryByRole("link", { name: "docs" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "saker" })).toBeInTheDocument();
+    // Katalog: the search also finds a tool name.
+    fireEvent.change(screen.getByRole("textbox", { name: /Søk/ }), { target: { value: "hent_sak" } });
     expect(screen.getByRole("link", { name: "saker" })).toBeInTheDocument();
     fireEvent.change(screen.getByRole("textbox", { name: /Søk/ }), { target: { value: "" } });
     fireEvent.change(screen.getByRole("combobox", { name: "Datakategori" }), { target: { value: "Intern" } });
