@@ -28,6 +28,9 @@ func TestProdRoutesFileFrozenAfterSwitch(t *testing.T) {
 	if cfg["routes_source"] != "fleet-control" {
 		t.Skip("prod still reads routes from the Git file")
 	}
+	if cfg["pilot_routes_file"] != "/app/pilot-routes.prod.yaml" {
+		t.Fatalf("pilot_routes_file = %v, want /app/pilot-routes.prod.yaml: the freeze pins another file", cfg["pilot_routes_file"])
+	}
 	raw, err := os.ReadFile("pilot-routes.prod.yaml")
 	if err != nil {
 		t.Fatal(err)
