@@ -307,12 +307,16 @@ export default function NavMcpServerePage() {
               <a href="https://opencode.ai/docs/permissions" className={linkClass}>
                 tillatelser
               </a>
+              ,{" "}
+              <a href="https://opencode.ai/docs/mcp-servers" className={linkClass}>
+                MCP-servere
+              </a>
               ).
             </li>
             <li>
-              Vi har ikke bekreftet om Copilot CLI og VS Code treffer servernavn med <code className={code}>/</code>{" "}
-              eller <code className={code}>.</code>, som <code className={code}>com.figma/figma-mcp</code>, i{" "}
-              <code className={code}>tools:</code>.
+              Testet i Copilot CLI 1.0.115: navn med <code className={code}>/</code> og <code className={code}>.</code>{" "}
+              virker, for eksempel <code className={code}>com.figma/figma-mcp/*</code> og{" "}
+              <code className={code}>io.github.navikt/aksel-mcp/*</code>. Vi har ikke bekreftet det samme for VS Code.
             </li>
           </Bullets>
         </ReadMore>
