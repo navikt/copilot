@@ -1,6 +1,7 @@
 import { hasCondition, refKey } from "@/lib/fleet-names";
 import type { AgentProfile, MCPServer } from "@/lib/fleet-control";
 import { APPROVER } from "@/lib/fleet-approval";
+import { DATA_LABEL } from "@/lib/fleet-wizard";
 
 export type TagVariant = "success" | "warning" | "info" | "neutral" | "error";
 
@@ -53,21 +54,7 @@ export function serverNextStep(s: MCPServer): string {
   return `Ingen. Versjon ${published} er publisert.`;
 }
 
-export const categoryLabel = (c: string) => DATA_CATEGORIES.find((d) => d[0] === c)?.[1] ?? c;
-
-export const DATA_CATEGORIES: [string, string, string][] = [
-  ["Aapen", "Åpne data", "Kan deles med alle, også utenfor Nav. For eksempel offentlige kodeverk og regelverk."],
-  [
-    "Intern",
-    "Interne data",
-    "For ansatte i Nav. Ikke personopplysninger og ikke taushetsbelagt. For eksempel interne rutiner og systemdokumentasjon.",
-  ],
-  [
-    "Fortrolig",
-    "Fortrolige data",
-    "Kan skade personer eller Nav hvis det kommer på avveie, for eksempel personopplysninger. Velg Fortrolige data hvis du er i tvil.",
-  ],
-];
+export const categoryLabel = (c: string) => DATA_LABEL[c]?.[0] ?? c;
 
 export function agentNextStep(p: AgentProfile): string {
   if (hasCondition(p, "Revoked") || hasCondition(p, "Expired")) return "Ingen.";

@@ -178,16 +178,8 @@ describe("POST /api/fleet", () => {
     name: "docs",
     spec: { dataCategory: "Intern", upstream: { app: "docs", url: "x" }, allowedTools: ["search"] },
   };
-  // The edit form (ServerForm) still posts form fields.
-  const editForm = {
-    action: "edit",
-    namespace: "team-a",
-    name: "docs",
-    app: "docs",
-    url: "x",
-    tools: "search",
-    dataCategory: "Intern",
-  };
+  // The edit page sends the whole spec, like the wizard.
+  const editForm = { ...register, action: "edit" };
   const approve = { action: "approve", namespace: "team-a", name: "docs", generation: "3", contentHash: "h3" };
 
   it("tells a taken name apart from a conflicting edit", async () => {
@@ -266,14 +258,20 @@ describe("POST /api/fleet", () => {
   });
 
   it("needs a data category, and sends none by default", async () => {
-    expect((await post({ ...editForm, resourceVersion: "7", dataCategory: "" })).status).toBe(400);
+    expect(
+      (await post({ ...editForm, resourceVersion: "7", spec: { ...register.spec, dataCategory: "" } })).status
+    ).toBe(400);
     expect((await post({ ...register, spec: { ...register.spec, dataCategory: undefined } })).status).toBe(400);
     expect(fetch).not.toHaveBeenCalled();
   });
 
   it("edits with PUT and the resourceVersion, which makes a new version", async () => {
     fetch.mockResolvedValueOnce(Response.json(current));
-    const res = await post({ ...editForm, resourceVersion: "7", tools: "search read" });
+    const res = await post({
+      ...editForm,
+      resourceVersion: "7",
+      spec: { ...register.spec, allowedTools: ["search", "read"] },
+    });
     await expect(res.json()).resolves.toEqual({ href: "/fleet/mcp-servere/team-a/docs?sendt=1" });
     const [url, init] = fetch.mock.calls[1];
     expect(url).toBe("http://fc/apis/fleet.nav.no/v1alpha1/namespaces/team-a/mcpservers/docs");
@@ -305,9 +303,9 @@ describe("POST /api/fleet", () => {
     },
     status: {},
   };
-  const editTo = async (fields: Record<string, string>) => {
+  const editTo = async (spec: Record<string, unknown>) => {
     fetch.mockResolvedValueOnce(Response.json(current));
-    const res = await post({ ...editForm, resourceVersion: "7", ...fields });
+    const res = await post({ ...editForm, resourceVersion: "7", spec });
     expect(res.status).toBe(200);
     const [url, init] = fetch.mock.calls[1];
     expect(url).toBe("http://fc/apis/fleet.nav.no/v1alpha1/namespaces/team-a/mcpservers/docs");
@@ -315,22 +313,17 @@ describe("POST /api/fleet", () => {
     return JSON.parse(init.body).spec;
   };
 
-  it("a readme-only edit keeps risk levels, rosRef, tool descriptions and registry", async () => {
-    expect(await editTo({ tools: "search read", readme: "new" })).toEqual({ ...current.spec, readme: "new" });
-  });
-
-  it("removing a tool drops its risk level and description", async () => {
-    expect(await editTo({ tools: "search" })).toEqual({
+  it("sends the page's spec, and keeps registry from what fleet-control holds, never the client's", async () => {
+    expect(await editTo({ ...current.spec, readme: "new", registry: { version: "9.9.9" } })).toEqual({
       ...current.spec,
-      allowedTools: ["search"],
-      tools: [{ name: "search", description: "Søk" }],
-      toolRisk: { search: "read" },
-      readme: undefined,
+      readme: "new",
     });
   });
 
-  it("refuses a bad app name before any call", async () => {
-    expect((await post({ ...editForm, resourceVersion: "7", app: "Bad_App" })).status).toBe(400);
+  it("refuses a bad app name or a risk level for a tool that is not allowed, before any call", async () => {
+    const bad = (spec: Record<string, unknown>) => post({ ...editForm, resourceVersion: "7", spec });
+    expect((await bad({ ...register.spec, upstream: { app: "Bad_App", url: "x" } })).status).toBe(400);
+    expect((await bad({ ...register.spec, toolRisk: { other: "read" } })).status).toBe(400);
     expect(fetch).not.toHaveBeenCalled();
   });
 

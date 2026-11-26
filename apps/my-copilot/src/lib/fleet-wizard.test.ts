@@ -1,4 +1,13 @@
-import { emptyState, firstInvalidStep, toSpec, validateStep, type WizardState } from "./fleet-wizard";
+import {
+  emptyState,
+  firstInvalidStep,
+  fromSpec,
+  mergeDiscovered,
+  specChanges,
+  toSpec,
+  validateStep,
+  type WizardState,
+} from "./fleet-wizard";
 
 const dev = { requireRos: false };
 const prod = { requireRos: true };
@@ -109,5 +118,79 @@ describe("toSpec", () => {
       toolRisk: { lagre: "write" },
       readme: "# Hei",
     });
+  });
+});
+
+describe("specChanges mirrors fleet-control's Classify (escalation.go)", () => {
+  const pub = {
+    dataCategory: "Intern",
+    upstream: { app: "docs", url: "http://docs.team-a/mcp" },
+    allowedTools: ["search", "save"],
+    defaultRisk: "read",
+    toolRisk: { save: "write" },
+    rosRef: "https://ros.example/1",
+    readme: "old",
+  };
+  const approvals = (next: object) => specChanges(pub, { ...pub, ...next }).map((c) => c.approval);
+
+  it.each([
+    ["nothing", {}, []],
+    ["readme only", { readme: "new" }, [false]],
+    ["tool removed", { allowedTools: ["search"], toolRisk: {} }, [false]],
+    ["tool added", { allowedTools: ["search", "save", "new"] }, [true]],
+    ["risk lowered (agents are capped at read, so lowering widens access)", { toolRisk: {} }, [true]],
+    ["defaultRisk changed but every tool resolves the same", { defaultRisk: "read", toolRisk: { save: "write" } }, []],
+    ["data category lowered", { dataCategory: "Aapen" }, [true]],
+    ["address changed", { upstream: { app: "docs", url: "http://docs.team-a/v2" } }, [true]],
+    ["rosRef changed", { rosRef: "https://ros.example/2" }, [true]],
+    ["tool descriptions", { tools: [{ name: "search", description: "Søk" }] }, [false]],
+  ])("%s", (_, next, want) => expect(approvals(next)).toEqual(want));
+
+  it("adding a ROS where there was none gives no access", () => {
+    expect(specChanges({ ...pub, rosRef: undefined }, pub)).toEqual([{ text: "Ny lenke til ROS", approval: false }]);
+  });
+
+  it("a tool without any level is write, as in toolRisks", () => {
+    const p = { ...pub, defaultRisk: undefined, toolRisk: undefined };
+    expect(specChanges(p, { ...p, defaultRisk: "write" })).toEqual([]);
+    expect(specChanges(p, { ...p, defaultRisk: "read" }).every((c) => c.approval)).toBe(true);
+  });
+
+  it("nothing published: everything waits", () => {
+    expect(specChanges(undefined, pub)).toEqual([{ text: "Ingen versjon er publisert ennå", approval: true }]);
+  });
+});
+
+describe("fromSpec and mergeDiscovered", () => {
+  it("round-trips a stored spec, reading no defaultRisk as write", () => {
+    const spec = {
+      dataCategory: "Intern",
+      upstream: { app: "docs", url: "http://docs.team-a/mcp" },
+      allowedTools: ["search", "save"],
+      tools: [{ name: "search", description: "Søk" }],
+      toolRisk: { search: "read" },
+    };
+    const s = fromSpec("team-a", "docs", spec);
+    expect(s.defaultRisk).toBe("write");
+    expect(s.tools[0]).toMatchObject({ name: "search", description: "Søk", allowed: true, risk: "read" });
+    expect(specChanges(spec, toSpec(s))).toEqual([]);
+  });
+
+  it("keeps allowed tools the server no longer lists, and unticks only new tools that can change something", () => {
+    const tools = [
+      { name: "save", allowed: true, risk: "write" as const },
+      { name: "gone", allowed: true, risk: "" as const },
+    ];
+    const out = mergeDiscovered(tools, [
+      { name: "save", suggestedRisk: "write", destructive: true },
+      { name: "find", suggestedRisk: "read", destructive: false },
+      { name: "send", suggestedRisk: "write", destructive: false },
+    ]);
+    expect(out.map((t) => [t.name, t.allowed, t.risk])).toEqual([
+      ["save", true, "write"],
+      ["find", true, "read"],
+      ["send", false, "write"],
+      ["gone", true, ""],
+    ]);
   });
 });

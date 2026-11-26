@@ -1,6 +1,7 @@
 "use client";
 
 import { type ReactNode } from "react";
+import NextLink from "next/link";
 import {
   Alert,
   BodyLong,
@@ -38,9 +39,9 @@ import {
   linkClass,
   useFleetPost,
 } from "./fleet-ui";
-import { DATA_CATEGORIES, categoryLabel, serverNextStep } from "./fleet-status";
+import { categoryLabel, serverNextStep } from "./fleet-status";
 import { Initials, WaitingForAccess } from "./inbox";
-import { AccessPolicy, ServerForm } from "./server-form";
+import { AccessPolicy } from "./server-form";
 
 export function ServerDetail({
   server,
@@ -52,11 +53,8 @@ export function ServerDetail({
   agents = [],
   agentsFailed = false,
   grafanaUrl,
-  discoveryEnabled = false,
   submitted = false,
 }: {
-  /** fleet-gateway's probe is configured: the edit form offers «Hent verktøy». */
-  discoveryEnabled?: boolean;
   server: MCPServer;
   events: AuditEvent[];
   submitted?: boolean;
@@ -73,7 +71,7 @@ export function ServerDetail({
 }) {
   return (
     <VStack gap="space-24">
-      {submitted && server.status.pending && <SubmittedAlert server={server} />}
+      {submitted && <SubmittedAlert server={server} />}
       <BodyLong>Neste steg: {serverNextStep(server)}</BodyLong>
       <ServerActions server={server} me={me} myName={myName} owner={owner} approver={approver} part="approve" />
       {server.status.pending?.spec && (
@@ -145,7 +143,7 @@ export function ServerDetail({
       ) : (
         <WaitingForAccess server={server} agents={agents} />
       )}
-      <ServerActions server={server} me={me} owner={owner} part="edit" discoveryEnabled={discoveryEnabled} />
+      <ServerActions server={server} me={me} owner={owner} part="edit" />
       <ServerDocs spec={server.status.pending?.spec ?? server.spec} />
       {!(server.status.route && hasCondition(server, "Published") && !hasCondition(server, "Revoked")) && (
         <AccessPolicy app={(server.status.pending?.spec ?? server.spec)?.upstream?.app} />
@@ -215,7 +213,7 @@ function TestCurl({ path }: { path: string }) {
 }
 
 const specRows = (s?: MCPServerSpec): [string, string][] => [
-  ["Datakategori", DATA_CATEGORIES.find((d) => d[0] === s?.dataCategory)?.[1] ?? s?.dataCategory ?? "–"],
+  ["Datakategori", s?.dataCategory ? categoryLabel(s.dataCategory) : "–"],
   ["App", s?.upstream?.app ?? "–"],
   ["Adresse til appen", s?.upstream?.url ?? "–"],
   ["Verktøy", s?.allowedTools?.join(", ") || "–"],
@@ -453,7 +451,6 @@ function ServerActions({
   owner,
   approver = false,
   part,
-  discoveryEnabled,
 }: {
   server: MCPServer;
   me?: string;
@@ -461,7 +458,6 @@ function ServerActions({
   owner: boolean;
   approver?: boolean;
   part: "approve" | "rest" | "edit";
-  discoveryEnabled?: boolean;
 }) {
   const approve = useFleetPost("approve");
   const revoke = useFleetPost("revoke");
@@ -576,17 +572,19 @@ function ServerActions({
         </Box>
       )}
       {owner && part === "edit" && (
-        <ExpansionCard aria-label="Endre MCP-serveren">
-          <ExpansionCard.Header>
-            <ExpansionCard.Title as="h2" size="small">
-              Endre MCP-serveren
-            </ExpansionCard.Title>
-            <ExpansionCard.Description>Endringen blir en ny versjon. {CHANGE_RULE}</ExpansionCard.Description>
-          </ExpansionCard.Header>
-          <ExpansionCard.Content>
-            <ServerForm server={server} discoveryEnabled={discoveryEnabled} />
-          </ExpansionCard.Content>
-        </ExpansionCard>
+        <VStack gap="space-8" align="start">
+          <Heading level="2" size="medium">
+            Endre MCP-serveren
+          </Heading>
+          <BodyLong>Endringen blir en ny versjon. {CHANGE_RULE}</BodyLong>
+          <Button
+            as={NextLink}
+            href={`/fleet/mcp-servere/${server.metadata.namespace}/${server.metadata.name}/endre`}
+            variant="secondary"
+          >
+            Endre MCP-serveren
+          </Button>
+        </VStack>
       )}
     </VStack>
   );

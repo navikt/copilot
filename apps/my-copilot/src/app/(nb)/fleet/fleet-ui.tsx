@@ -166,14 +166,26 @@ export function EmptyTeam({ team }: { team: string }) {
 /** After register or edit: the version waits for team copilot unless it gives no more access. */
 export function SubmittedAlert({ server }: { server: MCPServer }) {
   const path = server.status.route?.path ?? `/mcp/${server.metadata.namespace}/${server.metadata.name}`;
+  if (!server.status.pending)
+    return (
+      <Alert variant="success">
+        <Heading level="2" size="small">
+          Endringen er publisert
+        </Heading>
+        <BodyLong>
+          Versjon {server.status.publishedGeneration} gjelder nå på <code>{path}</code>. Endringen ga ikke mer tilgang,
+          så team copilot trengte ikke å godkjenne den.
+        </BodyLong>
+      </Alert>
+    );
   return (
     <Alert variant="success">
       <Heading level="2" size="small">
         {server.metadata.name} er sendt til godkjenning
       </Heading>
       <BodyLong>
-        Adressen <code>{path}</code> blir publisert når team copilot har godkjent den. Endringer som ikke gir mer
-        tilgang, gjelder med en gang.
+        Versjon {server.status.pending.generation} blir publisert på <code>{path}</code> når team copilot har godkjent
+        den.
       </BodyLong>
     </Alert>
   );
