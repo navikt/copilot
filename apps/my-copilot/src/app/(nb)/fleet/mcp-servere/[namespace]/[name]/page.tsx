@@ -89,7 +89,9 @@ export default async function ServerPage({ params, searchParams }: Props) {
       }
       nav={
         "data" in result
-          ? await teamNav(result.data.owner ? result.data.teams : result.data.myTeams, namespace)
+          ? await teamNav(result.data.owner ? result.data.teams : result.data.myTeams, namespace, {
+              inCatalog: !result.data.owner,
+            })
           : undefined
       }
     >

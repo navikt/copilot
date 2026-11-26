@@ -618,4 +618,26 @@ describe("/fleet", () => {
     expect(within(table).getByText("− old")).toBeInTheDocument();
     expect(within(table).getAllByText("Uendret").length).toBeGreaterThan(0);
   });
+
+  it("marks Katalog, not MCP-servere, on another team's server, and keeps the approval count on every page", async () => {
+    const { container } = render(await ServerPage(params("team-b", "saker")));
+    const current = [...container.querySelectorAll('nav[aria-label="Fleet"] [aria-current="page"]')].map((e) =>
+      e.textContent?.trim()
+    );
+    expect(current).toContain("Katalog");
+    expect(current).not.toContain("MCP-servere");
+    expect(container.querySelector('nav[aria-label="Fleet"] [aria-label$="venter"]')).not.toBeNull();
+  });
+
+  it("orders the owner's MCP server page as in the sketch", async () => {
+    const { container } = render(await ServerPage(params("team-a", "docs")));
+    const order = [...container.querySelectorAll("h2")].map((h) => h.textContent?.trim());
+    const at = (t: string) => order.indexOf(t);
+    for (const t of ["Hva endres", "Test MCP-endpointet", "Nødtiltak", "Detaljer", "Historikk", "Endre MCP-serveren"])
+      expect(at(t), t).toBeGreaterThanOrEqual(0);
+    expect(at("Hva endres")).toBeLessThan(at("Test MCP-endpointet"));
+    expect(at("Test MCP-endpointet")).toBeLessThan(at("Nødtiltak"));
+    expect(at("Nødtiltak")).toBeLessThan(at("Detaljer"));
+    expect(at("Historikk")).toBeLessThan(at("Endre MCP-serveren"));
+  });
 });

@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { BodyLong } from "@navikt/ds-react";
 import { fleetApi, fleetLoad, requireFleet } from "@/lib/fleet-control";
 import { TEAM_COOKIE, isName } from "@/lib/fleet-names";
-import { FleetFrame, fleetRobots } from "../frame";
+import { FleetFrame, fleetRobots, teamNav } from "../frame";
 import { AgentTable, FleetProblemAlert, PendingInbox } from "../fleet-ui";
 
 export const metadata: Metadata = { title: "Agentprofiler – Fleet", robots: fleetRobots };
@@ -35,7 +35,7 @@ export default async function AgentsPage({ searchParams }: Props) {
       title="Agentprofiler"
       description="Hvilke MCP-servere KI-agentene i teamet får bruke."
       crumbs={team ? [{ label: team, href: `/fleet?team=${team}` }] : []}
-      nav={team ? { team, teams } : undefined}
+      nav={team ? await teamNav(teams, team) : undefined}
     >
       {team ? (
         <>

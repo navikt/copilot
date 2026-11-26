@@ -1,16 +1,27 @@
 import type { ReactNode } from "react";
 import { cookies } from "next/headers";
 import { TEAM_COOKIE } from "@/lib/fleet-names";
+import { fleetApi } from "@/lib/fleet-control";
 import { BodyLong, Box, Heading, HStack, Stack, VStack } from "@navikt/ds-react";
 import { Breadcrumbs, FleetNav, type FleetNavProps } from "./nav";
 
 export const fleetRobots = { index: false, follow: false };
 
 /** The side navigation for a page outside one team's overview: the remembered team, else the first. */
-export async function teamNav(teams: string[], prefer?: string): Promise<FleetNavProps | undefined> {
+export async function teamNav(
+  teams: string[],
+  prefer?: string,
+  extra: Partial<FleetNavProps> = {}
+): Promise<FleetNavProps | undefined> {
   const last = (await cookies()).get(TEAM_COOKIE)?.value;
   const team = [prefer, last].find((t) => t && teams.includes(t)) ?? teams[0];
-  return team ? { team, teams } : undefined;
+  if (!team) return undefined;
+  // Same count as on the overview; a failed lookup only drops the badge.
+  const pending = await fleetApi.servers(team).then(
+    (l) => l.items.filter((s) => s.status.pending).length,
+    () => 0
+  );
+  return { team, teams, pending, ...extra };
 }
 
 import type { Crumb } from "./nav";

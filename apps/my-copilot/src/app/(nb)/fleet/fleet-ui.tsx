@@ -403,23 +403,21 @@ export function TeamSections({ teams, me }: { teams: TeamData[]; me?: string }) 
                             borderWidth={i ? "1 0 0 0" : "0"}
                             borderColor="neutral-subtle"
                           >
-                            <HStack justify="space-between" align="start" gap="space-8" wrap={false}>
-                              <VStack gap="space-4" className="min-w-0">
-                                <NextLink
-                                  className={`${linkClass} [overflow-wrap:anywhere]`}
-                                  href={`/fleet/mcp-servere/${refKey(s.metadata)}`}
-                                >
-                                  <strong>{s.metadata.name}</strong>
-                                </NextLink>
-                                {s.status.route && (
-                                  <Detail as="code" className="[overflow-wrap:anywhere]">
-                                    {s.status.route.path}
-                                  </Detail>
-                                )}
-                                <Detail>{serverShortNext(s, me)}</Detail>
-                              </VStack>
+                            <VStack gap="space-4" align="start">
                               <StatusTag s={serverStatus(s)} />
-                            </HStack>
+                              <NextLink
+                                className={`${linkClass} [overflow-wrap:anywhere]`}
+                                href={`/fleet/mcp-servere/${refKey(s.metadata)}`}
+                              >
+                                <strong>{s.metadata.name}</strong>
+                              </NextLink>
+                              {s.status.route && (
+                                <Detail as="code" className="[overflow-wrap:anywhere]">
+                                  {s.status.route.path}
+                                </Detail>
+                              )}
+                              <Detail>{serverShortNext(s, me)}</Detail>
+                            </VStack>
                           </Box>
                         ))}
                       </VStack>
@@ -510,30 +508,53 @@ export function AgentTable({ t }: { t: TeamData }) {
       {t.agents.length === 0 ? (
         <BodyShort>{t.team} har ingen agentprofiler ennå.</BodyShort>
       ) : (
-        <FleetTable aria-label={`Agentprofilene til ${t.team}`}>
-          <Table.Header>
-            <Table.Row>
-              <Table.HeaderCell scope="col">Navn</Table.HeaderCell>
-              <Table.HeaderCell scope="col">Status</Table.HeaderCell>
-              <Table.HeaderCell scope="col">MCP-servere</Table.HeaderCell>
-            </Table.Row>
-          </Table.Header>
-          <Table.Body>
-            {t.agents.map((a) => (
-              <Table.Row key={a.metadata.name}>
-                <Table.DataCell>
+        <>
+          <Show below="md">
+            <CardList
+              label={`Agentprofilene til ${t.team}`}
+              items={t.agents.map((a) => ({
+                key: a.metadata.name,
+                title: (
                   <NextLink className={linkClass} href={`/fleet/agenter/${refKey(a.metadata)}`}>
-                    {a.metadata.name}
+                    <strong>{a.metadata.name}</strong>
                   </NextLink>
-                </Table.DataCell>
-                <Table.DataCell>
-                  <StatusTag s={agentStatus(a)} />
-                </Table.DataCell>
-                <Table.DataCell>{(a.spec.grants ?? []).map((g) => refKey(g.serverRef)).join(", ")}</Table.DataCell>
-              </Table.Row>
-            ))}
-          </Table.Body>
-        </FleetTable>
+                ),
+                aside: <StatusTag s={agentStatus(a)} />,
+                lines: [
+                  <Detail key="g">
+                    {(a.spec.grants ?? []).map((g) => refKey(g.serverRef)).join(", ") || "Ingen MCP-servere"}
+                  </Detail>,
+                ],
+              }))}
+            />
+          </Show>
+          <Hide below="md">
+            <FleetTable aria-label={`Agentprofilene til ${t.team}`}>
+              <Table.Header>
+                <Table.Row>
+                  <Table.HeaderCell scope="col">Navn</Table.HeaderCell>
+                  <Table.HeaderCell scope="col">Status</Table.HeaderCell>
+                  <Table.HeaderCell scope="col">MCP-servere</Table.HeaderCell>
+                </Table.Row>
+              </Table.Header>
+              <Table.Body>
+                {t.agents.map((a) => (
+                  <Table.Row key={a.metadata.name}>
+                    <Table.DataCell>
+                      <NextLink className={linkClass} href={`/fleet/agenter/${refKey(a.metadata)}`}>
+                        {a.metadata.name}
+                      </NextLink>
+                    </Table.DataCell>
+                    <Table.DataCell>
+                      <StatusTag s={agentStatus(a)} />
+                    </Table.DataCell>
+                    <Table.DataCell>{(a.spec.grants ?? []).map((g) => refKey(g.serverRef)).join(", ")}</Table.DataCell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </FleetTable>
+          </Hide>
+        </>
       )}
     </VStack>
   );
@@ -861,19 +882,13 @@ export function ServerDetail({
           </Box>
         </VStack>
       )}
-      {server.status.route && hasCondition(server, "Published") && !hasCondition(server, "Revoked") && (
-        <TestCurl path={server.status.route.path} gateway={gatewayUrl} />
-      )}
-      <AccessPolicy app={(server.status.pending?.spec ?? server.spec)?.upstream?.app} />
-      {agentsFailed ? (
-        <Alert variant="warning" size="small">
-          Vi fikk ikke hentet agentprofilene som venter på tilgang. Last inn siden på nytt.
-        </Alert>
-      ) : (
-        <WaitingForAccess server={server} agents={agents} />
-      )}
+      {server.status.route && hasCondition(server, "Published") && !hasCondition(server, "Revoked") ? (
+        <VStack gap="space-16">
+          <TestCurl path={server.status.route!.path} gateway={gatewayUrl} />
+          <AccessPolicy app={(server.status.pending?.spec ?? server.spec)?.upstream?.app} />
+        </VStack>
+      ) : null}
       <ServerActions server={server} me={me} owner={owner} part="rest" />
-      <ServerDocs spec={server.status.pending?.spec ?? server.spec} />
       <Detaljer
         rows={[
           ["Team", server.metadata.namespace],
@@ -884,6 +899,18 @@ export function ServerDetail({
         ]}
       />
       <Historikk events={events} />
+      {agentsFailed ? (
+        <Alert variant="warning" size="small">
+          Vi fikk ikke hentet agentprofilene som venter på tilgang. Last inn siden på nytt.
+        </Alert>
+      ) : (
+        <WaitingForAccess server={server} agents={agents} />
+      )}
+      <ServerActions server={server} me={me} owner={owner} part="edit" />
+      <ServerDocs spec={server.status.pending?.spec ?? server.spec} />
+      {!(server.status.route && hasCondition(server, "Published") && !hasCondition(server, "Revoked")) && (
+        <AccessPolicy app={(server.status.pending?.spec ?? server.spec)?.upstream?.app} />
+      )}
     </VStack>
   );
 }
@@ -1314,7 +1341,7 @@ function ServerActions({
   server: MCPServer;
   me?: string;
   owner: boolean;
-  part: "approve" | "rest";
+  part: "approve" | "rest" | "edit";
 }) {
   const approve = useFleetPost("approve");
   const revoke = useFleetPost("revoke");
@@ -1374,7 +1401,7 @@ function ServerActions({
     ) : null;
   return (
     <VStack gap="space-24">
-      {live && (
+      {live && part === "rest" && (
         <VStack gap="space-4">
           <Heading level="2" size="medium">
             Nødtiltak
@@ -1384,7 +1411,7 @@ function ServerActions({
           </BodyShort>
         </VStack>
       )}
-      {live && (
+      {live && part === "rest" && (
         <Box background="default" borderWidth="1" borderColor="neutral-subtle" borderRadius="12" padding="space-20">
           <HGrid columns={{ xs: 1, md: 2 }} gap="space-24">
             <VStack gap="space-8">
@@ -1430,7 +1457,7 @@ function ServerActions({
           </HGrid>
         </Box>
       )}
-      {owner && (
+      {owner && part === "edit" && (
         <ExpansionCard aria-label="Endre MCP-serveren">
           <ExpansionCard.Header>
             <ExpansionCard.Title as="h2" size="small">

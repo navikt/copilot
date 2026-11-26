@@ -51,6 +51,8 @@ export type FleetNavProps = {
   team?: string;
   teams?: string[];
   pending?: number;
+  /** Another team's MCP server is a catalogue page: «Katalog» is the current section. */
+  inCatalog?: boolean;
 };
 
 function NavItem({ href, current, children }: { href: string; current?: boolean; children: ReactNode }) {
@@ -76,7 +78,7 @@ function NavItem({ href, current, children }: { href: string; current?: boolean;
   );
 }
 
-export function FleetNav({ team, teams = [], pending = 0 }: FleetNavProps) {
+export function FleetNav({ team, teams = [], pending = 0, inCatalog = false }: FleetNavProps) {
   const path = usePathname();
   const form = useRef<HTMLFormElement>(null);
   useEffect(() => {
@@ -99,11 +101,11 @@ export function FleetNav({ team, teams = [], pending = 0 }: FleetNavProps) {
           team: true,
         },
         { label: "Til godkjenning", href: `${base}#til-godkjenning`, count: pending, team: true },
-        { label: "Katalog", href: "/fleet/katalog", current: path === "/fleet/katalog" },
+        { label: "Katalog", href: "/fleet/katalog", current: inCatalog || path === "/fleet/katalog" },
       ]
     : [
         { label: "Oversikt", href: "/fleet", current: path === "/fleet" },
-        { label: "Katalog", href: "/fleet/katalog", current: path === "/fleet/katalog" },
+        { label: "Katalog", href: "/fleet/katalog", current: inCatalog || path === "/fleet/katalog" },
       ];
   return (
     <nav aria-label="Fleet">
@@ -136,7 +138,7 @@ export function FleetNav({ team, teams = [], pending = 0 }: FleetNavProps) {
         {team && teams.length === 1 && <BodyShort weight="semibold">{team}</BodyShort>}
         {/* On a phone: a short link list under the team picker instead of the side menu. */}
         <Show below="md">
-          <HStack as="ul" gap="space-8 space-16" wrap aria-label="Fleet-sider">
+          <HStack as="ul" role="list" gap="space-8 space-16" wrap aria-label="Fleet-sider">
             {links.map((l) => (
               <li key={l.label}>
                 <Link as={NextLink} href={l.href} aria-current={l.current ? "page" : undefined}>
