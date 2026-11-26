@@ -22,6 +22,8 @@ import (
 
 	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
 	"github.com/navikt/copilot/apps/copilot-api/internal/cache"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/github"
 )
 
 const testTeam = "team-b" // the caller's own team in newBudgetEnv
@@ -193,11 +195,11 @@ type fakeSeats struct {
 	none bool
 }
 
-func (s fakeSeats) getCopilotSeat(context.Context, string) (*CopilotSeat, error) {
+func (s fakeSeats) GetCopilotSeat(context.Context, string) (*github.CopilotSeat, error) {
 	if s.none {
 		return nil, s.err
 	}
-	return &CopilotSeat{}, s.err
+	return &github.CopilotSeat{}, s.err
 }
 
 // emailResolver maps the token's e-mail to a login: identity only ever

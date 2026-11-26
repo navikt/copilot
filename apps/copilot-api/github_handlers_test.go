@@ -10,39 +10,41 @@ import (
 	"testing"
 
 	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/github"
 )
 
 // mockGitHubClient implements GitHubAPI for testing
 type mockGitHubClient struct {
-	billing         *CopilotBilling
+	billing         *github.CopilotBilling
 	billingErr      error
-	seat            *CopilotSeat
+	seat            *github.CopilotSeat
 	seatErr         error
-	assignResult    *AssignResult
+	assignResult    *github.AssignResult
 	assignErr       error
-	unassignResult  *UnassignResult
+	unassignResult  *github.UnassignResult
 	unassignErr     error
 	samlUsername    string
 	samlErr         error
-	premiumUsage    *PremiumRequestUsage
+	premiumUsage    *github.PremiumRequestUsage
 	premiumErr      error
-	contributors    []Contributor
+	contributors    []github.Contributor
 	contributorsErr error
 }
 
-func (m *mockGitHubClient) getCopilotBilling(_ context.Context) (*CopilotBilling, error) {
+func (m *mockGitHubClient) GetCopilotBilling(_ context.Context) (*github.CopilotBilling, error) {
 	return m.billing, m.billingErr
 }
 
-func (m *mockGitHubClient) getCopilotSeat(_ context.Context, _ string) (*CopilotSeat, error) {
+func (m *mockGitHubClient) GetCopilotSeat(_ context.Context, _ string) (*github.CopilotSeat, error) {
 	return m.seat, m.seatErr
 }
 
-func (m *mockGitHubClient) assignUserToCopilot(_ context.Context, _ string) (*AssignResult, error) {
+func (m *mockGitHubClient) AssignUserToCopilot(_ context.Context, _ string) (*github.AssignResult, error) {
 	return m.assignResult, m.assignErr
 }
 
-func (m *mockGitHubClient) unassignUserFromCopilot(_ context.Context, _ string) (*UnassignResult, error) {
+func (m *mockGitHubClient) UnassignUserFromCopilot(_ context.Context, _ string) (*github.UnassignResult, error) {
 	return m.unassignResult, m.unassignErr
 }
 
@@ -50,11 +52,11 @@ func (m *mockGitHubClient) GetUsernameBySamlIdentity(_ context.Context, _ string
 	return m.samlUsername, m.samlErr
 }
 
-func (m *mockGitHubClient) getPremiumRequestUsage(_ context.Context, _ string, _ int, _ int) (*PremiumRequestUsage, error) {
+func (m *mockGitHubClient) GetPremiumRequestUsage(_ context.Context, _ string, _ int, _ int) (*github.PremiumRequestUsage, error) {
 	return m.premiumUsage, m.premiumErr
 }
 
-func (m *mockGitHubClient) getRepositoryContributors(_ context.Context, _ string, _ string, _ []string) ([]Contributor, error) {
+func (m *mockGitHubClient) GetRepositoryContributors(_ context.Context, _ string, _ string, _ []string) ([]github.Contributor, error) {
 	return m.contributors, m.contributorsErr
 }
 
@@ -89,7 +91,7 @@ func TestIsValidGitHubUsername(t *testing.T) {
 
 func TestHandleBilling(t *testing.T) {
 	t.Run("returns billing data on success", func(t *testing.T) {
-		mock := &mockGitHubClient{billing: &CopilotBilling{}}
+		mock := &mockGitHubClient{billing: &github.CopilotBilling{}}
 		mock.billing.SeatBreakdown.Total = 100
 		h := newGitHubHandlers(mock)
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/billing", nil)
@@ -118,7 +120,7 @@ func TestHandleGetSeat(t *testing.T) {
 	tests := []struct {
 		name             string
 		username         string
-		seat             *CopilotSeat
+		seat             *github.CopilotSeat
 		seatErr          error
 		resolvedUsername string
 		skipIdentity     bool
@@ -127,7 +129,7 @@ func TestHandleGetSeat(t *testing.T) {
 		{
 			name:             "returns seat for valid user",
 			username:         "octocat",
-			seat:             &CopilotSeat{PlanType: "business"},
+			seat:             &github.CopilotSeat{PlanType: "business"},
 			resolvedUsername: "octocat",
 			wantStatus:       http.StatusOK,
 		},
@@ -187,7 +189,7 @@ func TestHandleGetSeat(t *testing.T) {
 func TestHandleAssignSeat(t *testing.T) {
 	t.Run("returns 403 when the only group is the admin group", func(t *testing.T) {
 		t.Setenv(adminGroupEnv, "admin")
-		h := newGitHubHandlers(&mockGitHubClient{assignResult: &AssignResult{SeatsCreated: 1}})
+		h := newGitHubHandlers(&mockGitHubClient{assignResult: &github.AssignResult{SeatsCreated: 1}})
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/copilot/seats", strings.NewReader(`{"username":"octocat"}`))
 		req = identityContext(req, "octocat")
 		req = req.WithContext(context.WithValue(req.Context(), auth.UserContextKey, &auth.User{Groups: []string{"admin"}}))
@@ -200,7 +202,7 @@ func TestHandleAssignSeat(t *testing.T) {
 
 	t.Run("assigns seat when username matches resolved identity", func(t *testing.T) {
 		mock := &mockGitHubClient{
-			assignResult: &AssignResult{SeatsCreated: 1},
+			assignResult: &github.AssignResult{SeatsCreated: 1},
 		}
 		h := newGitHubHandlers(mock)
 
@@ -217,7 +219,7 @@ func TestHandleAssignSeat(t *testing.T) {
 	})
 
 	t.Run("rejects caller with no allowed group", func(t *testing.T) {
-		mock := &mockGitHubClient{assignResult: &AssignResult{SeatsCreated: 1}}
+		mock := &mockGitHubClient{assignResult: &github.AssignResult{SeatsCreated: 1}}
 		h := newGitHubHandlers(mock)
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/copilot/seats",
 			strings.NewReader(`{"username":"octocat"}`))
@@ -288,7 +290,7 @@ func TestHandleAssignSeat(t *testing.T) {
 func TestHandleUnassignSeat(t *testing.T) {
 	t.Run("unassigns seat when username matches resolved identity", func(t *testing.T) {
 		mock := &mockGitHubClient{
-			unassignResult: &UnassignResult{SeatsCancelled: 1},
+			unassignResult: &github.UnassignResult{SeatsCancelled: 1},
 		}
 		h := newGitHubHandlers(mock)
 
@@ -417,28 +419,28 @@ func TestHandlePremiumRequestUsage(t *testing.T) {
 		org        string
 		year       string
 		month      string
-		mockData   *PremiumRequestUsage
+		mockData   *github.PremiumRequestUsage
 		mockErr    error
 		wantStatus int
 	}{
 		{
 			name:       "returns data with optional year and month",
 			org:        "nav",
-			mockData:   &PremiumRequestUsage{},
+			mockData:   &github.PremiumRequestUsage{},
 			wantStatus: http.StatusOK,
 		},
 		{
 			name:       "returns data with only year",
 			org:        "nav",
 			year:       "2024",
-			mockData:   &PremiumRequestUsage{},
+			mockData:   &github.PremiumRequestUsage{},
 			wantStatus: http.StatusOK,
 		},
 		{
 			name:       "returns data with only month",
 			org:        "nav",
 			month:      "6",
-			mockData:   &PremiumRequestUsage{},
+			mockData:   &github.PremiumRequestUsage{},
 			wantStatus: http.StatusOK,
 		},
 		{
@@ -521,7 +523,7 @@ func TestHandleRepositoryContributors(t *testing.T) {
 		owner      string
 		repo       string
 		paths      string
-		mockData   []Contributor
+		mockData   []github.Contributor
 		mockErr    error
 		wantStatus int
 	}{
@@ -530,7 +532,7 @@ func TestHandleRepositoryContributors(t *testing.T) {
 			owner:      "navikt",
 			repo:       "copilot",
 			paths:      `["src/main.go","src/api.go"]`,
-			mockData:   []Contributor{{Login: "user1"}, {Login: "user2"}},
+			mockData:   []github.Contributor{{Login: "user1"}, {Login: "user2"}},
 			wantStatus: http.StatusOK,
 		},
 		{
@@ -615,12 +617,5 @@ func TestHandleRepositoryContributorsValidatesRepo(t *testing.T) {
 		if rec.Code != http.StatusBadRequest {
 			t.Errorf("repo %q: status %d, want 400", repo, rec.Code)
 		}
-	}
-}
-
-func TestGetRepositoryContributorsPinsOwner(t *testing.T) {
-	g := &GitHubClient{org: "navikt"}
-	if _, err := g.getRepositoryContributors(context.Background(), "other-org", "repo", []string{"a"}); !errors.Is(err, errOwnerNotAllowed) {
-		t.Fatalf("err = %v, want errOwnerNotAllowed", err)
 	}
 }

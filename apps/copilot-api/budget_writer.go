@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/github"
 )
 
 // budgetWriter writes individual user budgets on the enterprise budgets
@@ -55,11 +57,11 @@ func newBudgetTokenSource(cfg *Config) (func(context.Context) (string, error), e
 	if cfg.BudgetAppID == "" && cfg.BudgetAppPrivateKey == "" && cfg.BudgetAppInstallationID == "" {
 		return nil, nil
 	}
-	app, err := newGitHubClient(&Config{GitHubAppID: cfg.BudgetAppID, GitHubAppPrivateKey: cfg.BudgetAppPrivateKey, GitHubInstallationID: cfg.BudgetAppInstallationID})
+	app, err := github.New("", cfg.BudgetAppID, cfg.BudgetAppPrivateKey, cfg.BudgetAppInstallationID)
 	if err != nil {
 		return nil, fmt.Errorf("budget app: %w", err)
 	}
-	return app.getInstallationToken, nil
+	return app.InstallationToken, nil
 }
 
 func (b *budgetWriter) do(ctx context.Context, method, path string, body any, out any) (int, error) {

@@ -14,6 +14,8 @@ import (
 	"strings"
 
 	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/github"
 )
 
 // validRepoName matches GitHub repository names: letters, digits, '.', '-'
@@ -32,13 +34,13 @@ func navIdentOf(user *auth.User) string {
 
 // GitHubAPI abstracts GitHub API operations for testability
 type GitHubAPI interface {
-	getCopilotBilling(ctx context.Context) (*CopilotBilling, error)
-	getCopilotSeat(ctx context.Context, username string) (*CopilotSeat, error)
-	assignUserToCopilot(ctx context.Context, username string) (*AssignResult, error)
-	unassignUserFromCopilot(ctx context.Context, username string) (*UnassignResult, error)
+	GetCopilotBilling(ctx context.Context) (*github.CopilotBilling, error)
+	GetCopilotSeat(ctx context.Context, username string) (*github.CopilotSeat, error)
+	AssignUserToCopilot(ctx context.Context, username string) (*github.AssignResult, error)
+	UnassignUserFromCopilot(ctx context.Context, username string) (*github.UnassignResult, error)
 	GetUsernameBySamlIdentity(ctx context.Context, identity string) (string, error)
-	getPremiumRequestUsage(ctx context.Context, org string, year, month int) (*PremiumRequestUsage, error)
-	getRepositoryContributors(ctx context.Context, owner, repo string, paths []string) ([]Contributor, error)
+	GetPremiumRequestUsage(ctx context.Context, org string, year, month int) (*github.PremiumRequestUsage, error)
+	GetRepositoryContributors(ctx context.Context, owner, repo string, paths []string) ([]github.Contributor, error)
 }
 
 // GitHubHandlers wraps handlers that use GitHub API
@@ -54,7 +56,7 @@ func newGitHubHandlers(githubClient GitHubAPI) *GitHubHandlers {
 
 // handleBilling handles GET /api/v1/copilot/billing
 func (h *GitHubHandlers) handleBilling(w http.ResponseWriter, r *http.Request) {
-	billing, err := h.githubClient.getCopilotBilling(r.Context())
+	billing, err := h.githubClient.GetCopilotBilling(r.Context())
 	if err != nil {
 		slog.Error("Failed to fetch billing", "error", err)
 		respondError(w, "github_error", "Failed to fetch Copilot billing data", http.StatusInternalServerError)
@@ -81,7 +83,7 @@ func (h *GitHubHandlers) handleGetSeat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	seat, err := h.githubClient.getCopilotSeat(r.Context(), username)
+	seat, err := h.githubClient.GetCopilotSeat(r.Context(), username)
 	if err != nil {
 		slog.Error("Failed to fetch seat", "error", err)
 		respondError(w, "github_error", "Failed to fetch Copilot seat data", http.StatusInternalServerError)
@@ -132,7 +134,7 @@ func (h *GitHubHandlers) handleAssignSeat(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	result, err := h.githubClient.assignUserToCopilot(r.Context(), req.Username)
+	result, err := h.githubClient.AssignUserToCopilot(r.Context(), req.Username)
 	if err != nil {
 		slog.Error("Failed to assign seat",
 			"username", req.Username,
@@ -176,7 +178,7 @@ func (h *GitHubHandlers) handleUnassignSeat(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	result, err := h.githubClient.unassignUserFromCopilot(r.Context(), username)
+	result, err := h.githubClient.UnassignUserFromCopilot(r.Context(), username)
 	if err != nil {
 		slog.Error("Failed to unassign seat",
 			"username", username,
@@ -275,7 +277,7 @@ func (h *GitHubHandlers) handlePremiumRequestUsage(w http.ResponseWriter, r *htt
 		}
 	}
 
-	usage, err := h.githubClient.getPremiumRequestUsage(r.Context(), org, year, month)
+	usage, err := h.githubClient.GetPremiumRequestUsage(r.Context(), org, year, month)
 	if err != nil {
 		slog.Error("Failed to fetch premium request usage", "org", org, "error", err)
 		respondError(w, "github_error", "Failed to fetch premium request usage", http.StatusInternalServerError)
@@ -326,8 +328,8 @@ func (h *GitHubHandlers) handleRepositoryContributors(w http.ResponseWriter, r *
 		}
 	}
 
-	contributors, err := h.githubClient.getRepositoryContributors(r.Context(), owner, repo, paths)
-	if errors.Is(err, errOwnerNotAllowed) {
+	contributors, err := h.githubClient.GetRepositoryContributors(r.Context(), owner, repo, paths)
+	if errors.Is(err, github.ErrOwnerNotAllowed) {
 		respondError(w, "invalid_parameter", "Invalid owner", http.StatusBadRequest)
 		return
 	}

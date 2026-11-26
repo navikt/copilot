@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 
 	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
+	"github.com/navikt/copilot/apps/copilot-api/internal/github"
 )
 
 const (
@@ -141,7 +142,7 @@ func samlNameIDHandler(surveyClientID string, lookup func(context.Context, strin
 		}
 		nameID, err := lookup(r.Context(), login)
 		switch {
-		case errors.Is(err, errNoSAMLIdentity):
+		case errors.Is(err, github.ErrNoSAMLIdentity):
 			respondError(w, "no_saml_identity", "No SAML identity is linked to this GitHub account", http.StatusNotFound)
 		case err != nil:
 			// The lookup's errors carry status codes, never the login.

@@ -15,6 +15,8 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/github"
 )
 
 func main() {
@@ -46,11 +48,11 @@ func main() {
 	}
 
 	// Initialize GitHub client (optional - metrics will show zeros if not configured)
-	var githubClient *GitHubClient
+	var githubClient *github.Client
 	var ghHandlers *GitHubHandlers
 	if config.GitHubAppID != "" && config.GitHubAppPrivateKey != "" && config.GitHubInstallationID != "" {
 		var err error
-		githubClient, err = newGitHubClient(config)
+		githubClient, err = github.New(config.GitHubOrg, config.GitHubAppID, config.GitHubAppPrivateKey, config.GitHubInstallationID)
 		if err != nil {
 			slog.Warn("GitHub client initialization failed - metrics will be unavailable", "error", err)
 		} else {
@@ -203,14 +205,14 @@ func main() {
 	}
 	var nameIDLookup func(context.Context, string) (string, error)
 	if githubClient != nil {
-		nameIDLookup = githubClient.getSamlNameIDByLogin
+		nameIDLookup = githubClient.GetSamlNameIDByLogin
 	}
 	// copilot-cli asks here whether a nav-pilot user is an active navikt
 	// member, so the nav-pilot GitHub App needs no permissions. Off unless
 	// copilot-cli is pre-authorized (the same client id as X-On-Behalf-Of).
 	var memberCheck func(context.Context, string) (bool, error)
 	if githubClient != nil {
-		memberCheck = githubClient.isActiveOrgMember
+		memberCheck = githubClient.IsActiveOrgMember
 	}
 	registerInternalRoutes(mux, authMiddleware, copilotSurveyClientID, nameIDLookup, copilotCLIClientID, memberCheck)
 

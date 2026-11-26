@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/github"
 )
 
 // MetricsCollector manages Prometheus metrics
@@ -80,7 +83,7 @@ copilot_seats_pending_cancellation %d
 }
 
 // startMetricsCollector starts the background metrics collection
-func startMetricsCollector(config *Config, client *GitHubClient) {
+func startMetricsCollector(config *Config, client *github.Client) {
 	// Collect immediately on startup (if configured)
 	if client != nil {
 		slog.Info("Running initial GitHub metrics collection")
@@ -100,4 +103,33 @@ func startMetricsCollector(config *Config, client *GitHubClient) {
 	}()
 
 	slog.Info("GitHub metrics collector started", "interval", "5m")
+}
+
+// collectGitHubMetrics fetches GitHub billing data and updates metrics
+func collectGitHubMetrics(client *github.Client) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	billing, err := client.GetCopilotBilling(ctx)
+	if err != nil {
+		slog.Error("Failed to collect GitHub metrics", "error", err)
+		return
+	}
+
+	metricsCollector.mu.Lock()
+	defer metricsCollector.mu.Unlock()
+
+	metricsCollector.githubSeatsTotal = int64(billing.SeatBreakdown.Total)
+	metricsCollector.githubSeatsActive = int64(billing.SeatBreakdown.ActiveThisCycle)
+	metricsCollector.githubSeatsInactive = int64(billing.SeatBreakdown.InactiveThisCycle)
+	metricsCollector.githubSeatsAdded = int64(billing.SeatBreakdown.AddedThisCycle)
+	metricsCollector.githubSeatsPending = int64(billing.SeatBreakdown.PendingInvitation)
+	metricsCollector.githubSeatsCancelling = int64(billing.SeatBreakdown.PendingCancellation)
+	metricsCollector.lastCollectionTimestamp = time.Now().Unix()
+
+	slog.Info("GitHub metrics collected",
+		"total", billing.SeatBreakdown.Total,
+		"active", billing.SeatBreakdown.ActiveThisCycle,
+		"inactive", billing.SeatBreakdown.InactiveThisCycle,
+	)
 }
