@@ -12,6 +12,7 @@ export const metadata: Metadata = {
 };
 
 const DOLLY_URL = "https://github.com/navikt/copilot/tree/main/apps/mcp-dolly";
+const SYNC_ISSUE_URL = "https://github.com/navikt/copilot/issues/2765";
 const DEV_FLEET = "https://ki-utvikling.ekstern.dev.nav.no/fleet";
 
 const TOC: TocItem[] = [
@@ -146,7 +147,14 @@ export default function FleetFaqPage() {
           Serveren er godkjent. Hva gjør brukerne?
         </LinkableHeading>
         <Bullets>
-          <li>Serveren får en oppføring i MCP-registeret.</li>
+          <li>
+            Be om en oppføring i MCP-registeret (PR til <code className={code}>apps/mcp-registry/allowlist.json</code>,
+            med samme verktøy og risiko som i /fleet). Senere hentes oppføringen automatisk fra Fleet (
+            <a href={SYNC_ISSUE_URL} className={linkClass}>
+              #2765
+            </a>
+            ).
+          </li>
           <li>
             Brukeren kjører <code className={code}>nav-pilot mcp enable &lt;navn&gt;</code>.
           </li>
