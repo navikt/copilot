@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { cookies } from "next/headers";
 import { TEAM_COOKIE, isName } from "@/lib/fleet-names";
 import { fleetApi } from "@/lib/fleet-control";
+import { PLATFORM_TEAM } from "@/lib/fleet-approval";
 import { BodyLong, Box, Heading, HStack, Stack, VStack } from "@navikt/ds-react";
 import { Breadcrumbs, FleetNav, type FleetNavProps } from "./nav";
 
@@ -11,12 +12,13 @@ export const fleetRobots = { index: false, follow: false };
 export const BADGE_TIMEOUT_MS = 2000;
 
 /** Versions waiting in the team, as on the overview; undefined on error or after BADGE_TIMEOUT_MS. */
-function pendingBadge(team: string): Promise<number | undefined> {
+function pendingBadge(team?: string): Promise<number | undefined> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   return Promise.race([
     // Inside then(), so a throw while building the request is a rejection too.
     Promise.resolve()
-      .then(() => fleetApi.servers(team))
+      // No team: the platform team's count across every namespace.
+      .then(() => (team ? fleetApi.servers(team) : fleetApi.myServers()))
       .then(
         (l) => l.items.filter((s) => s.status.pending).length,
         () => undefined
@@ -48,7 +50,7 @@ export function teamNavLoader(prefer?: string) {
     const { last, badges } = await start;
     const team = [pick, prefer, last].find((t) => t && teams.includes(t)) ?? teams[0];
     if (!team) return undefined;
-    const pending = await (badges.get(team) ?? pendingBadge(team));
+    const pending = await (teams.includes(PLATFORM_TEAM) ? pendingBadge() : (badges.get(team) ?? pendingBadge(team)));
     return { team, teams, pending, ...extra };
   };
 }

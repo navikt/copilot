@@ -279,16 +279,87 @@ export function TeamStats({ servers, me }: { servers: MCPServer[]; me?: string }
 }
 
 /** MCP server versions that wait for someone on the team: approve, or wait for the others. */
+const DAY = 24 * 60 * 60 * 1000;
+const days = (n: number) => (n === 1 ? "1 dag" : `${n} dager`);
+
+/** «Sendt inn i dag» or «for N dager siden», from when the PendingApproval condition turned true. */
+function submittedAgo(s: MCPServer): string | undefined {
+  const at = s.status.conditions?.find((c) => c.type === "PendingApproval" && c.status === "True")?.lastTransitionTime;
+  if (!at) return undefined;
+  const n = Math.floor((Date.now() - Date.parse(at)) / DAY);
+  return Number.isNaN(n) ? undefined : n < 1 ? "i dag" : `for ${days(n)} siden`;
+}
+
+/** Days left before the pending version can no longer be approved (#2731). */
+function expiryText(expiresAt?: string): string | undefined {
+  if (!expiresAt) return undefined;
+  const n = Math.ceil((Date.parse(expiresAt) - Date.now()) / DAY);
+  if (Number.isNaN(n)) return undefined;
+  return n <= 0 ? "Utløpt, må sendes inn på nytt" : `Utløper om ${days(n)}`;
+}
+
+/** «Godkjenn» right in the list: the same POST as on the server page, then the list reloads. */
+function InboxApprove({ server }: { server: MCPServer }) {
+  const approve = useFleetPost("approve", true);
+  const p = server.status.pending!;
+  return (
+    <form onSubmit={approve.onSubmit} className="w-full md:w-auto">
+      <input type="hidden" name="namespace" value={server.metadata.namespace} />
+      <input type="hidden" name="name" value={server.metadata.name} />
+      <input type="hidden" name="generation" value={p.generation} />
+      <input type="hidden" name="contentHash" value={p.contentHash} />
+      <VStack gap="space-8">
+        <ActionError error={approve.error} />
+        <Button loading={approve.busy} className="w-full md:w-auto">
+          Godkjenn
+        </Button>
+      </VStack>
+    </form>
+  );
+}
+
+/** The platform team's filter by owner team: a GET form, so the choice is in the URL. */
+export function OwnerFilter({ team, owners, owner }: { team: string; owners: string[]; owner?: string }) {
+  const form = useRef<HTMLFormElement>(null);
+  return (
+    <form method="get" ref={form}>
+      <input type="hidden" name="team" value={team} />
+      <Select
+        label="Vis team"
+        name="eier"
+        defaultValue={owner ?? ""}
+        onChange={() => form.current?.requestSubmit()}
+        className="max-w-xs"
+      >
+        <option value="">Alle team ({owners.length})</option>
+        {owners.map((o) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
+      </Select>
+      <noscript>
+        <Button size="small" variant="secondary">
+          Vis
+        </Button>
+      </noscript>
+    </form>
+  );
+}
+
 export function ServerInbox({
   servers,
   me,
   myName,
   approver,
+  showTeam,
 }: {
   servers: MCPServer[];
   me?: string;
   myName?: string;
   approver?: boolean;
+  /** The platform team's list across teams: name the owner team on each row. */
+  showTeam?: boolean;
 }) {
   const waiting = servers.filter((s) => s.status.pending);
   if (!waiting.length) return null;
@@ -299,10 +370,14 @@ export function ServerInbox({
           const p = s.status.pending!;
           const mine = !!me && p.submittedBy?.name === me;
           const href = `/fleet/mcp-servere/${refKey(s.metadata)}`;
+          const ago = submittedAgo(s);
+          const expiry = expiryText(p.expiresAt);
+          // The UI only hides the button; fleet-control still decides (four eyes, platform team).
+          const canApprove = !!approver && !mine && !!p.contentHash;
           return (
             <Box
               as="li"
-              key={s.metadata.name}
+              key={refKey(s.metadata)}
               padding="space-20"
               borderWidth={i ? "1 0 0 0" : "0"}
               borderColor="neutral-subtle"
@@ -319,6 +394,11 @@ export function ServerInbox({
                     <Tag size="small" variant="warning" className="whitespace-nowrap">
                       Venter på godkjenning
                     </Tag>
+                    {showTeam && (
+                      <Tag size="small" variant="neutral" className="whitespace-nowrap">
+                        {s.metadata.namespace}
+                      </Tag>
+                    )}
                     <Link as={NextLink} href={href} className="[overflow-wrap:anywhere]">
                       <strong>{s.metadata.name}</strong>
                     </Link>
@@ -327,27 +407,34 @@ export function ServerInbox({
                   <HStack gap="space-8" align="center">
                     <Initials name={mine ? myName : undefined} />
                     <BodyShort size="small">
-                      {mine
+                      {(mine
                         ? `Sendt inn av ${myName ? `${myName} (deg)` : "deg"}`
                         : p.submittedBy
                           ? `Sendt inn av ${p.submittedBy.name}`
-                          : "Ingen person sendte inn"}
+                          : "Ingen person sendte inn") + (ago ? ` ${ago}` : "")}
                     </BodyShort>
                   </HStack>
                   <BodyShort size="small">
                     <strong>{mine ? "Venter på:" : "Hvem kan godkjenne:"}</strong> {APPROVER}
+                    {expiry && <> · {expiry}</>}
                   </BodyShort>
                 </VStack>
-                <div className="w-full shrink-0 md:w-auto">
+                <Stack
+                  direction={{ xs: "column", md: "row" }}
+                  gap="space-8"
+                  className="w-full shrink-0 md:w-auto"
+                  wrap={false}
+                >
                   <Button
                     as={NextLink}
-                    href={href}
-                    variant={mine || !approver ? "secondary" : "primary"}
+                    href={`${href}#hva-endres`}
+                    variant={canApprove || mine || !approver ? "secondary" : "primary"}
                     className="w-full md:w-auto"
                   >
                     Se endringen
                   </Button>
-                </div>
+                  {canApprove && <InboxApprove server={s} />}
+                </Stack>
               </Stack>
             </Box>
           );
@@ -892,7 +979,7 @@ export function ServerDetail({
       {server.status.pending?.spec && (
         <VStack gap="space-8">
           <HStack justify="space-between" align="end" gap="space-8">
-            <Heading level="2" size="medium">
+            <Heading level="2" size="medium" id="hva-endres">
               Hva endres
             </Heading>
             {server.status.publishedGeneration && (
@@ -1265,8 +1352,8 @@ function Versjoner({ server, next }: { server: MCPServer; next: MCPServerSpec })
 
 type FleetError = { message: string; detail?: string; fields?: Record<string, string> };
 
-/** Posts a form to /api/fleet and opens the page it answers with; the error stays on the form. */
-function useFleetPost(action: string) {
+/** Posts a form to /api/fleet and opens the page it answers with (stay: reloads this one); the error stays on the form. */
+function useFleetPost(action: string, stay = false) {
   const router = useRouter();
   const [error, setError] = useState<FleetError>();
   const [busy, setBusy] = useState(false);
@@ -1289,6 +1376,10 @@ function useFleetPost(action: string) {
         detail?: string;
         fields?: Record<string, string>;
       };
+      if (res.ok && stay) {
+        router.refresh();
+        return;
+      }
       if (res.ok && out.href) {
         router.push(out.href);
         router.refresh();

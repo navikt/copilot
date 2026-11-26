@@ -172,7 +172,7 @@ describe("/fleet", () => {
       within(screen.getByRole("list", { name: "MCP-servere til godkjenning" })).getByRole("button", {
         name: "Se endringen",
       })
-    ).toHaveAttribute("href", "/fleet/mcp-servere/team-a/docs");
+    ).toHaveAttribute("href", "/fleet/mcp-servere/team-a/docs#hva-endres");
     expect(screen.getByRole("heading", { name: "team-a" })).toBeInTheDocument();
     expect(screen.queryByRole("tab")).not.toBeInTheDocument();
     // The header button and the side navigation's button; Aksel's Button as a link keeps role="button".
@@ -788,6 +788,91 @@ describe("/fleet/godkjenning", () => {
     expect(screen.queryByText(/Ingenting venter/)).toBeNull();
   });
 
+  describe("platform team (#3095)", () => {
+    const other = (namespace: string, name: string, expiresAt?: string) => {
+      const s = server();
+      s.metadata = { ...s.metadata, namespace, name };
+      Object.assign(s.status.pending, { submittedBy: { kind: "User", name: "B654321" }, expiresAt });
+      return s;
+    };
+    const soon = new Date(Date.now() + 3.5 * 24 * 60 * 60 * 1000).toISOString();
+    const platform = (extra: Record<string, unknown> = {}) =>
+      stub({
+        [`${API}/whoami`]: { name: "A123456", oid: "x", teams: ["copilot"] },
+        [`${API}/mcpservers`]: { items: [other("team-a", "docs", soon), other("team-b", "saker")] },
+        ...extra,
+      });
+    const owner = async (eier: string) =>
+      render(
+        await (await import("./godkjenning/page")).default({ searchParams: Promise.resolve({ team: "copilot", eier }) })
+      );
+
+    it("lists every team's pending version from the cross-namespace list, with a team filter", async () => {
+      platform();
+      await page("copilot");
+      const list = screen.getByRole("list", { name: "MCP-servere til godkjenning" });
+      expect(within(list).getByText("team-a")).toBeInTheDocument();
+      expect(within(list).getByText("team-b")).toBeInTheDocument();
+      expect(screen.getByRole("combobox", { name: "Vis team" })).toBeInTheDocument();
+      const urls = vi.mocked(fetch).mock.calls.map((c) => String(c[0]));
+      expect(urls).toContain(`http://fc${API}/mcpservers`);
+      expect(urls.some((u) => u.includes("/namespaces/team-b/"))).toBe(false);
+    });
+
+    it("counts every team's pending versions in the side menu", async () => {
+      platform();
+      const { container } = await page("copilot");
+      const [link] = within(container.querySelector('nav[aria-label="Fleet"]') as HTMLElement).getAllByRole("link", {
+        name: /Til godkjenning/,
+      });
+      expect(link.textContent).toContain("2");
+    });
+
+    it("filters by owner team", async () => {
+      platform();
+      await owner("team-b");
+      const list = screen.getByRole("list", { name: "MCP-servere til godkjenning" });
+      expect(within(list).queryByText("team-a")).toBeNull();
+      expect(within(list).getByText("saker")).toBeInTheDocument();
+    });
+
+    it("shows days left before the version expires", async () => {
+      platform();
+      await page("copilot");
+      expect(screen.getByText(/Utløper om 4 dager/)).toBeInTheDocument();
+    });
+
+    it("approves inline against the server's own namespace", async () => {
+      platform();
+      await owner("team-b");
+      fireEvent.click(screen.getByRole("button", { name: "Godkjenn" }));
+      await vi.waitFor(() => {
+        const call = vi.mocked(fetch).mock.calls.find((c) => c[0] === "/api/fleet");
+        expect(JSON.parse(String(call![1]!.body))).toMatchObject({
+          action: "approve",
+          namespace: "team-b",
+          name: "saker",
+          generation: "3",
+          contentHash: "h3",
+        });
+      });
+    });
+
+    it("says nothing waits when no team has a pending version", async () => {
+      platform({ [`${API}/mcpservers`]: { items: [] }, [`${API}/agentprofiles?awaitingApprovalBy=me`]: { items: [] } });
+      await page("copilot");
+      expect(screen.getByText("Ingenting venter på godkjenning nå.")).toBeInTheDocument();
+    });
+  });
+
+  it("shows others only their own teams, with no filter and no «Godkjenn»", async () => {
+    await page("team-a");
+    expect(screen.queryByRole("combobox", { name: "Vis team" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Godkjenn" })).toBeNull();
+    const urls = vi.mocked(fetch).mock.calls.map((c) => String(c[0]));
+    expect(urls).not.toContain(`http://fc${API}/mcpservers`);
+  });
+
   it("marks «Til godkjenning» as current in the side menu, and only it", async () => {
     const { container } = await page("team-a");
     const current = [...container.querySelectorAll('nav[aria-label="Fleet"] [aria-current="page"]')];
@@ -806,14 +891,14 @@ describe("ServerInbox avatars", () => {
     const { container } = render(
       <ServerInbox servers={[by("Z990001")]} me="Z990001" myName="Hans Kristian Flaatten" />
     );
-    expect(screen.getByText("Sendt inn av Hans Kristian Flaatten (deg)")).toBeInTheDocument();
+    expect(screen.getByText(/^Sendt inn av Hans Kristian Flaatten \(deg\) for \d+ dager siden$/)).toBeInTheDocument();
     expect(container.textContent).toContain("HKF");
   });
   it("shows a person icon for someone else, since fleet-control only has the NAVident", () => {
     const { container } = render(
       <ServerInbox servers={[by("F123456")]} me="Z990001" myName="Hans Kristian Flaatten" />
     );
-    expect(screen.getByText("Sendt inn av F123456")).toBeInTheDocument();
+    expect(screen.getByText(/^Sendt inn av F123456 for \d+ dager siden$/)).toBeInTheDocument();
     const avatar = container.querySelector("[aria-hidden]")!;
     expect(avatar.querySelector("svg")).not.toBeNull();
     expect(avatar.textContent).toBe("");

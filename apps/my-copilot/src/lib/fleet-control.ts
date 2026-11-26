@@ -13,7 +13,7 @@ export type Me = { name: string; teams: string[] };
 // v1alpha1 shapes (fleet-control apis*.go). Empty fields are left out, and
 // enum-like strings stay string so an unknown value never breaks the page.
 type Metadata = { name: string; namespace: string; resourceVersion?: string; generation?: number };
-export type Condition = { type: string; status: string; reason: string; message?: string };
+export type Condition = { type: string; status: string; reason: string; message?: string; lastTransitionTime?: string };
 type Actor = { kind?: string; name: string };
 export type ServerRef = { group: string; kind: string; namespace: string; name: string };
 
@@ -38,7 +38,14 @@ export type MCPServer = {
     publishedGeneration?: number;
     route?: { path: string };
     // spec and contentHash are for the owner team only; approval sends contentHash back.
-    pending?: { generation: number; contentHash?: string; spec?: MCPServerSpec; submittedBy?: Actor };
+    pending?: {
+      generation: number;
+      contentHash?: string;
+      spec?: MCPServerSpec;
+      submittedBy?: Actor;
+      // After this the version can no longer be approved (#2731).
+      expiresAt?: string;
+    };
     conditions?: Condition[];
   };
 };
@@ -187,6 +194,8 @@ const ns = (namespace: string) => `${API}/namespaces/${seg(namespace)}`;
 export const fleetApi = {
   whoami: () => fleetGet<Me>(`${API}/whoami`),
   apps: (namespace: string) => fleetGet<List<TeamApp>>(`${ns(namespace)}/apps`),
+  // The caller's teams' servers; for the platform team also every namespace with a pending version (#3071).
+  myServers: () => fleetGet<List<MCPServer>>(`${API}/mcpservers`),
   servers: (namespace: string) => fleetGet<List<MCPServer>>(`${ns(namespace)}/mcpservers`),
   server: (namespace: string, name: string) => fleetGet<MCPServer>(`${ns(namespace)}/mcpservers/${seg(name)}`),
   catalog: () => fleetGet<List<CatalogEntry>>(`${API}/mcpservercatalogentries`),
