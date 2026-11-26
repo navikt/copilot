@@ -30,7 +30,7 @@ rt_storage: client-encrypted
 team_token_strategy: obo
 # Where login takes NAVident from (#2594). Verified in dev 2026-11-23.
 identity_source: introspection
-# Shadow mode (#2760): routes still come from git; the gateway compares them
-# with fleet-control and only reports the diff. Switch with routes_source.
-routes_shadow_source: fleet-control
+# Routes come from fleet-control (#2760). pilot_routes_file only pins the
+# primary resource; the file is frozen (routes_freeze_test.go).
+routes_source: fleet-control
 fleet_control_audience: "api://prod-gcp.copilot.fleet-control/.default"
