@@ -744,7 +744,7 @@ func writeConfigAtomically(path string, data []byte) error {
 	if real, err := filepath.EvalSymlinks(path); err == nil {
 		path = real
 	}
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".opencode.json.*")
+	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*")
 	if err != nil {
 		return fmt.Errorf("creating temporary opencode config: %w", err)
 	}

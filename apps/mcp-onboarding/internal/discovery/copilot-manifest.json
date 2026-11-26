@@ -118,7 +118,7 @@
       "displayName": "@nav-pilot-opus",
       "description": "Dyp analyse for høyrisiko planlegging, arkitekturvalg og kritisk review i Nav-prosjekter",
       "filePath": "agents/nav-pilot-opus.agent.md",
-      "contentHash": "9589574e7c94010a6615e0f6979bbcb7a0792c0317db11a0fce27adf14b76940",
+      "contentHash": "c2cfb4f3122115e064c273f6778ef41bee3f1fef09a87d135cc61362c4956c0f",
       "useCases": [
         "Network policies",
         "Secrets management",
@@ -140,7 +140,7 @@
         "infrastructure"
       ],
       "filePath": "agents/nav-pilot.agent.md",
-      "contentHash": "a6d797b0efe8bbfbb9f7633660411ecba0af0f80980f46d2e89b5f6d36700689",
+      "contentHash": "c4a2067e7b34ece25fcbef82b998f74a286b81b48ee3aae0dace335200669dc9",
       "useCases": [
         "Adding PostgreSQL/Kafka",
         "Troubleshooting deployments",

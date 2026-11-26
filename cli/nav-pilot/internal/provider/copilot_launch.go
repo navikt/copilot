@@ -197,6 +197,9 @@ func BuildCopilotArgs(cliName string, resolved domain.ResolvedConfig) []string {
 		args = append(args, "--plugin-dir", dir)
 	}
 	args = append(args, "--agent", agent)
+	for _, tool := range copilotGitHubMCPTools {
+		args = append(args, "--add-github-mcp-tool", tool)
+	}
 	if model := copilotSessionModel(resolved.Model); model != "" {
 		// Same fallback the staged Tier 2 copilot path has
 		// (buildStagedCopilotSpec), and the same one Tier 1 opencode gets
@@ -215,6 +218,18 @@ func BuildCopilotArgs(cliName string, resolved domain.ResolvedConfig) []string {
 		return withoutAllowAll(args)
 	}
 	return args
+}
+
+// copilotGitHubMCPTools are the read-only GitHub MCP tools nav-pilot turns on
+// in Copilot CLI's built-in server (#898). The agent used to list them under
+// tools:, which also hid every MCP server the user enabled; without tools: the
+// CLI falls back to its 5-tool default, so the launch asks for them here.
+// --add-github-mcp-tool replaces that default subset (copilot --help, 1.0.116).
+// Keep this list read-only.
+var copilotGitHubMCPTools = []string{
+	"get_file_contents", "search_code", "search_repositories", "list_commits",
+	"issue_read", "list_issues", "search_issues", "pull_request_read",
+	"search_pull_requests", "get_latest_release", "list_releases",
 }
 
 // copilotAllowAllFlags are the Copilot CLI flags that switch its permission

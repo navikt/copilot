@@ -1226,6 +1226,8 @@ Fem gruppenavn løses opp: `agent` → `task`, `read_agent`, `list_agents`, `wri
 
 Sjekk nye navn mot en reell logg før du legger dem inn. `copilot-manifest.test.ts` passer på `github/`-prefikset, men ingen test fanger et gruppenavn som ikke finnes.
 
+**Oppdatering 2026-11-26:** `nav-pilot` og `nav-pilot-opus` har ikke lenger `tools:`. Lista skjulte alle MCP-servere brukeren hadde slått på (Figma, Aksel, fleet-gateway), og `web_search`. `tools:` er ikke en sikkerhetsgrense; det er cplt, fleet-gateway og autentisering på serversiden. Uten `tools:` får GitHub MCP bare CLI-ens fem standardverktøy, så `BuildCopilotArgs` sender de 11 leseverktøyene fra #898 med `--add-github-mcp-tool` (`copilotGitHubMCPTools` i `copilot_launch.go`). Flagget erstatter standardutvalget (`copilot --help`, 1.0.116). Hold lista til leseverktøy. `copilot-manifest.test.ts` leser agentfilene og feiler på `tools:` med noe annet enn `*`. Smale agenter (worker, research, code-review og flere) beholder `tools:`.
+
 ### Kotlin er én fil, ikke to
 
 `kotlin-ktor` og `kotlin-spring` hadde begge `applyTo: "**/*.kt"`, så hvert Kotlin-repo lastet begge og minst én var alltid feil. `applyTo` ser verken build-filer eller imports, så ingen glob kan skille dem. De er slått sammen til `kotlin.instructions.md` med én halvdel per rammeverk og en rutingsetning øverst; modellen velger halvdel ut fra imports i fila den redigerer. Ikke del dem opp igjen uten en mekanisme som faktisk kan skille dem.
