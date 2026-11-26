@@ -1,4 +1,4 @@
-package main
+package cost
 
 import (
 	"math"
@@ -27,8 +27,8 @@ func prodMonths(through int) ([]bqstore.AdminMonth, []bqstore.ActiveUsersMonth) 
 
 func TestYearForecastLowMidHigh(t *testing.T) {
 	ms, us := prodMonths(9)
-	cur := ModelForecast{Model: modelTrend, NetMidUSD: 70000, NetLowUSD: 59500, NetHighUSD: 80500}
-	pts, end := yearForecast(ms, us, cur, time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC))
+	cur := ModelForecast{Model: ModelTrend, NetMidUSD: 70000, NetLowUSD: 59500, NetHighUSD: 80500}
+	pts, end := YearForecast(ms, us, cur, time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC))
 	if len(pts) != 12 || end == nil {
 		t.Fatalf("want 12 points and a year end, got %d, %v", len(pts), end)
 	}
@@ -95,7 +95,7 @@ func TestYearForecastFitsAcrossNewYear(t *testing.T) {
 	net := []float64{1000, 1100, 1200}
 	ms := []bqstore.AdminMonth{{Month: "2026-11", EnterpriseNetUSD: &net[0]}, {Month: "2026-12", EnterpriseNetUSD: &net[1]}, {Month: "2027-01", EnterpriseNetUSD: &net[2]}}
 	us := []bqstore.ActiveUsersMonth{{Month: "2026-11", ActiveUsers: 10}, {Month: "2026-12", ActiveUsers: 10}, {Month: "2027-01", ActiveUsers: 10}}
-	pts, end := yearForecast(ms, us, ModelForecast{NetMidUSD: 1300, NetLowUSD: 1200, NetHighUSD: 1400}, time.Date(2027, 2, 1, 0, 0, 0, 0, time.UTC))
+	pts, end := YearForecast(ms, us, ModelForecast{NetMidUSD: 1300, NetLowUSD: 1200, NetHighUSD: 1400}, time.Date(2027, 2, 1, 0, 0, 0, 0, time.UTC))
 	if end == nil || pts[0].Month != "2027-01" || pts[0].CumulativeNetUSD != 1200 || len(pts) != 12 {
 		t.Fatalf("want 2027 only, fitted on 2026 too: %+v %v", pts[:1], end)
 	}
@@ -110,7 +110,7 @@ func TestYearRangeFromBacktest(t *testing.T) {
 	errPct, n := yearBacktest(ms, au)
 	t.Logf("backtest: %.1f %% over %d predictions", errPct, n)
 	cur := ModelForecast{NetMidUSD: 70000, NetLowUSD: 59500, NetHighUSD: 80500}
-	_, end := yearForecast(ms, us, cur, time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC))
+	_, end := YearForecast(ms, us, cur, time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC))
 	if n == 0 || end.BacktestErrorPct != errPct || end.RangePct != math.Max(yearBandFloorPct, errPct) {
 		t.Errorf("range %+v, backtest %.1f over %d", end, errPct, n)
 	}
@@ -130,7 +130,7 @@ func TestYearRangeFromBacktest(t *testing.T) {
 		fm = append(fm, bqstore.AdminMonth{Month: m, EnterpriseNetUSD: &flat[i]})
 		fu = append(fu, bqstore.ActiveUsersMonth{Month: m, ActiveUsers: 10})
 	}
-	_, end = yearForecast(fm, fu, ModelForecast{NetMidUSD: 100, NetLowUSD: 90, NetHighUSD: 110}, time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC))
+	_, end = YearForecast(fm, fu, ModelForecast{NetMidUSD: 100, NetLowUSD: 90, NetHighUSD: 110}, time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC))
 	if end.RangePct != yearBandFloorPct {
 		t.Errorf("floor: range %v, error %v", end.RangePct, end.BacktestErrorPct)
 	}
@@ -138,7 +138,7 @@ func TestYearRangeFromBacktest(t *testing.T) {
 	if end.Label != yearRoughLabel {
 		t.Errorf("five months must be rough, got %q", end.Label)
 	}
-	_, end = yearForecast(fm, fu, ModelForecast{NetMidUSD: 100, NetLowUSD: 90, NetHighUSD: 110}, time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC))
+	_, end = YearForecast(fm, fu, ModelForecast{NetMidUSD: 100, NetLowUSD: 90, NetHighUSD: 110}, time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC))
 	if end.Label != "" {
 		t.Errorf("six months must drop the label, got %q", end.Label)
 	}
