@@ -300,7 +300,7 @@ describe("/fleet", () => {
 
   it("shows an MCP server with its route, who acts next and its history", async () => {
     render(await ServerPage(params("team-a", "docs")));
-    expect(screen.getByText(/må godkjenne versjon 3/)).toBeInTheDocument();
+    expect(screen.getByText("Neste steg: Venter på team copilot.")).toBeInTheDocument();
     expect(screen.getAllByText("/mcp/team-a/docs").length).toBeGreaterThan(0);
     // Server: the curl test for the published route, the versions, and unpublishing at the bottom.
     expect(screen.getByRole("heading", { name: "Test MCP-endpointet" })).toBeInTheDocument();
@@ -449,7 +449,7 @@ describe("/fleet", () => {
     stub({ [`${API}/namespaces/team-a/mcpservers/docs`]: server(true) });
     render(await ServerPage(params("team-a", "docs")));
     expect(screen.getByText("Avpublisert, ny versjon venter")).toBeInTheDocument();
-    expect(screen.getByText(/må godkjenne versjon 3 før MCP-serveren blir publisert igjen/)).toBeInTheDocument();
+    expect(screen.getByText("Neste steg: Venter på team copilot.")).toBeInTheDocument();
   });
 
   it("is 404 for an MCP server that is not in the catalogue", async () => {
@@ -611,7 +611,7 @@ describe("/fleet", () => {
     delete (revoked.status as { pending?: unknown }).pending;
     stub({ [`${API}/namespaces/team-a/mcpservers/docs`]: revoked });
     render(await ServerPage(params("team-a", "docs")));
-    expect(screen.getByText(/Bruk «Publiser igjen» nederst på siden og send inn en ny versjon/)).toBeInTheDocument();
+    expect(screen.getByText("Neste steg: Send inn en ny versjon.")).toBeInTheDocument();
     expect(screen.queryByText(/Ingen\. MCP-serveren/)).toBeNull();
     expect(screen.getByRole("button", { name: "Publiser igjen" })).toHaveAttribute(
       "href",
@@ -654,6 +654,14 @@ describe("/fleet", () => {
       "/fleet/mcp-servere/team-a/docs/endre"
     );
     expect(screen.queryByText(/Kommer i Fleet/)).toBeNull();
+    cleanup();
+    // Nothing waits: no «Neste steg» line.
+    const live = server();
+    delete (live.status as { pending?: unknown }).pending;
+    stub({ [`${API}/namespaces/team-a/mcpservers/docs`]: live });
+    render(await ServerPage(params("team-a", "docs")));
+    expect(screen.queryByText(/Neste steg/)).toBeNull();
+    cleanup();
     stub({ [`${API}/whoami`]: { name: "A123456", teams: ["plattform"] } });
     const { container } = render(await ServerPage(params("team-a", "docs")));
     expect(container.querySelector('a[href$="/endre"]')).toBeNull();

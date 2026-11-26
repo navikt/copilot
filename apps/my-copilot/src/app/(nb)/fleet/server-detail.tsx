@@ -31,7 +31,7 @@ import { hasCondition } from "@/lib/fleet-names";
 import type { AgentProfile, AuditEvent, MCPServer, MCPServerSpec } from "@/lib/fleet-control";
 import { APPROVAL_RULE, APPROVER, CHANGE_RULE, ownVersionText, waitingText } from "@/lib/fleet-approval";
 import { ACTIONS, ActionError, ConfirmForm, FleetTable, SubmittedAlert, linkClass, useFleetPost } from "./fleet-ui";
-import { categoryLabel, date, serverNextStep } from "./fleet-status";
+import { categoryLabel, date, serverShortNext } from "./fleet-status";
 import { Initials, WaitingForAccess } from "./inbox";
 import { AccessPolicy } from "./server-form";
 
@@ -64,7 +64,8 @@ export function ServerDetail({
   return (
     <VStack gap="space-24">
       {submitted && <SubmittedAlert server={server} />}
-      <BodyLong>Neste steg: {serverNextStep(server)}</BodyLong>
+      {/* Only when something waits, as in the list (#3121); version numbers stay in the approval box. */}
+      {serverShortNext(server) && <BodyLong>Neste steg: {serverShortNext(server)}.</BodyLong>}
       <ServerActions server={server} me={me} myName={myName} approver={approver} />
       {server.status.pending?.spec && (
         <VStack gap="space-8">

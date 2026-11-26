@@ -42,18 +42,6 @@ export function serverShortNext(s: MCPServer, approver = false): string {
 export const awaiting = (p: AgentProfile) =>
   (p.status.grants ?? []).filter((g) => !g.granted && !g.grantedAt).map((g) => `MCP-server ${refKey(g.serverRef)}`);
 
-export function serverNextStep(s: MCPServer): string {
-  const pending = s.status.pending?.generation;
-  const published = s.status.publishedGeneration;
-  if (hasCondition(s, "Revoked"))
-    return pending
-      ? `Team copilot må godkjenne versjon ${pending} før MCP-serveren blir publisert igjen.`
-      : "Bruk «Publiser igjen» nederst på siden og send inn en ny versjon. Når team copilot har godkjent den, blir MCP-serveren publisert igjen.";
-  if (!hasCondition(s, "Published")) return "Team copilot må godkjenne utkastet før MCP-serveren blir publisert.";
-  if (pending) return `Team copilot må godkjenne versjon ${pending}. Til da gjelder versjon ${published}.`;
-  return `Ingen. Versjon ${published} er publisert.`;
-}
-
 export const categoryLabel = (c: string) => DATA_LABEL[c]?.[0] ?? c;
 
 export function agentNextStep(p: AgentProfile): string {
