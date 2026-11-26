@@ -89,6 +89,11 @@ export function repoLink(repo?: { url: string; subfolder?: string }): string | u
   return `${repo.url.replace(/\/+$/, "")}/tree/main/${segs.map(encodeURIComponent).join("/")}`;
 }
 
+// Same https-only rule as repoLink: a javascript: or http: value never becomes a link.
+export function safeHttpsUrl(url?: string): string | undefined {
+  return url?.startsWith("https://") ? url : undefined;
+}
+
 export function McpDetails({ item }: { item: EnrichedCustomization }) {
   if (item.type !== "mcp") return null;
 
@@ -96,6 +101,7 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
   const hasLaunchRecipe = item.remotes.length > 0 || (item.packages?.length ?? 0) > 0;
   const tools = item.tools ?? [];
   const repoHref = repoLink(item.repository);
+  const websiteHref = safeHttpsUrl(item.websiteUrl);
   const offByDefault = tools.filter((tool) => ["external", "host-exec"].includes(riskOf(item.toolRisk, tool)));
   const hostExec = tools.filter((tool) => riskOf(item.toolRisk, tool) === "host-exec");
   const isGitHub = item.remotes.some(
@@ -343,15 +349,15 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
         </Box>
       )}
 
-      {(item.websiteUrl || repoHref) && (
+      {(websiteHref || repoHref) && (
         <VStack gap="space-8">
           <Heading size="xsmall" level="4">
             Lenker
           </Heading>
           <VStack gap="space-4">
-            {item.websiteUrl && (
+            {websiteHref && (
               <a
-                href={item.websiteUrl}
+                href={websiteHref}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={`inline-flex items-center gap-1 text-sm ${linkClass}`}

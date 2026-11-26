@@ -37,6 +37,19 @@ func (e *AccessMissingError) Error() string {
 	return fmt.Sprintf("fleet-gateway has no access to %s; the team must add fleet-gateway to accessPolicy.inbound", e.App)
 }
 
+// TargetAppError means Entra refused the exchange because of the target app:
+// it has no Entra registration (AADSTS500011) or the client is not allowed to
+// request it (AADSTS65005). Codes from learn.microsoft.com/entra/identity-platform/reference-error-codes.
+type TargetAppError struct {
+	App, Code string
+}
+
+func (e *TargetAppError) Error() string {
+	return fmt.Sprintf("Entra refused the exchange for %s (%s); the app needs Entra enabled and fleet-gateway in accessPolicy.inbound", e.App, e.Code)
+}
+
+var targetAppCodes = regexp.MustCompile(`AADSTS(500011|65005)\b`)
+
 type upstreamTokenError struct {
 	reason string
 }
@@ -255,6 +268,9 @@ func mapUpstreamTokenFailure(body []byte, app string, status int) error {
 	}
 	if bytes.Contains(body, []byte("AADSTS65001")) {
 		return &AccessMissingError{App: app}
+	}
+	if m := targetAppCodes.FindString(string(body)); m != "" {
+		return &TargetAppError{App: app, Code: m}
 	}
 	// Log-safe diagnostics only: the OAuth error code and the AADSTS number.
 	code, aadsts := SafeUpstreamErrorDetails(body)
