@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"errors"
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -68,16 +69,22 @@ func main() {
 
 	// Initialize BigQuery client (optional - endpoints will error if not configured)
 	var bqHandlers *BigQueryHandlers
-	var cachedBQClient *CachedBigQueryClient
-	var rawBQClient *BigQueryClient
+	var cachedBQClient *bqstore.CachedBigQueryClient
+	var rawBQClient *bqstore.BigQueryClient
 	if config.GCPProjectID != "" {
-		bqClient, err := newBigQueryClient(config)
+		bqClient, err := bqstore.NewBigQueryClient(bqstore.Config{
+			GCPProjectID:           config.GCPProjectID,
+			CopilotMetricsDataset:  config.CopilotMetricsDataset,
+			CopilotMetricsTable:    config.CopilotMetricsTable,
+			CopilotAdoptionDataset: config.CopilotAdoptionDataset,
+			CopilotMimirDataset:    config.CopilotMimirDataset,
+		})
 		if err != nil {
 			slog.Warn("BigQuery client initialization failed - data endpoints will be unavailable", "error", err)
 		} else {
 			rawBQClient = bqClient
 			cacheTTL := time.Duration(config.CacheTTLHours) * time.Hour
-			cachedBQClient = newCachedBigQueryClient(bqClient, cacheTTL)
+			cachedBQClient = bqstore.NewCachedBigQueryClient(bqClient, cacheTTL)
 			bqHandlers = newBigQueryHandlers(cachedBQClient)
 			slog.Info("BigQuery client initialized successfully", "cache_ttl", cacheTTL)
 		}
@@ -265,12 +272,12 @@ func main() {
 // misconfigured deployment. The explicit ENABLE_DEV_QUERY opt-in ensures an
 // unauthenticated raw-SQL endpoint can never appear because an env var went
 // missing.
-func registerDevRoutes(mux *http.ServeMux, config *Config, rawBQClient *BigQueryClient) {
+func registerDevRoutes(mux *http.ServeMux, config *Config, rawBQClient *bqstore.BigQueryClient) {
 	if rawBQClient == nil || config.Environment != "local" || !config.EnableDevQuery {
 		return
 	}
 	slog.Warn("Registering unauthenticated /dev/query endpoint (local development only)")
-	mux.HandleFunc("/dev/query", rawBQClient.devQueryHandler)
+	mux.HandleFunc("/dev/query", rawBQClient.DevQueryHandler)
 }
 
 // traceAPI wraps the /api/v1/ handler in otelhttp, except the SAML lookup

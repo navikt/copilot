@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { fileURLToPath } from "node:url";
 
-// Same normalisation as modelKey in apps/copilot-api/model_metadata.go: a
+// Same normalisation as modelKey in apps/copilot-api/internal/bigquery/model_metadata.go: a
 // pricing tier suffix such as "(Default)" is not a different model.
 const pricingSuffix =
   /\s*\((default(?:, [^()]*)?|long context, [^()]*|fast mode|preview)\)$/i;
@@ -47,7 +47,7 @@ async function main() {
       `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`
     );
   const target = new URL(
-    "../apps/copilot-api/model_metadata.json",
+    "../apps/copilot-api/internal/bigquery/model_metadata.json",
     import.meta.url,
   );
   const models = MODEL_PRICING.map(({ model, provider, category }) => ({

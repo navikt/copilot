@@ -4,6 +4,8 @@ import (
 	"math"
 	"testing"
 	"time"
+
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 )
 
 // Prod 2026, fakturert and active users per month (read 2026-10-12).
@@ -12,13 +14,13 @@ var (
 	prodUsers = []int64{386, 451, 508, 575, 602, 650, 568, 677, 719}
 )
 
-func prodMonths(through int) ([]AdminMonth, []ActiveUsersMonth) {
-	var ms []AdminMonth
-	var us []ActiveUsersMonth
+func prodMonths(through int) ([]bqstore.AdminMonth, []bqstore.ActiveUsersMonth) {
+	var ms []bqstore.AdminMonth
+	var us []bqstore.ActiveUsersMonth
 	for i := 0; i < through; i++ {
 		m := time.Date(2026, time.Month(i+1), 1, 0, 0, 0, 0, time.UTC).Format("2006-01")
-		ms = append(ms, AdminMonth{Month: m, EnterpriseNetUSD: &prodNet[i]})
-		us = append(us, ActiveUsersMonth{Month: m, ActiveUsers: prodUsers[i]})
+		ms = append(ms, bqstore.AdminMonth{Month: m, EnterpriseNetUSD: &prodNet[i]})
+		us = append(us, bqstore.ActiveUsersMonth{Month: m, ActiveUsers: prodUsers[i]})
 	}
 	return ms, us
 }
@@ -52,7 +54,7 @@ func TestYearForecastLowMidHigh(t *testing.T) {
 
 func TestYearGrowthCapsPerUser(t *testing.T) {
 	net := []float64{100, 1000, 10000}
-	ms := []AdminMonth{{Month: "2026-08", EnterpriseNetUSD: &net[0]}, {Month: "2026-09", EnterpriseNetUSD: &net[1]}, {Month: "2026-10", EnterpriseNetUSD: &net[2]}}
+	ms := []bqstore.AdminMonth{{Month: "2026-08", EnterpriseNetUSD: &net[0]}, {Month: "2026-09", EnterpriseNetUSD: &net[1]}, {Month: "2026-10", EnterpriseNetUSD: &net[2]}}
 	g, ok := yearGrowth(ms, map[string]int64{"2026-08": 100, "2026-09": 100, "2026-10": 100})
 	if !ok || math.Abs(g-yearDamping*yearMaxPerUserGrowth) > 1e-9 {
 		t.Errorf("growth %v, want capped %v", g, yearDamping*yearMaxPerUserGrowth)
@@ -91,8 +93,8 @@ func TestYearBacktest(t *testing.T) {
 
 func TestYearForecastFitsAcrossNewYear(t *testing.T) {
 	net := []float64{1000, 1100, 1200}
-	ms := []AdminMonth{{Month: "2026-11", EnterpriseNetUSD: &net[0]}, {Month: "2026-12", EnterpriseNetUSD: &net[1]}, {Month: "2027-01", EnterpriseNetUSD: &net[2]}}
-	us := []ActiveUsersMonth{{Month: "2026-11", ActiveUsers: 10}, {Month: "2026-12", ActiveUsers: 10}, {Month: "2027-01", ActiveUsers: 10}}
+	ms := []bqstore.AdminMonth{{Month: "2026-11", EnterpriseNetUSD: &net[0]}, {Month: "2026-12", EnterpriseNetUSD: &net[1]}, {Month: "2027-01", EnterpriseNetUSD: &net[2]}}
+	us := []bqstore.ActiveUsersMonth{{Month: "2026-11", ActiveUsers: 10}, {Month: "2026-12", ActiveUsers: 10}, {Month: "2027-01", ActiveUsers: 10}}
 	pts, end := yearForecast(ms, us, ModelForecast{NetMidUSD: 1300, NetLowUSD: 1200, NetHighUSD: 1400}, time.Date(2027, 2, 1, 0, 0, 0, 0, time.UTC))
 	if end == nil || pts[0].Month != "2027-01" || pts[0].CumulativeNetUSD != 1200 || len(pts) != 12 {
 		t.Fatalf("want 2027 only, fitted on 2026 too: %+v %v", pts[:1], end)
@@ -118,15 +120,15 @@ func TestYearRangeFromBacktest(t *testing.T) {
 	}
 	// A perfect trend has no error: the floor holds.
 	flat := []float64{100, 100, 100, 100, 100, 100, 100, 100, 100}
-	var fm []AdminMonth
-	var fu []ActiveUsersMonth
+	var fm []bqstore.AdminMonth
+	var fu []bqstore.ActiveUsersMonth
 	for i := range flat {
 		m := time.Date(2026, time.Month(i+3), 1, 0, 0, 0, 0, time.UTC).Format("2006-01")
 		if time.Month(i+3) == holidayMonth {
 			flat[i] = 100 * holidayNetFactor
 		}
-		fm = append(fm, AdminMonth{Month: m, EnterpriseNetUSD: &flat[i]})
-		fu = append(fu, ActiveUsersMonth{Month: m, ActiveUsers: 10})
+		fm = append(fm, bqstore.AdminMonth{Month: m, EnterpriseNetUSD: &flat[i]})
+		fu = append(fu, bqstore.ActiveUsersMonth{Month: m, ActiveUsers: 10})
 	}
 	_, end = yearForecast(fm, fu, ModelForecast{NetMidUSD: 100, NetLowUSD: 90, NetHighUSD: 110}, time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC))
 	if end.RangePct != yearBandFloorPct {

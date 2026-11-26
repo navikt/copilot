@@ -1,0 +1,53 @@
+package main
+
+import bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
+
+import "context"
+
+// BigQueryQuerier abstracts BigQuery operations for testability
+type BigQueryQuerier interface {
+	GetUsageQuality(ctx context.Context) ([]bqstore.UsageQualityDay, error)
+	GetDailyMetrics(ctx context.Context, days *int) ([]bqstore.EnterpriseMetrics, error)
+	GetAdoptionSummary(ctx context.Context) (*bqstore.AdoptionSummary, error)
+	GetTeamAdoption(ctx context.Context) ([]bqstore.TeamAdoption, error)
+	GetCustomizationDetails(ctx context.Context) ([]bqstore.CustomizationDetail, error)
+	GetCustomizationUsage(ctx context.Context) ([]bqstore.CustomizationUsage, error)
+	GetLanguageAdoption(ctx context.Context) ([]bqstore.LanguageAdoption, error)
+	GetStalenessData(ctx context.Context) ([]bqstore.StalenessFile, error)
+	GetNavPilotTelemetry(ctx context.Context) (*bqstore.NavPilotTelemetry, error)
+	GetUserTeams(ctx context.Context, userLogin string) ([]string, error)
+	GetTeamGrossOverview(ctx context.Context, month string) (*bqstore.TeamGrossOverview, error)
+	GetTeamNetOverview(ctx context.Context, month string) (*bqstore.TeamNetOverview, error)
+	GetTeamYearOverview(ctx context.Context, team string, year int) (*bqstore.TeamYearOverview, error)
+	GetAdminMonthlyOverview(ctx context.Context, year int) (*bqstore.AdminMonthlyOverview, error)
+	GetSpendBands(ctx context.Context) (*bqstore.SpendBands, error)
+	GetCostDays(ctx context.Context, month string) ([]bqstore.CostDay, error)
+	GetCostUserDays(ctx context.Context, month string) ([]bqstore.UserDay, error)
+	GetLimitSnapshots(ctx context.Context) ([]bqstore.LimitChange, error)
+	GetActiveUsersMonthly(ctx context.Context) ([]bqstore.ActiveUsersMonth, error)
+	GetModelFamilyUsers(ctx context.Context) ([]bqstore.ModelFamilyUsers, error)
+	GetVolumeMonthly(ctx context.Context, year int) ([]bqstore.VolumeMonth, error)
+	GetHighConsumers(ctx context.Context) ([]bqstore.HighConsumerMonth, error)
+	GetBudgetDays(ctx context.Context) ([]bqstore.BudgetDay, error)
+	GetCostAnomalies(ctx context.Context) ([]bqstore.Anomaly, error)
+	GetUserMetrics(ctx context.Context, userLogin string, days int) (*bqstore.UserMetricsSummary, error)
+	GetMonthlyTrends(ctx context.Context, months int) ([]bqstore.MonthlyTrend, error)
+	GetMonthlyBillingUsage(ctx context.Context, months int) ([]bqstore.MonthlyBillingUsage, error)
+	GetBillingModelDailyCosts(ctx context.Context, month string) ([]bqstore.BillingModelDailyCost, error)
+	GetBillingModelForecast(ctx context.Context, month string) (*bqstore.BillingModelForecast, error)
+	GetUserWeeklyTrends(ctx context.Context, userLogin string, weeks int) ([]bqstore.WeeklyTrend, error)
+	GetUserDailyCredits(ctx context.Context, userLogin string, days int) ([]bqstore.DailyCredits, error)
+	GetAdoptionCohorts(ctx context.Context, days int) ([]bqstore.AdoptionCohortDay, error)
+	GetBillingMonthlyTrend(ctx context.Context, months int) ([]bqstore.BillingMonthlyTrend, error)
+	GetBillingModelBreakdown(ctx context.Context, months int) ([]bqstore.BillingModelBreakdown, error)
+	GetDailySummary(ctx context.Context) (*bqstore.DailySummary, error)
+	GetUsageDistribution(ctx context.Context, month string, budgetCredits float64) (*bqstore.UsageDistribution, error)
+	GetRepositoryUsage(ctx context.Context) ([]bqstore.RepositoryUsage, error)
+	GetClientUsage(ctx context.Context) ([]bqstore.ClientUsage, error)
+	GetEditorUsage(ctx context.Context) ([]bqstore.EditorUsage, error)
+	GetCreditsPerUserMonthly(ctx context.Context) ([]bqstore.CreditsPerUserMonth, error)
+	GetCopilotPRsMonthly(ctx context.Context) ([]bqstore.CopilotPRMonth, error)
+	GetCohortRetention(ctx context.Context) ([]bqstore.CohortRetention, error)
+	GetUserSegments(ctx context.Context) (*bqstore.UserSegments, error)
+	GetFactAggregates(ctx context.Context) (*bqstore.FactAggregates, error)
+}

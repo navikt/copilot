@@ -24,7 +24,7 @@ import (
 const defaultCopilotCLIURL = "https://copilot-cli.intern.nav.no"
 
 // usageResponse mirrors copilot-api's UserMetricsSummary JSON shape
-// (see apps/copilot-api/bigquery_stats.go), which is what copilot-cli's
+// (see apps/copilot-api/internal/bigquery/bigquery_stats.go), which is what copilot-cli's
 // GET /api/v1/usage returns verbatim after proxying
 // GET /api/v1/copilot/usage/user/{username}. Keep this in sync with that
 // struct — copilot-api is the source of truth for the wire format.

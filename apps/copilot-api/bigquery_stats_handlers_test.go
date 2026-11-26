@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
+
 	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
 )
 
@@ -179,10 +181,10 @@ func TestHandleUsageDistribution(t *testing.T) {
 		{
 			name: "success",
 			mock: &mockBigQueryClient{
-				usageDistribution: &UsageDistribution{
+				usageDistribution: &bqstore.UsageDistribution{
 					Month:    "2026-06",
 					NumUsers: 10,
-					CreditsHistogram: []UsageHistogramBucket{
+					CreditsHistogram: []bqstore.UsageHistogramBucket{
 						{Bucket: "0%", NumUsers: 2},
 						{Bucket: "1-9%", NumUsers: 8},
 					},
@@ -223,11 +225,11 @@ func TestHandleUsageDistribution(t *testing.T) {
 // distribution before setting TotalLicensedSeats, since bqClient may return
 // a shared pointer to a cached value across concurrent requests.
 func TestHandleUsageDistributionDoesNotMutateCachedResponse(t *testing.T) {
-	shared := &UsageDistribution{
+	shared := &bqstore.UsageDistribution{
 		Month:              "2026-06",
 		NumUsers:           10,
 		TotalLicensedSeats: 999, // sentinel — should never be read back
-		CreditsHistogram:   []UsageHistogramBucket{{Bucket: "0%", NumUsers: 10}},
+		CreditsHistogram:   []bqstore.UsageHistogramBucket{{Bucket: "0%", NumUsers: 10}},
 	}
 	mock := &mockBigQueryClient{usageDistribution: shared}
 	h := newBigQueryHandlers(mock)
@@ -245,7 +247,7 @@ func TestHandleUsageDistributionDoesNotMutateCachedResponse(t *testing.T) {
 		t.Errorf("handler mutated shared/cached distribution: TotalLicensedSeats = %d, want 999 (unchanged)", shared.TotalLicensedSeats)
 	}
 
-	var got UsageDistribution
+	var got bqstore.UsageDistribution
 	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
 		t.Fatalf("unmarshal response: %v", err)
 	}
@@ -259,7 +261,7 @@ func TestHandleUsageDistributionDoesNotMutateCachedResponse(t *testing.T) {
 // (e.g. a handler constructed without newBigQueryHandlers).
 func TestHandleUsageDistributionSeatsGetterDefaultsToNil(t *testing.T) {
 	mock := &mockBigQueryClient{
-		usageDistribution: &UsageDistribution{Month: "2026-06", NumUsers: 10},
+		usageDistribution: &bqstore.UsageDistribution{Month: "2026-06", NumUsers: 10},
 	}
 	h := &BigQueryHandlers{bqClient: mock}
 
@@ -270,59 +272,11 @@ func TestHandleUsageDistributionSeatsGetterDefaultsToNil(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status: got %d, body=%s", rec.Code, rec.Body.String())
 	}
-	var got UsageDistribution
+	var got bqstore.UsageDistribution
 	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
 		t.Fatalf("unmarshal response: %v", err)
 	}
 	if got.TotalLicensedSeats != 0 {
 		t.Errorf("TotalLicensedSeats = %d, want 0 with nil getter", got.TotalLicensedSeats)
-	}
-}
-
-func TestIsValidYearMonth(t *testing.T) {
-	tests := []struct {
-		name  string
-		month string
-		want  bool
-	}{
-		{"valid month", "2026-06", true},
-		{"valid january", "2026-01", true},
-		{"valid december", "2026-12", true},
-		{"invalid separator", "2026/06", false},
-		{"invalid calendar month", "2026-13", false},
-		{"invalid zero month", "2026-00", false},
-		{"empty string", "", false},
-		{"missing day would be wrong format anyway", "2026-06-01", false},
-		{"garbage", "not-a-month", false},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := isValidYearMonth(tc.month); got != tc.want {
-				t.Errorf("isValidYearMonth(%q) = %v, want %v", tc.month, got, tc.want)
-			}
-		})
-	}
-}
-
-func TestSuppressSmallBuckets(t *testing.T) {
-	buckets := []UsageHistogramBucket{
-		{Bucket: "0%", NumUsers: 0},
-		{Bucket: "1-9%", NumUsers: 1},
-		{Bucket: "10-24%", NumUsers: minUsersForDistribution - 1},
-		{Bucket: "25-49%", NumUsers: minUsersForDistribution},
-	}
-	suppressSmallBuckets(buckets)
-
-	want := []UsageHistogramBucket{
-		{Bucket: "0%", NumUsers: 0},
-		{Bucket: "1-9%", NumUsers: 0, Suppressed: true},
-		{Bucket: "10-24%", NumUsers: 0, Suppressed: true},
-		{Bucket: "25-49%", NumUsers: minUsersForDistribution},
-	}
-	for i := range want {
-		if buckets[i] != want[i] {
-			t.Errorf("bucket %d = %+v, want %+v", i, buckets[i], want[i])
-		}
 	}
 }

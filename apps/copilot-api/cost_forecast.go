@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 	"log/slog"
 	"math"
 	"net/http"
@@ -35,7 +36,7 @@ type CostForecast struct {
 	// trend model, for the month chart.
 	DailyForecast []DailyForecastPoint `json:"daily_forecast"`
 	// LimitChanges are the days the default personal limit changed, for chart markers.
-	LimitChanges []LimitChange `json:"limit_changes"`
+	LimitChanges []bqstore.LimitChange `json:"limit_changes"`
 	// YearForecast is cumulative fakturert per month to 31 December; YearEnd its last point.
 	YearForecast []YearForecastPoint `json:"year_forecast"`
 	YearEnd      *YearEnd            `json:"year_end,omitempty"`
@@ -101,20 +102,6 @@ const (
 
 var backtestDays = []int{5, 10, 15, 20, 25}
 
-// CostDay is one day of enterprise gross and net from billing_usage_daily_model.
-type CostDay struct {
-	Day   string  `bigquery:"day"`
-	Net   float64 `bigquery:"net"`
-	Gross float64 `bigquery:"gross"`
-}
-
-// UserDay is one user's gross (AI credits in USD) on one day, from user_metrics.
-type UserDay struct {
-	UserID string  `bigquery:"user_id"`
-	Day    string  `bigquery:"day"`
-	Gross  float64 `bigquery:"gross"`
-}
-
 // UserProjection is one user's gross this month: so far, projected to month
 // end and the personal limit at month end. For aggregates only (F7): never
 // send per-user rows to a client.
@@ -134,7 +121,7 @@ func dayOf(month time.Time, d int) time.Time {
 // trendRemaining projects enterprise gross for each day after last: a linear
 // trend over the last trendWeekdays weekdays (usage grows within the month)
 // and the mean of the last eight weekend days.
-func trendRemaining(days []CostDay, month, last time.Time) ([]float64, bool) {
+func trendRemaining(days []bqstore.CostDay, month, last time.Time) ([]float64, bool) {
 	type pt struct{ x, y float64 }
 	var weekdays []pt
 	var weekend []float64
@@ -143,7 +130,7 @@ func trendRemaining(days []CostDay, month, last time.Time) ([]float64, bool) {
 		if err != nil || t.After(last) {
 			continue
 		}
-		if isWeekend(t) {
+		if bqstore.IsWeekend(t) {
 			if len(weekend) < 8 {
 				weekend = append(weekend, days[i].Gross)
 			}
@@ -170,11 +157,11 @@ func trendRemaining(days []CostDay, month, last time.Time) ([]float64, bool) {
 		slope = sxy / sxx
 	}
 	intercept := my - slope*mx
-	we := simpleAverage(weekend)
+	we := bqstore.SimpleAverage(weekend)
 	rem := make([]float64, 0, monthDays(month)-last.Day())
 	for k := last.Day() + 1; k <= monthDays(month); k++ {
 		t := dayOf(month, k)
-		if isWeekend(t) {
+		if bqstore.IsWeekend(t) {
 			rem = append(rem, we)
 		} else {
 			rem = append(rem, math.Max(0, intercept+slope*t.Sub(last).Hours()/24))
@@ -193,7 +180,7 @@ func trendRemaining(days []CostDay, month, last time.Time) ([]float64, bool) {
 //
 // ponytail: the default limit only; per-person overrides in budget_snapshots
 // are keyed by login, not user_id. Add them when there are more than a few.
-func projectUsers(users []UserDay, month, last time.Time) (proj []UserProjection, daily []float64) {
+func projectUsers(users []bqstore.UserDay, month, last time.Time) (proj []UserProjection, daily []float64) {
 	ref := month.AddDate(0, -1, 0)
 	useRef := ref.Month() != time.July
 	cur, refKey := month.Format("2006-01"), ref.Format("2006-01")
@@ -232,7 +219,7 @@ func projectUsers(users []UserDay, month, last time.Time) (proj []UserProjection
 	}
 	rest := monthDays(month) - last.Day()
 	daily = make([]float64, rest)
-	monthEndLimit := limitOn(dayOf(month, monthDays(month)).Format("2006-01-02"))
+	monthEndLimit := bqstore.LimitOn(dayOf(month, monthDays(month)).Format("2006-01-02"))
 	for _, id := range order {
 		h := byUser[id]
 		var mtd, expected, wdSum, weSum float64
@@ -240,7 +227,7 @@ func projectUsers(users []UserDay, month, last time.Time) (proj []UserProjection
 		for k := 1; k <= last.Day(); k++ {
 			mtd += h.cur[k]
 			expected += h.ref[align[k]]
-			if isWeekend(dayOf(month, k)) {
+			if bqstore.IsWeekend(dayOf(month, k)) {
 				weSum += h.cur[k]
 				weN++
 			} else {
@@ -259,12 +246,12 @@ func projectUsers(users []UserDay, month, last time.Time) (proj []UserProjection
 			switch {
 			case useRef && expected > 0:
 				v = h.ref[align[k]] * mtd / expected
-			case isWeekend(t) && weN > 0:
+			case bqstore.IsWeekend(t) && weN > 0:
 				v = weSum / float64(weN)
-			case !isWeekend(t) && wdN > 0:
+			case !bqstore.IsWeekend(t) && wdN > 0:
 				v = wdSum / float64(wdN)
 			}
-			v = math.Max(0, math.Min(v, limitOn(t.Format("2006-01-02"))-acc))
+			v = math.Max(0, math.Min(v, bqstore.LimitOn(t.Format("2006-01-02"))-acc))
 			acc += v
 			daily[i] += v
 		}
@@ -290,7 +277,7 @@ func absInt(x int) int {
 // allowance minus what is used so far (a change in seats shifts it). trickle
 // is the small share still free after the allowance is used up (seats added
 // during the month), from days 20+ of last month once its allowance was used.
-func poolNet(days []CostDay, month, last time.Time, rem []float64) (gross, net float64, usedUp bool, runsOut string, cum []float64, ok bool) {
+func poolNet(days []bqstore.CostDay, month, last time.Time, rem []float64) (gross, net float64, usedUp bool, runsOut string, cum []float64, ok bool) {
 	cur, prev := month.Format("2006-01"), month.AddDate(0, -1, 0).Format("2006-01")
 	var gm, nm, prevGross, prevNet, tailGross, tailNet float64
 	for _, d := range days {
@@ -339,7 +326,7 @@ func poolNet(days []CostDay, month, last time.Time, rem []float64) (gross, net f
 }
 
 // lastDayIn returns the last day of month in days.
-func lastDayIn(days []CostDay, month time.Time) (time.Time, bool) {
+func lastDayIn(days []bqstore.CostDay, month time.Time) (time.Time, bool) {
 	var last time.Time
 	key := month.Format("2006-01")
 	for _, d := range days {
@@ -354,7 +341,7 @@ func lastDayIn(days []CostDay, month time.Time) (time.Time, bool) {
 
 // forecastModels runs all models for month with data up to last. usedUp
 // says whether the included credits are spent by last.
-func forecastModels(days []CostDay, users []UserDay, month, last time.Time) (out map[string]ModelForecast, usedUp bool) {
+func forecastModels(days []bqstore.CostDay, users []bqstore.UserDay, month, last time.Time) (out map[string]ModelForecast, usedUp bool) {
 	out = map[string]ModelForecast{}
 	add := func(name string, rem []float64) {
 		if g, n, u, runs, cum, ok := poolNet(days, month, last, rem); ok {
@@ -386,7 +373,7 @@ func upTo[T any](rows []T, dayOfRow func(T) string, day string) []T {
 // month before it in the data, as of backtestDays, against the month's
 // net in the daily table. It returns the mean absolute midpoint error per
 // model in percent, and the months used.
-func backtest(days []CostDay, users []UserDay, month time.Time) (map[string]float64, []string) {
+func backtest(days []bqstore.CostDay, users []bqstore.UserDay, month time.Time) (map[string]float64, []string) {
 	sum, n := map[string]float64{}, map[string]int{}
 	var months []string
 	for m := month.AddDate(0, -1, 0); ; m = m.AddDate(0, -1, 0) {
@@ -407,8 +394,8 @@ func backtest(days []CostDay, users []UserDay, month time.Time) (map[string]floa
 		for _, cut := range backtestDays {
 			day := dayOf(m, cut).Format("2006-01-02")
 			f, _ := forecastModels(
-				upTo(days, func(d CostDay) string { return d.Day }, day),
-				upTo(users, func(u UserDay) string { return u.Day }, day),
+				upTo(days, func(d bqstore.CostDay) string { return d.Day }, day),
+				upTo(users, func(u bqstore.UserDay) string { return u.Day }, day),
 				m, dayOf(m, cut))
 			for k, v := range f {
 				sum[k] += math.Abs(v.NetMidUSD-actual) / actual * 100
@@ -429,7 +416,7 @@ func backtest(days []CostDay, users []UserDay, month time.Time) (map[string]floa
 
 // buildCostForecast runs the models for month, sets each range from its
 // backtest error (at least rangeFloorPct) and compares with the budget.
-func buildCostForecast(days []CostDay, users []UserDay, month time.Time, budget float64, status string) CostForecast {
+func buildCostForecast(days []bqstore.CostDay, users []bqstore.UserDay, month time.Time, budget float64, status string) CostForecast {
 	out := CostForecast{Month: month.Format("2006-01"), DaysInMonth: monthDays(month), BudgetStatus: status, Models: []ModelForecast{}, Days: []CostForecastDay{}, DailyForecast: []DailyForecastPoint{}}
 	if status == budgetSet && budget > 0 {
 		out.BudgetUSD = budget
@@ -518,11 +505,11 @@ func (h *BigQueryHandlers) handleCostForecast(w http.ResponseWriter, r *http.Req
 		// The markers are a nicety; the documented limits still give the history.
 		slog.Warn("Failed to fetch limit snapshots", "error", err)
 	}
-	out.LimitChanges = limitChanges(snaps)
+	out.LimitChanges = bqstore.LimitChanges(snaps)
 	out.YearForecast = []YearForecastPoint{}
 	if len(out.Models) > 0 && out.Models[0].Model == modelTrend {
 		// The year chart is a nicety too: without it the month forecast still stands.
-		var months []AdminMonth
+		var months []bqstore.AdminMonth
 		var err error
 		// Early in the year the fit needs last year's closed months too.
 		for _, y := range []int{month.Year() - 1, month.Year()} {

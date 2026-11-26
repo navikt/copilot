@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	bqstore "github.com/navikt/copilot/apps/copilot-api/internal/bigquery"
 )
 
 // TestRegisterDevRoutes verifies the double-lock on the unauthenticated
@@ -16,28 +18,28 @@ func TestRegisterDevRoutes(t *testing.T) {
 		name           string
 		environment    string
 		enableDevQuery bool
-		client         *BigQueryClient
+		client         *bqstore.BigQueryClient
 		wantRegistered bool
 	}{
 		{
 			name:           "local without ENABLE_DEV_QUERY is not registered",
 			environment:    "local",
 			enableDevQuery: false,
-			client:         &BigQueryClient{},
+			client:         &bqstore.BigQueryClient{},
 			wantRegistered: false,
 		},
 		{
 			name:           "local with ENABLE_DEV_QUERY is registered",
 			environment:    "local",
 			enableDevQuery: true,
-			client:         &BigQueryClient{},
+			client:         &bqstore.BigQueryClient{},
 			wantRegistered: true,
 		},
 		{
 			name:           "non-local environment is never registered even with ENABLE_DEV_QUERY",
 			environment:    "prod-gcp",
 			enableDevQuery: true,
-			client:         &BigQueryClient{},
+			client:         &bqstore.BigQueryClient{},
 			wantRegistered: false,
 		},
 		{

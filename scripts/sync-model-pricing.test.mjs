@@ -74,7 +74,7 @@ test("pricing sync regenerates API metadata from the newly written catalog", (t)
   for (const dir of [
     "scripts",
     "apps/my-copilot/src/lib",
-    "apps/copilot-api",
+    "apps/copilot-api/internal/bigquery",
     "docs",
   ]) {
     mkdirSync(join(root, dir), { recursive: true });
@@ -90,7 +90,7 @@ test("pricing sync regenerates API metadata from the newly written catalog", (t)
   }
   writeFileSync(join(root, "apps/my-copilot/src/lib/model-pricing.ts"), "");
   writeFileSync(
-    join(root, "apps/copilot-api/model_metadata.json"),
+    join(root, "apps/copilot-api/internal/bigquery/model_metadata.json"),
     JSON.stringify({ models: [], retired: [] }),
   );
   writeFileSync(
@@ -115,7 +115,7 @@ test("pricing sync regenerates API metadata from the newly written catalog", (t)
     { stdio: "pipe", env: { ...process.env, PRICING_FIXTURE: fixture } },
   );
   const metadata = JSON.parse(
-    readFileSync(join(root, "apps/copilot-api/model_metadata.json"), "utf8"),
+    readFileSync(join(root, "apps/copilot-api/internal/bigquery/model_metadata.json"), "utf8"),
   );
   assert.deepEqual(
     metadata.models,
@@ -148,7 +148,7 @@ test("metadata generator retires dropped models and restores returning ones", (t
   for (const dir of [
     "scripts",
     "apps/my-copilot/src/lib",
-    "apps/copilot-api",
+    "apps/copilot-api/internal/bigquery",
   ]) {
     mkdirSync(join(root, dir), { recursive: true });
   }
@@ -161,7 +161,7 @@ test("metadata generator retires dropped models and restores returning ones", (t
     provider: "Acme",
     category,
   });
-  const metadataPath = join(root, "apps/copilot-api/model_metadata.json");
+  const metadataPath = join(root, "apps/copilot-api/internal/bigquery/model_metadata.json");
   const generate = (models) => {
     writeFileSync(
       join(root, "apps/my-copilot/src/lib/model-pricing.ts"),
