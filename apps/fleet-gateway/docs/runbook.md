@@ -73,7 +73,7 @@ A malformed entry (not `/mcp/<namespace>/<name>`) is logged as a WARN at startup
 2. PR, required checks, merge queue, build, deploy.
 3. Confirm: `curl -s -o /dev/null -w '%{http_code}\n' -X POST $URL/mcp/<namespace>/<name>` prints `503`.
 
-Time from merge to 503: **7 min 4 s** (time to first 503 seen at the ingress) in the prod drill of 2026-11-24 (route kodeverk, #2844 and #2845); decision to 503 was 18 min 9 s, of which 11 min 5 s was PR to merge. Watch the fleet-gateway build-deploy job after the merge and re-run it if it fails: a failed deploy extends the outage (see the drill below). For an urgent single-route stop use the fast path above.
+Time from merge to 503: **7 min 4 s** (time to first 503 seen at the ingress) in the prod drill of 2026-11-24 (route kodeverk, #2844 and #2845); decision to 503 was 18 min 9 s, of which 11 min 5 s was PR to merge. Watch the fleet-gateway build-deploy job after the merge and re-run it if it fails: a failed deploy extends the outage (see the drill below). For an urgent single-route stop use the fast path above: in the dev rehearsal of 2026-11-26 it took 26 s from command to rollout complete, and 22 s to undo (see "Dev rehearsal" under the fleet-control switch).
 
 ### Close everything
 
@@ -227,11 +227,22 @@ Enable it with `routes_shadow_source: fleet-control`, and `fleet_control_audienc
 
 Dev runs on fleet-control. Rehearse shadow mode, the switch and the rollback there. Use a stopwatch and write each time here.
 
-- [ ] Shadow: set `routes_source: git` and `routes_shadow_source: fleet-control` in `.nais/dev-gcp.yaml`, deploy. Deployed: ____ First `fleet-control shadow diff` log: ____ Gauge value: ____ (if not 0, record the routes).
-- [ ] Switch: set `routes_source: fleet-control` and remove `routes_shadow_source`, deploy. Merged: ____ `/ready` 200 on all pods: ____ `fleet_gateway_route_snapshot_age_seconds` under 120: ____
-- [ ] Roll back: `nais app set env fleet-gateway ROUTES_SOURCE=git -t copilot -e dev-gcp`. Command: ____ Rollout complete: ____ Each pod answers on every route: ____ Duration: ____
-- [ ] Back to fleet-control: re-run the dev deploy job, which restores the manifest value. Done: ____
-- [ ] Post-deploy smoke on one route. Done: ____
+Run of 2026-11-26 (UTC, one pod, `nais app set env` and `kubectl --context dev-gcp`, no tokens). Unauthenticated `POST /mcp/...` is the probe: `401` means the route is served, `503 temporarily_unavailable` means it is closed. Times run from the command to `kubectl rollout status` complete.
+
+- [ ] Shadow: set `routes_source: git` and `routes_shadow_source: fleet-control` in `.nais/dev-gcp.yaml`, deploy. Deployed: ____ First `fleet-control shadow diff` log: ____ Gauge value: ____ (if not 0, record the routes). Not rehearsed on 2026-11-26.
+- [x] Baseline on fleet-control (07:43): log `route table loaded from fleet-control` with `routes: 5`, `generation: 2`; `fleet_gateway_routes_source_info{source="fleet-control"}` 1, `fleet_gateway_routes_loaded` 5, `fleet_gateway_route_snapshot_age_seconds` 6, `fleet_gateway_routes_from_stored_snapshot` 0. `/mcp/copilot/kodeverk` answers 503 in both sources, because it is closed in the snapshot and has `enabled: false` in the file.
+- [x] Per-route kill switch: `GATEWAY_DISABLED_ROUTES=/mcp/copilot/onboarding` at 07:43:48, rollout complete in 26 s. The pod logged `routes disabled by GATEWAY_DISABLED_ROUTES` at start and `route disabled by GATEWAY_DISABLED_ROUTES` per request; onboarding gave 503 `temporarily_unavailable`, test and team-catalog 401; `fleet_gateway_mcp_requests_total{outcome="route_disabled",route="/mcp/copilot/onboarding"}` 1. Cleared at 07:44:22, 22 s, onboarding back to 401.
+- [x] Roll back: `nais app set env fleet-gateway ROUTES_SOURCE=git -t copilot -e dev-gcp`. Command: 07:44:57 Rollout complete: 07:45:24 Each pod answers on every route: yes (5 routes 401, kodeverk 503) Duration: 27 s. In Git mode the gateway logs no route-table line; the proof is `fleet_gateway_routes_source_info{source="git"}` 1 and `fleet_gateway_routes_loaded` 6 (the file has one route more than the snapshot).
+- [x] Back to fleet-control: `nais app set env fleet-gateway ROUTES_SOURCE=fleet-control -t copilot -e dev-gcp` at 07:46:20, rollout complete in 23 s, log `route table loaded from fleet-control` with `routes: 5`. Re-running the dev deploy job does the same; a deploy from main also started on its own at 07:42 and rolled out at 07:47, which shows how fast a deploy undoes a `set env`.
+- [ ] Switch by deploy (`routes_source: fleet-control` from a manifest change): not rehearsed; dev already ran on fleet-control.
+- [x] Restored: Application and Deployment env equal to the start, compared field by field.
+
+Corrections found in the run:
+
+- `nais app set env` moves the changed variable to the end of `spec.env`. Values match afterwards, the order does not. A deploy restores the order, or patch `spec.env` back from a saved copy.
+- In Mimir the cluster label is `k8s_cluster_name="dev"` (and `"prod"`), not `dev-gcp` or `prod-gcp`. Example: `fleet_gateway_routes_source_info{k8s_cluster_name="dev"}` against `https://mimir.nav.cloud.nais.io/prometheus` with `-H 'X-Scope-OrgID: tenant'`.
+- The value for the file source is `git`. `ROUTES_SOURCE=file` makes the gateway refuse to start (`unsupported ROUTES_SOURCE`).
+- Check `gh run list --workflow fleet-gateway.yaml` before a drill. A deploy in flight overwrites the setting mid-drill.
 
 ### Prod steps
 
