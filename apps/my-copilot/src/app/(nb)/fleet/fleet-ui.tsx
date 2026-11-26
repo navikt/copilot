@@ -33,7 +33,7 @@ import {
   TextField,
   VStack,
 } from "@navikt/ds-react";
-import { ExternalLinkIcon } from "@navikt/aksel-icons";
+import { ExternalLinkIcon, PersonIcon } from "@navikt/aksel-icons";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { hasCondition, refKey } from "@/lib/fleet-names";
@@ -278,7 +278,7 @@ export function TeamStats({ servers, me }: { servers: MCPServer[]; me?: string }
 }
 
 /** MCP server versions that wait for someone on the team: approve, or wait for the others. */
-export function ServerInbox({ servers, me }: { servers: MCPServer[]; me?: string }) {
+export function ServerInbox({ servers, me, myName }: { servers: MCPServer[]; me?: string; myName?: string }) {
   const waiting = servers.filter((s) => s.status.pending);
   if (!waiting.length) return null;
   return (
@@ -314,10 +314,10 @@ export function ServerInbox({ servers, me }: { servers: MCPServer[]; me?: string
                     <BodyShort size="small">versjon {p.generation}</BodyShort>
                   </HStack>
                   <HStack gap="space-8" align="center">
-                    <Initials name={mine ? (me ?? "") : (p.submittedBy?.name ?? "?")} />
+                    <Initials name={mine ? myName : undefined} />
                     <BodyShort size="small">
                       {mine
-                        ? "Sendt inn av deg"
+                        ? `Sendt inn av ${myName ? `${myName} (deg)` : "deg"}`
                         : p.submittedBy
                           ? `Sendt inn av ${p.submittedBy.name}`
                           : "Ingen person sendte inn"}
@@ -347,12 +347,15 @@ export function ServerInbox({ servers, me }: { servers: MCPServer[]; me?: string
   );
 }
 
-/** Initials in a circle, as in the sketches. Decorative: the name is always written next to it. */
-function Initials({ name }: { name: string }) {
-  const text = name
+/**
+ * Initials in a circle, as in the sketches. Decorative: the name is always written next to it.
+ * name is a person's real name, never a NAVident (fleet-control only has the NAVident): without one, a person icon.
+ */
+function Initials({ name }: { name?: string }) {
+  const text = (name ?? "")
     .split(/\s+/)
     .filter(Boolean)
-    .slice(0, 2)
+    .slice(0, 3)
     .map((w) => w[0]?.toUpperCase())
     .join("");
   return (
@@ -362,7 +365,7 @@ function Initials({ name }: { name: string }) {
       borderRadius="full"
       className="inline-flex h-7 w-7 shrink-0 items-center justify-center text-xs font-semibold"
     >
-      {text}
+      {text || <PersonIcon fontSize="1.25rem" />}
     </Box>
   );
 }
@@ -501,12 +504,37 @@ export function CardList({
   );
 }
 
+/** No agent profiles yet: what they are, and that the agent runtime is not ready (#2686). */
+function AgentEmptyState({ team }: { team: string }) {
+  return (
+    <VStack gap="space-8" className="max-w-prose">
+      <Heading level="2" size="small">
+        {team} har ingen agentprofiler ennå
+      </Heading>
+      <BodyLong>
+        En agentprofil sier hvilken app som får bruke hvilke verktøy på hvilke MCP-servere, på vegne av en innlogget
+        bruker. Eierteamet til hver MCP-server bestemmer om profilen får tilgang.
+      </BodyLong>
+      <BodyLong>
+        Profilene skal brukes av KI-agenter som kjører i Fleet. Den delen er ikke i produksjon ennå, så foreløpig er det
+        ingenting å sette opp her.
+      </BodyLong>
+      <BodyLong>
+        Det dere kan gjøre nå, er å registrere MCP-serverne teamet har, slik at agentene kan bruke dem når de kommer.{" "}
+        <Link as={NextLink} href={`/fleet/registrer?team=${team}`}>
+          Registrer en MCP-server
+        </Link>
+      </BodyLong>
+    </VStack>
+  );
+}
+
 /** The team's agent profiles, on /fleet/agenter. */
 export function AgentTable({ t }: { t: TeamData }) {
   return (
     <VStack gap="space-8">
       {t.agents.length === 0 ? (
-        <BodyShort>{t.team} har ingen agentprofiler ennå.</BodyShort>
+        <AgentEmptyState team={t.team} />
       ) : (
         <>
           <Show below="md">
@@ -814,6 +842,7 @@ export function ServerDetail({
   server,
   events,
   me,
+  myName,
   owner = false,
   agents = [],
   agentsFailed = false,
@@ -826,6 +855,8 @@ export function ServerDetail({
   events: AuditEvent[];
   submitted?: boolean;
   me?: string;
+  /** The signed-in person's name from the login token, for the initials. */
+  myName?: string;
   // In the owner team: only then the edit form shows. fleet-control checks it again.
   owner?: boolean;
   agents?: AgentProfile[];
@@ -836,7 +867,7 @@ export function ServerDetail({
     <VStack gap="space-24">
       {submitted && server.status.pending && <SubmittedAlert server={server} />}
       <BodyLong>Neste steg: {serverNextStep(server)}</BodyLong>
-      <ServerActions server={server} me={me} owner={owner} part="approve" />
+      <ServerActions server={server} me={me} myName={myName} owner={owner} part="approve" />
       {server.status.pending?.spec && (
         <VStack gap="space-8">
           <HStack justify="space-between" align="end" gap="space-8">
@@ -1335,11 +1366,13 @@ function ConfirmForm({
 function ServerActions({
   server,
   me,
+  myName,
   owner,
   part,
 }: {
   server: MCPServer;
   me?: string;
+  myName?: string;
   owner: boolean;
   part: "approve" | "rest" | "edit";
 }) {
@@ -1366,11 +1399,11 @@ function ServerActions({
           <BodyShort size="small">To personer i eierteamet: én sender inn, en annen godkjenner.</BodyShort>
           <Stack direction={{ xs: "column", md: "row" }} gap="space-16 space-40">
             <HStack gap="space-8" align="center">
-              <Initials name={ownVersion ? (me ?? "") : (pending.submittedBy?.name ?? "?")} />
+              <Initials name={ownVersion ? myName : undefined} />
               <VStack>
                 <Detail>Sendt inn av</Detail>
                 <BodyShort weight="semibold">
-                  {ownVersion ? "deg" : (pending.submittedBy?.name ?? "ingen person")}
+                  {ownVersion ? (myName ? `${myName} (deg)` : "deg") : (pending.submittedBy?.name ?? "ingen person")}
                 </BodyShort>
               </VStack>
             </HStack>
@@ -1381,7 +1414,9 @@ function ServerActions({
           </Stack>
           {ownVersion ? (
             <BodyShort>
-              Du sendte inn versjon {pending.generation} selv. En annen på {namespace} må godkjenne den.
+              Du sendte inn versjon {pending.generation} selv. En annen på {namespace} må godkjenne den, så du får ikke
+              knappen Godkjenn. Vil du endre noe før det, bruk «Endre MCP-serveren» nederst på siden. Det blir en ny
+              versjon som erstatter denne.
             </BodyShort>
           ) : (
             <form onSubmit={approve.onSubmit}>
