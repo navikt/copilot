@@ -26,18 +26,6 @@ De fleste agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter.
 | `@accessibility`     | Claude Sonnet 5.5 | God på WCAG-tolkning og semantisk HTML. Ingen målt reserve: Claude Opus 5.5 ble ikke godkjent 19. november 2026 (uu3 0/5, [resultatet](golden-baselines/2026-11-modellvalg-resultat.md))                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `@forfatter`         | Claude Sonnet 5.5 | Anthropic-modellene er best på norsk klarspråk. Ingen målt reserve: Claude Opus 5.5 ble ikke godkjent 19. november 2026 (uu3 0/5, [resultatet](golden-baselines/2026-11-modellvalg-resultat.md))                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 
-### Prompts
-
-| Prompt                 | Modell     | Begrunnelse                                                                     |
-| ---------------------- | ---------- | ------------------------------------------------------------------------------- |
-| `kafka-topic`          | GPT-6 Luna | Fast scaffold-prompt. GPT-5.3-Codex beholdes som fallback                       |
-| `nais-manifest`        | GPT-6 Luna | Fast scaffold-prompt. GPT-5.3-Codex beholdes som fallback                       |
-| `aksel-component`      | GPT-6 Luna | Ikke målt. Følger de andre malpromptene. Gemini 3.8 Flash beholdes som fallback |
-| `ktor-endpoint`        | GPT-6 Luna | Enkel strukturert mal. MAI Code 2 Flash er reserve (ikke målt; GPT-5.6 Luna er slått av i Nav)     |
-| `nextjs-api-route`     | GPT-6 Luna | Enkel strukturert mal. MAI Code 2 Flash er reserve (ikke målt; GPT-5.6 Luna er slått av i Nav)     |
-| `spring-boot-endpoint` | GPT-6 Luna | Enkel strukturert mal. MAI Code 2 Flash er reserve (ikke målt; GPT-5.6 Luna er slått av i Nav)     |
-| `golang-service`       | GPT-6 Luna | Enkel strukturert mal. MAI Code 2 Flash er reserve (ikke målt; GPT-5.6 Luna er slått av i Nav)     |
-
 ## Modellvalg november 2026
 
 Målt med golden-testene 18. og 19. november 2026 etter en forhåndsregistrert plan, fem kjøringer per arm. Tall, avvik og kostnad står i [resultatet](golden-baselines/2026-11-modellvalg-resultat.md). Ingen agentpinne er endret.

@@ -56,10 +56,9 @@ alongside any of these optional entry points:
 | Artifact                              | Source                                                         | Role                                                  |
 | ------------------------------------- | -------------------------------------------------------------- | ----------------------------------------------------- |
 | `aksel` agent (`aksel-agent` in chat) | [Agent](../../agents/aksel.agent.md)                           | Routes Aksel tasks to this skill                      |
-| `aksel-component` prompt              | [Prompt](../../prompts/aksel-component.prompt.md)              | Scaffolds a component using this workflow             |
 | `nextjs-aksel` instruction            | [Instruction](../../instructions/nextjs-aksel.instructions.md) | Keeps Next.js guidance and Aksel integration together |
 
-Use `--type agent`, `--type prompt`, or `--type instruction` when installing those artifact
+Use `--type agent` or `--type instruction` when installing those artifact
 names with the same source and scope flags. New layout tasks should select `aksel-builder`
 directly. Configure Aksel MCP through the client as described in `SKILL.md` → Preflight.
 Figma work also needs a connected Figma MCP server.
