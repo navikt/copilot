@@ -234,9 +234,9 @@ describe("POST /api/fleet", () => {
     const pinned: string[] = JSON.parse(
       readFileSync(join(__dirname, "../../../../../fleet-control/internal/api/reasons.json"), "utf8")
     );
-    const used = [...readFileSync(join(__dirname, "route.ts"), "utf8").matchAll(/reason === "(\w+)"/g)].map(
-      (m) => m[1]
-    );
+    const used = [
+      ...readFileSync(join(__dirname, "../../../lib/fleet-errors.ts"), "utf8").matchAll(/reason === "(\w+)"/g),
+    ].map((m) => m[1]);
     expect(used.length).toBeGreaterThan(0);
     for (const r of used) if (r !== "Forbidden") expect(pinned).toContain(r);
   });

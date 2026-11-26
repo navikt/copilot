@@ -39,7 +39,8 @@ import {
   type WizardState,
   type WizardTool,
 } from "@/lib/fleet-wizard";
-import { FleetTable, ToolDiscovery, pathOf } from "../fleet-ui";
+import { FleetTable } from "../fleet-ui";
+import { ToolDiscovery, pathOf } from "../server-form";
 import { DATA_HREF, EFFECT, LEVELS_HREF } from "@/lib/mcp-labels";
 import { linkClass } from "@/components/nav-pilot/doc-page";
 
