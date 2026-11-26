@@ -606,6 +606,7 @@
       "docs/news/articles/mcp-gateway-kodeverk-og-dolly.md"
     ],
     "anchors": {
+      "agentverktoy": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/bruke/page.tsx"],
       "copilot-cli": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/bruke/page.tsx"],
       "for-du-starter": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/bruke/page.tsx"],
       "hjelp": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/bruke/page.tsx"],
@@ -672,7 +673,8 @@
       "datakategorier": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/referanse/page.tsx"],
       "mcp-compliance": [
         "apps/my-copilot/src/app/(nb)/(mcp)/mcp/referanse/page.tsx",
-        "apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/page.tsx"
+        "apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/page.tsx",
+        "apps/my-copilot/src/app/(nb)/fleet/server-form.tsx"
       ],
       "oppslag": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/referanse/page.tsx"],
       "verktoynivaer": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/referanse/page.tsx"]
@@ -716,6 +718,7 @@
     "sources": [
       "apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/page.tsx",
       "apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/retningslinjer/page.tsx",
+      "apps/my-copilot/src/app/(nb)/fleet/server-form.tsx",
       "apps/my-copilot/src/app/(nb)/mcp/page.tsx",
       "apps/my-copilot/src/lib/nav-items.ts",
       "skills/mcp-server-authoring/SKILL.md"

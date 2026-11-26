@@ -1,4 +1,4 @@
-import { BodyLong, VStack } from "@navikt/ds-react";
+import { BodyLong, ReadMore, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
 import NextLink from "next/link";
 import { CodeBlock } from "@/components/code-block";
@@ -24,6 +24,7 @@ const TOC: TocItem[] = [
   { id: "protokollversjon", label: "Protokollversjon" },
   { id: "innlogging", label: "Innlogging" },
   { id: "tokenbruk", label: "Tokenforbruk" },
+  { id: "agentverktoy", label: "Ser ikke modellen verktøyene?" },
   { id: "hjelp", label: "Hjelp" },
 ];
 
@@ -248,6 +249,73 @@ export default function NavMcpServerePage() {
           </li>
           <li>Start en ny samtale når oppgaven er ferdig, så følger ikke gamle verktøyresultater med videre.</li>
         </Bullets>
+      </VStack>
+
+      <VStack gap="space-12">
+        <LinkableHeading id="agentverktoy" size="medium" level="2">
+          Ser ikke modellen verktøyene?
+        </LinkableHeading>
+        <BodyLong>
+          Serveren står som tilkoblet i <code className={code}>/mcp</code> i Copilot CLI eller i verktøyvelgeren, men
+          modellen bruker aldri verktøyene. Da har agenten du bruker trolig en <code className={code}>tools:</code>
+          -liste i frontmatter i <code className={code}>.agent.md</code>. Listen slipper bare gjennom verktøyene som
+          står der. Alt annet er skjult, og ukjente navn ignoreres uten feilmelding.
+        </BodyLong>
+        <Bullets>
+          <li>
+            Fjern <code className={code}>tools:</code>, så får agenten alle verktøy. Det anbefaler vi for agenter som
+            bruker MCP.
+          </li>
+          <li>
+            Eller ta med <code className={code}>{"<server>/*"}</code> i listen.
+          </li>
+        </Bullets>
+        <ReadMore header="Detaljer per klient" size="small">
+          <Bullets>
+            <li>
+              Copilot CLI, GitHubs kodeagent og JetBrains-pluginen bruker samme format. Uten{" "}
+              <code className={code}>tools:</code> eller med <code className={code}>{'["*"]'}</code> får agenten alle
+              verktøy. MCP-verktøy skrives <code className={code}>{"<server>/*"}</code> eller{" "}
+              <code className={code}>{"<server>/<verktøy>"}</code> (
+              <a href="https://docs.github.com/en/copilot/reference/custom-agents-configuration" className={linkClass}>
+                GitHub Docs
+              </a>
+              ). GitHub Copilot-appen er bygget på Copilot CLI.
+            </li>
+            <li>
+              VS Code bruker også <code className={code}>.agent.md</code> (tidligere{" "}
+              <code className={code}>.chatmode.md</code>) og <code className={code}>{"<server>/*"}</code>. Uten{" "}
+              <code className={code}>tools:</code> bestemmer verktøyvelgeren (
+              <a
+                href="https://code.visualstudio.com/docs/agents/reference/custom-agent-file-reference"
+                className={linkClass}
+              >
+                VS Code-dokumentasjonen
+              </a>
+              ).
+            </li>
+            <li>
+              OpenCode styrer verktøy med tillatelser per agent. <code className={code}>{"<server>_*"}</code> treffer
+              alle verktøyene til en server. Tegn utenom A–Z, a–z, 0–9, <code className={code}>_</code> og{" "}
+              <code className={code}>-</code> i servernavnet blir <code className={code}>_</code>, så{" "}
+              <code className={code}>com.figma/figma-mcp</code> blir <code className={code}>com_figma_figma-mcp_*</code>{" "}
+              (
+              <a href="https://opencode.ai/docs/agents" className={linkClass}>
+                agenter
+              </a>
+              ,{" "}
+              <a href="https://opencode.ai/docs/permissions" className={linkClass}>
+                tillatelser
+              </a>
+              ).
+            </li>
+            <li>
+              Vi har ikke bekreftet om Copilot CLI og VS Code treffer servernavn med <code className={code}>/</code>{" "}
+              eller <code className={code}>.</code>, som <code className={code}>com.figma/figma-mcp</code>, i{" "}
+              <code className={code}>tools:</code>.
+            </li>
+          </Bullets>
+        </ReadMore>
       </VStack>
 
       <VStack gap="space-12">
