@@ -131,6 +131,7 @@ func newJobEnv(t *testing.T) *jobEnv {
 	srv.cluster = "dev-gcp"
 	srv.operatorTeam = "team-b"
 	srv.store.Store(&storeBox{db})
+	liveProfile(t, db, "team-a", "studio", appClientID, "Read")
 	return &jobEnv{t, db, srv.routes(testAuthz(t), adminID, testTeams, testRuntimeAuth(t))}
 }
 
@@ -146,7 +147,127 @@ func (e *jobEnv) createJob(body string) int64 {
 	if err != nil {
 		e.t.Fatal(err)
 	}
+	bindStudio(e.t, e.db, id)
 	return id
+}
+
+// bindStudio binds job id to team-a/studio, as the agentjobs API binds every job.
+func bindStudio(t *testing.T, db *DB, id int64) {
+	t.Helper()
+	if _, err := db.pool.Exec(context.Background(), `UPDATE runtime_jobs SET submitted_spec = '{"agentProfile":{"namespace":"team-a","name":"studio"}}', agent_profile_generation = 1 WHERE id = $1`, id); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func (e *jobEnv) exec(sql string) {
+	e.t.Helper()
+	if _, err := e.db.pool.Exec(context.Background(), sql); err != nil {
+		e.t.Fatal(err)
+	}
+}
+
+// A queued job whose profile was revoked, or has expired, is never leased (#3113).
+func TestRealPostgresClaimAfterProfileRevoked(t *testing.T) {
+	e := newJobEnv(t)
+	id := e.createJob(`{"kind":"review"}`)
+	e.exec(`UPDATE agent_profile_resources SET revoked = true`)
+	if code, _ := e.claim(tok(1)); code != 204 {
+		t.Fatalf("claim after revoke: %d", code)
+	}
+	if st, _ := e.state(id); st != "queued" {
+		t.Fatalf("job: %s", st)
+	}
+}
+
+func TestRealPostgresClaimAfterProfileExpired(t *testing.T) {
+	e := newJobEnv(t)
+	e.createJob(`{"kind":"review"}`)
+	e.exec(`UPDATE agent_profile_generations SET expires_at = now() - interval '1 second'`)
+	if code, _ := e.claim(tok(1)); code != 204 {
+		t.Fatalf("claim after expiry: %d", code)
+	}
+}
+
+// replaceGen1 revokes generation 1 of team-a/studio and publishes a live generation 2.
+func (e *jobEnv) replaceGen1() {
+	e.exec(`INSERT INTO agent_profile_generations (namespace, name, generation, spec, spec_hash, entra_client_id, submitted_by, submitted_by_kind,
+		approved_at, expires_at, identity_verified_at, grant_hashes)
+		SELECT namespace, name, 2, spec, 'v1:y', entra_client_id, submitted_by, submitted_by_kind, now(), now() + interval '1 day', now(), grant_hashes
+		FROM agent_profile_generations WHERE generation = 1`)
+	e.exec(`UPDATE agent_profile_generations SET revoked_at = now() WHERE generation = 1`)
+	e.exec(`UPDATE agent_profile_resources SET published_generation = 2`)
+}
+
+// A job bound to a revoked generation stays dead after a newer one is approved.
+func TestRealPostgresClaimAfterGenerationReplaced(t *testing.T) {
+	e := newJobEnv(t)
+	e.createJob(`{"kind":"review"}`)
+	e.replaceGen1()
+	if code, _ := e.claim(tok(1)); code != 204 {
+		t.Fatalf("claim on a replaced generation: %d", code)
+	}
+}
+
+func TestRealPostgresHeartbeatAfterGenerationReplaced(t *testing.T) {
+	e := newJobEnv(t)
+	e.createJob(`{"kind":"review"}`)
+	_, l := e.claim(tok(1))
+	e.replaceGen1()
+	if code, cmd := e.heartbeat(l.LeaseID); code != 200 || cmd != cmdCancel {
+		t.Fatalf("heartbeat on a replaced generation: %d %s", code, cmd)
+	}
+}
+
+// An expired lease on a dead profile is cancelled, not requeued.
+func TestRealPostgresExpiryAfterProfileRevoked(t *testing.T) {
+	e := newJobEnv(t)
+	id := e.createJob(`{"kind":"review"}`)
+	if code, _ := e.claim(tok(1)); code != 200 {
+		t.Fatalf("claim: %d", code)
+	}
+	e.exec(`UPDATE agent_profile_resources SET revoked = true`)
+	e.exec(`UPDATE runtime_leases SET expires_at = now() - interval '1 second'`)
+	if _, err := e.db.SweepLeases(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if st, _ := e.state(id); st != "cancelled" {
+		t.Fatalf("job after expiry: %s", st)
+	}
+}
+
+// A job that reports success after its profile was revoked is cancelled.
+func TestRealPostgresFinishAfterProfileRevoked(t *testing.T) {
+	e := newJobEnv(t)
+	id := e.createJob(`{"kind":"review"}`)
+	_, l := e.claim(tok(1))
+	e.exec(`UPDATE agent_profile_resources SET revoked = true`)
+	if rec := do(t, e.h, http.MethodPost, "/runtime/v1/complete", runtimeID, `{"lease_id":"`+l.LeaseID+`","code":"ok"}`); rec.Code >= 300 {
+		t.Fatalf("complete: %d %s", rec.Code, rec.Body)
+	}
+	if st, _ := e.state(id); st != "cancelled" {
+		t.Fatalf("job after complete: %s", st)
+	}
+}
+
+// A leased job whose profile is revoked gets cancel on its next heartbeat.
+func TestRealPostgresHeartbeatAfterProfileRevoked(t *testing.T) {
+	e := newJobEnv(t)
+	id := e.createJob(`{"kind":"review"}`)
+	code, l := e.claim(tok(1))
+	if code != 200 {
+		t.Fatalf("claim: %d", code)
+	}
+	if code, cmd := e.heartbeat(l.LeaseID); code != 200 || cmd != cmdContinue {
+		t.Fatalf("heartbeat before revoke: %d %s", code, cmd)
+	}
+	e.exec(`UPDATE agent_profile_resources SET revoked = true`)
+	if code, cmd := e.heartbeat(l.LeaseID); code != 200 || cmd != cmdCancel {
+		t.Fatalf("heartbeat after revoke: %d %s", code, cmd)
+	}
+	var cmd string
+	if err := e.db.pool.QueryRow(context.Background(), `SELECT command FROM runtime_jobs WHERE id = $1`, id).Scan(&cmd); err != nil || cmd != cmdCancel {
+		t.Fatalf("job command: %q %v", cmd, err)
+	}
 }
 
 func createTestJob(ctx context.Context, d *DB, actor, team string, req CreateJobRequest) (int64, error) {

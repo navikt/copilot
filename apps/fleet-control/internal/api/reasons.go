@@ -49,6 +49,7 @@ const (
 	ReasonRollbackTargetNotEligible = "RollbackTargetNotEligible"
 	ReasonRosRequired               = "RosRequired"
 	ReasonSelfApproval              = "SelfApproval"
+	ReasonServerRevoked             = "ServerRevoked"
 	ReasonServiceUnavailable        = "ServiceUnavailable"
 	ReasonStaleResourceVersion      = "StaleResourceVersion"
 	ReasonSubmitterNotPerson        = "SubmitterNotPerson"
