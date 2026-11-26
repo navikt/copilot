@@ -100,9 +100,16 @@ func validateUpstreamURL(raw, ns, app string) error {
 	return nil
 }
 
-// NormalizeHost lowercases host and strips one trailing root dot, so
+// NormalizeHost rejects non-ASCII, lowercases host and strips one trailing root dot, so
 // "svc.intern.nav.no." is checked as "svc.intern.nav.no".
 func NormalizeHost(host string) (string, error) {
+	// Non-ASCII is refused before lowercasing: Unicode folding maps U+212A
+	// KELVIN SIGN to "k", so a different host could compare equal.
+	for i := range len(host) {
+		if host[i] >= 0x80 {
+			return "", fmt.Errorf("invalid host %q: must be ASCII", host)
+		}
+	}
 	h := strings.TrimSuffix(strings.ToLower(host), ".")
 	if h == "" || strings.HasSuffix(h, ".") || strings.Contains(h, "..") {
 		return "", fmt.Errorf("invalid host %q", host)
