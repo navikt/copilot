@@ -58,7 +58,9 @@ export function AccessPolicy({ app }: { app?: string }) {
 export const pathOf = (url?: string) => (url && URL.canParse(url) ? new URL(url).pathname : "");
 
 type Discovery =
-  { state: "idle" | "busy" } | { state: "ok"; count: number } | { state: "error"; kind: string; message: string };
+  | { state: "idle" | "busy" }
+  | { state: "ok"; count: number }
+  | { state: "error"; kind: string; message: string; other?: { cluster: string; href: string } };
 
 const RETRY = "Fleet kunne ikke hente verktøyene akkurat nå. Prøv igjen om litt.";
 
@@ -89,9 +91,14 @@ export function ToolDiscovery({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ namespace, app, path }),
       });
-      const out = (await res.json().catch(() => ({}))) as { tools?: DiscoveredTool[]; error?: string; kind?: string };
+      const out = (await res.json().catch(() => ({}))) as {
+        tools?: DiscoveredTool[];
+        error?: string;
+        kind?: string;
+        other?: { cluster: string; href: string };
+      };
       if (!res.ok || !out.tools) {
-        setD({ state: "error", kind: out.kind ?? "unavailable", message: out.error ?? RETRY });
+        setD({ state: "error", kind: out.kind ?? "unavailable", message: out.error ?? RETRY, other: out.other });
         return;
       }
       onTools(out.tools);
@@ -122,6 +129,13 @@ export function ToolDiscovery({
         <Alert variant={d.kind === "access" ? "error" : "warning"} size="small">
           <VStack gap="space-12">
             <BodyLong>{d.message}</BodyLong>
+            {d.kind === "notincluster" && d.other && (
+              <BodyLong>
+                <a className={linkClass} href={d.other.href}>
+                  Gå til fleet i {d.other.cluster}
+                </a>
+              </BodyLong>
+            )}
             {d.kind === "access" && (
               <>
                 <BodyLong>Sjekk dette for {app ? <code>{app}</code> : "appen"}, deploy på nytt og prøv igjen:</BodyLong>

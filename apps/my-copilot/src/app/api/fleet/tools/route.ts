@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getUser, getUserToken } from "@/lib/auth";
 import { requireFleet } from "@/lib/fleet-control";
 import { isName, isSameOrigin } from "@/lib/fleet-names";
-import { DiscoveryError, type DiscoveryFailure, discoverTools } from "@/lib/fleet-tools";
+import { DiscoveryError, type DiscoveryFailure, discoverTools, otherFleet } from "@/lib/fleet-tools";
 
 /**
  * Tool discovery for the registration wizard and the edit form: fleet-gateway's
@@ -17,10 +17,12 @@ import { DiscoveryError, type DiscoveryFailure, discoverTools } from "@/lib/flee
 const PATH = /^\/[A-Za-z0-9._~\/-]{0,255}$/;
 const isPath = (p: string) => PATH.test(p) && !p.includes("..") && !p.includes("//");
 
-const fail = (error: string, kind: string, status: number) => NextResponse.json({ error, kind }, { status });
+const fail = (error: string, kind: string, status: number, extra?: object) =>
+  NextResponse.json({ error, kind, ...extra }, { status });
 
 // Short and actionable; the client always offers typing the tools in by hand.
-const MESSAGES: Record<DiscoveryFailure, [string, number]> = {
+const cluster = () => process.env.NAIS_CLUSTER_NAME || "dette clusteret";
+const MESSAGES: Record<Exclude<DiscoveryFailure, "notincluster">, [string, number]> = {
   off: ["Henting av verktøy er ikke slått på her.", 503],
   unavailable: ["Fleet kunne ikke hente verktøyene akkurat nå. Prøv igjen om litt.", 503],
   auth: ["Logg inn på nytt og prøv igjen.", 401],
@@ -50,6 +52,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ tools: await discoverTools(token, ns, `http://${app}.${ns}${path}`) });
   } catch (err) {
     const kind = err instanceof DiscoveryError ? err.kind : "unavailable";
+    if (kind === "notincluster")
+      return fail(`Fant ikke appen i ${cluster()}. Fleet på denne siden når bare apper i ${cluster()}.`, kind, 502, {
+        other: otherFleet(),
+      });
     const [msg, status] = MESSAGES[kind];
     return fail(msg, kind, status);
   }

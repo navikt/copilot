@@ -78,10 +78,28 @@ describe("POST /api/fleet/tools", () => {
     ["invalid", 502, /som en MCP-server/],
     ["unavailable", 503, /Prøv igjen/],
     ["off", 503, /ikke slått på/],
+    [
+      "notincluster",
+      502,
+      /^Fant ikke appen i dette clusteret\. Fleet på denne siden når bare apper i dette clusteret\.$/,
+    ],
   ] as const)("maps %s to %i with a next step", async (kind, status, msg) => {
     discover.mockRejectedValueOnce(new DiscoveryError(kind));
     const res = await post({ namespace: "team-a", app: "docs" });
     expect(res.status).toBe(status);
     await expect(res.json()).resolves.toMatchObject({ kind, error: expect.stringMatching(msg) });
+  });
+
+  it("names the cluster and links the other fleet when the app is not in this cluster", async () => {
+    vi.stubEnv("NAIS_CLUSTER_NAME", "prod-gcp");
+    discover.mockRejectedValueOnce(new DiscoveryError("notincluster"));
+    const res = await post({ namespace: "team-a", app: "docs" });
+    expect(res.status).toBe(502);
+    await expect(res.json()).resolves.toEqual({
+      kind: "notincluster",
+      error: "Fant ikke appen i prod-gcp. Fleet på denne siden når bare apper i prod-gcp.",
+      other: { cluster: "dev-gcp", href: "https://ki-utvikling.ekstern.dev.nav.no/fleet" },
+    });
+    vi.unstubAllEnvs();
   });
 });
