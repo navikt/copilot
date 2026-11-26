@@ -6,7 +6,8 @@ import { FleetControlError, fleetApi, fleetLoad, requireFleet } from "@/lib/flee
 import { Tag } from "@navikt/ds-react";
 import { FleetFrame, fleetRobots, teamNavLoader } from "../../../frame";
 import { LinkButton } from "../../../nav";
-import { FleetProblemAlert, ServerDetail, ServerHeader, ServerStatusTag } from "../../../fleet-ui";
+import { FleetProblemAlert, ServerStatusTag } from "../../../fleet-ui";
+import { ServerDetail, ServerHeader } from "../../../server-detail";
 import { EntryHeader, ServerReadOnly } from "../../../catalog";
 import { fleetGrafanaUrl } from "@/lib/fleet-grafana";
 import { PLATFORM_TEAM } from "@/lib/fleet-approval";

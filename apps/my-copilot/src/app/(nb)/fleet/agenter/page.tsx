@@ -4,7 +4,9 @@ import { BodyLong } from "@navikt/ds-react";
 import { fleetApi, fleetLoad, requireFleet } from "@/lib/fleet-control";
 import { TEAM_COOKIE, isName } from "@/lib/fleet-names";
 import { FleetFrame, fleetRobots, teamNavLoader } from "../frame";
-import { AgentTable, FleetProblemAlert, PendingInbox } from "../fleet-ui";
+import { AgentTable } from "../agent";
+import { FleetProblemAlert } from "../fleet-ui";
+import { PendingInbox } from "../inbox";
 
 export const metadata: Metadata = { title: "Agentprofiler – Fleet", robots: fleetRobots };
 

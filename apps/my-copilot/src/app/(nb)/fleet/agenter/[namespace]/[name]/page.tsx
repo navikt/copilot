@@ -3,7 +3,8 @@ import { isName } from "@/lib/fleet-names";
 import { notFound } from "next/navigation";
 import { FleetControlError, fleetApi, fleetLoad, requireFleet } from "@/lib/fleet-control";
 import { FleetFrame, fleetRobots, teamNavLoader } from "../../../frame";
-import { AgentDetailView, AgentStatusTag, FleetProblemAlert } from "../../../fleet-ui";
+import { AgentDetailView } from "../../../agent";
+import { AgentStatusTag, FleetProblemAlert } from "../../../fleet-ui";
 
 export const metadata: Metadata = { title: "Agentprofil", robots: fleetRobots };
 

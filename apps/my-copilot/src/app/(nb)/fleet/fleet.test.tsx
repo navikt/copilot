@@ -26,7 +26,8 @@ import ServerPage from "./mcp-servere/[namespace]/[name]/page";
 import AgentPage from "./agenter/[namespace]/[name]/page";
 import OldRoutePage from "./ruter/[namespace]/[name]/page";
 import CatalogPage from "./katalog/page";
-import { ServerForm, ServerInbox } from "./fleet-ui";
+import { ServerInbox } from "./inbox";
+import { ServerForm } from "./server-form";
 import type { MCPServer } from "@/lib/fleet-control";
 
 const API = "/apis/fleet.nav.no/v1alpha1";
@@ -933,7 +934,7 @@ describe("ServerInbox avatars", () => {
   it("writes «deg» alone without a name, and «Navn (deg)» on the server page with one", async () => {
     const own = server();
     Object.assign(own.status.pending, { submittedBy: { kind: "User", name: "A123456" } });
-    const { ServerDetail } = await import("./fleet-ui");
+    const { ServerDetail } = await import("./server-detail");
     const detail = (myName?: string) =>
       render(<ServerDetail server={own as unknown as MCPServer} events={[]} me="A123456" myName={myName} owner />);
     detail("Kari Nordmann");
