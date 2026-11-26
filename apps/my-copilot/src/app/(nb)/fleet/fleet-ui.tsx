@@ -59,8 +59,8 @@ export function serverStatus(s: MCPServer): { label: string; variant: TagVariant
 export function agentStatus(p: AgentProfile): { label: string; variant: TagVariant } {
   if (hasCondition(p, "Revoked")) return { label: "Trukket tilbake", variant: "neutral" };
   if (hasCondition(p, "Expired")) return { label: "Utløpt", variant: "neutral" };
-  if (hasCondition(p, "Published")) return { label: "Godkjent", variant: "success" };
-  return { label: "Venter på tilgang", variant: "warning" };
+  if (hasCondition(p, "Published")) return { label: "I bruk", variant: "success" };
+  return { label: "Venter på eierteamene", variant: "warning" };
 }
 
 const ACTIONS: Record<string, string> = {
@@ -1275,40 +1275,84 @@ export function AgentDetailView({ profile: p, events }: { profile: AgentProfile;
   const spec = p.status.pending?.spec ?? p.spec;
   return (
     <VStack gap="space-16">
-      <KortFortalt>
-        <div>
+      <VStack gap="space-8">
+        <HStack gap="space-8" align="center">
           <StatusTag s={agentStatus(p)} />
-        </div>
+          <BodyShort size="small">Agentprofil i {p.metadata.namespace}</BodyShort>
+        </HStack>
+        <BodyLong>
+          En agentprofil sier hvilke MCP-servere en KI-agent i teamet får bruke. Teamet er konsumenten, og eierteamet
+          til hver MCP-server gir tilgang.
+        </BodyLong>
         <BodyLong>Neste steg: {agentNextStep(p)}</BodyLong>
-      </KortFortalt>
+      </VStack>
       {p.status.needsResubmit && (
         <Alert variant="warning" size="small">
           Utkastet ble ikke sendt inn av en person, så ingen kan godkjenne det. En person på teamet må sende det inn på
           nytt.
         </Alert>
       )}
+      <VStack gap="space-8">
+        <Heading level="2" size="medium">
+          Tilganger per MCP-server
+        </Heading>
+        {(spec.grants ?? []).length === 0 ? (
+          <BodyShort>Profilen ber ikke om tilgang til noen MCP-server.</BodyShort>
+        ) : (
+          <FleetTable aria-label="Tilganger per MCP-server">
+            <Table.Header>
+              <Table.Row>
+                <Table.HeaderCell scope="col">MCP-server</Table.HeaderCell>
+                <Table.HeaderCell scope="col">Verktøy</Table.HeaderCell>
+                <Table.HeaderCell scope="col">Eierteam</Table.HeaderCell>
+                <Table.HeaderCell scope="col">Status</Table.HeaderCell>
+              </Table.Row>
+            </Table.Header>
+            <Table.Body>
+              {(spec.grants ?? []).map((g) => {
+                const st = grants.find((s) => refKey(s.serverRef) === refKey(g.serverRef));
+                // Another team's view of the profile leaves out who granted access.
+                const given = ["AccessRevoked", "ServerRevoked"].includes(st?.reason ?? "")
+                  ? "tilgang trukket tilbake"
+                  : st?.granted
+                    ? ["tilgang gitt", st.grantedBy && `av ${st.grantedBy.name}`, st.grantedAt && date(st.grantedAt)]
+                        .filter(Boolean)
+                        .join(" ")
+                    : "ikke gitt tilgang";
+                return (
+                  <Table.Row key={refKey(g.serverRef)}>
+                    <Table.DataCell>
+                      <NextLink className={linkClass} href={`/fleet/mcp-servere/${refKey(g.serverRef)}`}>
+                        <strong>{g.serverRef.name}</strong>
+                      </NextLink>
+                    </Table.DataCell>
+                    <Table.DataCell>{g.allowedTools.join(", ")}</Table.DataCell>
+                    <Table.DataCell>{g.serverRef.namespace}</Table.DataCell>
+                    <Table.DataCell>{given}</Table.DataCell>
+                  </Table.Row>
+                );
+              })}
+            </Table.Body>
+          </FleetTable>
+        )}
+      </VStack>
       <Detaljer
         rows={[
           ["Team", p.metadata.namespace],
           ["App", `${spec.identity.cluster}/${p.metadata.namespace}/${spec.identity.app}`],
           ["Entra-klient-ID", spec.identity.entraClientID],
-          ...(spec.grants ?? []).map((g): [string, ReactNode] => {
-            const st = grants.find((s) => refKey(s.serverRef) === refKey(g.serverRef));
-            // Another team's view of the profile leaves out who granted access.
-            const given = ["AccessRevoked", "ServerRevoked"].includes(st?.reason ?? "")
-              ? "tilgang trukket tilbake"
-              : st?.granted
-                ? ["tilgang gitt", st.grantedBy && `av ${st.grantedBy.name}`, st.grantedAt && date(st.grantedAt)]
-                    .filter(Boolean)
-                    .join(" ")
-                : "ikke gitt tilgang";
-            return [`MCP-server ${refKey(g.serverRef)}`, `${g.allowedTools.join(", ")} (${given})`];
-          }),
           [
             "Kvote",
-            `${n(spec.quota.requestsPerMinute)} kall i minuttet, ${n(spec.quota.dailyCalls)} kall i døgnet, ${n(spec.quota.dailyCallsPerUser)} per bruker i døgnet, ${n(spec.quota.maxInFlight)} samtidige kall`,
+            `${n(spec.quota.requestsPerMinute)} kall i minuttet, ${n(spec.quota.dailyCalls)} kall i døgnet, ${n(spec.quota.dailyCallsPerUser)} per bruker i døgnet, ${n(spec.quota.maxInFlight)} samtidige kall. fleet-gateway avviser kall over kvoten.`,
           ],
-          ...(spec.dpia ? [["DPIA", `${spec.dpia.reference} (eier: ${spec.dpia.owner})`] as [string, ReactNode]] : []),
+          ...(spec.dpia
+            ? [
+                [
+                  "DPIA",
+                  `${spec.dpia.reference} (eier: ${spec.dpia.owner}). Vurderingen av personvernkonsekvenser for agenten.`,
+                ] as [string, ReactNode],
+              ]
+            : []),
         ]}
       />
       {events && <Historikk events={events} />}

@@ -427,8 +427,11 @@ describe("/fleet", () => {
   it("shows an agent profile to an MCP server's owner team without the history", async () => {
     render(await AgentPage(params("aksel", "studio")));
     expect(screen.getByText(/Venter på: MCP-server team-a\/docs\.$/)).toBeInTheDocument();
-    expect(screen.getByText("search (ikke gitt tilgang)")).toBeInTheDocument();
+    expect(screen.getByText("ikke gitt tilgang")).toBeInTheDocument();
     expect(screen.queryByText("Historikk")).not.toBeInTheDocument();
+    // Agent: status in #2920's words and one table row per MCP server.
+    expect(screen.getByText("Venter på eierteamene")).toBeInTheDocument();
+    expect(screen.getByRole("table", { name: "Tilganger per MCP-server" })).toHaveTextContent("team-a");
   });
 
   it("shows who granted access, and leaves it out when the excerpt hides it", async () => {
@@ -440,11 +443,11 @@ describe("/fleet", () => {
       }),
     });
     render(await AgentPage(params("aksel", "studio")));
-    expect(screen.getByText(/^search \(tilgang gitt av B1 /)).toBeInTheDocument();
+    expect(screen.getByText(/^tilgang gitt av B1 /)).toBeInTheDocument();
     expect(screen.queryByText(/Venter på:/)).not.toBeInTheDocument();
     stub({ [`${API}/namespaces/aksel/agentprofiles/studio`]: profile({ granted: true, grantedAt: T }) });
     render(await AgentPage(params("aksel", "studio")));
-    expect(screen.getByText(/^search \(tilgang gitt \d/)).toBeInTheDocument();
+    expect(screen.getByText(/^tilgang gitt \d/)).toBeInTheDocument();
   });
 
   it("reads an unknown condition or reason as not true", async () => {
@@ -483,7 +486,7 @@ describe("/fleet", () => {
       }),
     });
     render(await AgentPage(params("aksel", "studio")));
-    expect(screen.getByText("search (tilgang trukket tilbake)")).toBeInTheDocument();
+    expect(screen.getByText("tilgang trukket tilbake")).toBeInTheDocument();
     expect(screen.queryByText(/Venter på:/)).not.toBeInTheDocument();
     expect(screen.getByText(/1\s000 kall i døgnet/)).toBeInTheDocument();
   });
