@@ -441,6 +441,10 @@ describe("/fleet", () => {
     expect(screen.getByRole("heading", { name: "Navn" })).toBeInTheDocument();
     // Registrer: the lead names the team and says nothing is published before approval.
     expect(screen.getByText(/^For team-a\. Tar rundt fem minutter\./)).toBeInTheDocument();
+    // The lead names the cluster this fleet serves (#3116).
+    vi.stubEnv("NAIS_CLUSTER_NAME", "prod-gcp");
+    render(await RegisterPage(sp()));
+    expect(screen.getByText(/^Fleet i prod-gcp\. For team-a\./)).toBeInTheDocument();
     vi.stubEnv("FLEET_CONTROL_URL", "");
     await expect(RegisterPage(sp())).rejects.toThrow("NEXT_NOT_FOUND");
   });

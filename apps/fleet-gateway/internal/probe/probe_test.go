@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -242,7 +243,8 @@ func TestProbeOBOFailures(t *testing.T) {
 		kind string
 	}{
 		"access missing":          {&teamtoken.AccessMissingError{App: "app"}, "access"},
-		"target app has no Entra": {&teamtoken.TargetAppError{App: "app", Code: "AADSTS500011"}, "access"},
+		"app not in this cluster": {&teamtoken.TargetAppError{App: "app", Code: "AADSTS500011"}, "notincluster"},
+		"client not allowed":      {&teamtoken.TargetAppError{App: "app", Code: "AADSTS65005"}, "access"},
 		"texas down":              {errors.New("texas exchange request failed"), "unavailable"},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -276,8 +278,13 @@ func TestProbeUpstreamKinds(t *testing.T) {
 	}
 	h := newHandler(t, nil, opts{})
 	h.upstream = &http.Client{Transport: errTransport{&net.DNSError{Err: "no such host", Name: "app", IsNotFound: true}}}
+	// NXDOMAIN on the caller's own <app>.<team> name: not in this cluster (#3116).
+	if rec := do(h, "tok", okBody); kind(t, rec) != "notincluster" {
+		t.Errorf("no such app: body %s, want notincluster", rec.Body)
+	}
+	h.upstream = &http.Client{Transport: errTransport{&net.DNSError{Err: "server misbehaving", Name: "app", IsTemporary: true}}}
 	if rec := do(h, "tok", okBody); kind(t, rec) != "access" {
-		t.Errorf("no such app: body %s, want access", rec.Body)
+		t.Errorf("DNS failure other than NXDOMAIN: body %s, want access", rec.Body)
 	}
 	h.upstream = &http.Client{Transport: errTransport{errors.New("connection refused")}}
 	if rec := do(h, "tok", okBody); kind(t, rec) != "access" {
@@ -591,5 +598,63 @@ func TestConsoleTeamsGraphQLErrorsAreFailure(t *testing.T) {
 	rec := do(newHandler(t, newUpstream(t, twoTools), opts{members: m}), "tok", okBody)
 	if rec.Code != http.StatusServiceUnavailable {
 		t.Fatalf("status %d body %s, want 503", rec.Code, rec.Body)
+	}
+}
+
+// The audit line carries class, AADSTS code and nxdomain, never a token (#3116).
+func TestProbeLogsFailureClass(t *testing.T) {
+	var buf strings.Builder
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+	audit := func() map[string]any {
+		t.Helper()
+		lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
+		var m map[string]any
+		if err := json.Unmarshal([]byte(lines[len(lines)-1]), &m); err != nil || m["msg"] != "audit probe" {
+			t.Fatalf("last log line %q is not the audit line", lines[len(lines)-1])
+		}
+		buf.Reset()
+		return m
+	}
+	check := func(name string, m map[string]any, class, aadsts string, nx bool) {
+		t.Helper()
+		if m["class"] != class || m["aadsts"] != aadsts || m["nxdomain"] != nx {
+			t.Errorf("%s (%v): class=%v aadsts=%v nxdomain=%v, want %s %q %v", name, m["outcome"], m["class"], m["aadsts"], m["nxdomain"], class, aadsts, nx)
+		}
+	}
+
+	do(newHandler(t, newUpstream(t, twoTools), opts{xerr: &teamtoken.TargetAppError{App: "app", Code: "AADSTS500011"}}), "secret-tok", okBody)
+	check("AADSTS500011", audit(), "notincluster", "AADSTS500011", false)
+	do(newHandler(t, newUpstream(t, twoTools), opts{xerr: &teamtoken.AccessMissingError{App: "app"}}), "secret-tok", okBody)
+	check("AADSTS65001", audit(), "access", "AADSTS65001", false)
+	do(newHandler(t, newUpstream(t, twoTools), opts{xerr: errors.New("texas down")}), "secret-tok", okBody)
+	check("exchange", audit(), "unavailable", "", false)
+
+	h := newHandler(t, nil, opts{})
+	for _, tc := range []struct {
+		err   error
+		class string
+		nx    bool
+	}{
+		{&net.DNSError{Err: "no such host", Name: "app", IsNotFound: true}, "notincluster", true},
+		{errors.New("connection refused"), "unreachable", false},
+	} {
+		h.upstream = &http.Client{Transport: errTransport{tc.err}}
+		do(h, "tok", okBody)
+		check(tc.err.Error(), audit(), tc.class, "", tc.nx)
+	}
+	for code, class := range map[int]string{http.StatusForbidden: "access", http.StatusInternalServerError: "unavailable", http.StatusTeapot: "bad_response"} {
+		up := &fakeUpstream{Server: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(code) }))}
+		t.Cleanup(up.Close)
+		do(newHandler(t, up, opts{}), "tok", okBody)
+		check(http.StatusText(code), audit(), class, "", false)
+	}
+
+	// The OBO token reaches the target; neither it nor the caller's token is logged.
+	do(newHandler(t, newUpstream(t, twoTools), opts{}), "tok", okBody)
+	do(newHandler(t, newUpstream(t, twoTools), opts{xerr: &teamtoken.TargetAppError{App: "app", Code: "AADSTS500011"}}), "secret-tok", okBody)
+	if all := buf.String(); strings.Contains(all, "secret-tok") || strings.Contains(all, "obo:") || strings.Contains(all, "Bearer") {
+		t.Errorf("log carries a token: %s", all)
 	}
 }

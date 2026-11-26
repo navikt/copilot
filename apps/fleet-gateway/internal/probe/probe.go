@@ -25,7 +25,15 @@
 //	             accept tokens from fleet-gateway (AADSTS65001, 502), or the
 //	             target failed in any way (502): status, DNS, refused,
 //	             timeout, size, not MCP. The audit log keeps the detail.
+//	notincluster The caller's own team app is not in this cluster: Entra
+//	             has no app for cluster:team:app (AADSTS500011) or its
+//	             service name does not resolve (NXDOMAIN), 502 (#3116). The
+//	             caller is a team member, so this says no more than the
+//	             team's own Console does.
 //	invalid      The request (team, upstream_url) was refused (400, 422).
+//
+// The audit line adds class (access, unreachable, unavailable, bad_response,
+// notincluster), the AADSTS code and nxdomain, never tokens or bodies.
 package probe
 
 import (
@@ -157,9 +165,12 @@ const (
 	kindUnavailable = "unavailable"
 	kindAuth        = "auth"
 	kindAccess      = "access"
-	kindNoRoute     = "noroute"
-	kindTooLarge    = "toolarge"
 	kindInvalid     = "invalid"
+	// kindNotInCluster: the team's own app is not in this cluster (#3116).
+	kindNotInCluster = "notincluster"
+	// Log-only classes; the caller gets kindAccess for these.
+	classUnreachable = "unreachable"
+	classBadResponse = "bad_response"
 )
 
 // statusError is a non-success HTTP status from the target.
@@ -179,12 +190,12 @@ type Tool struct {
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := h.now()
-	var subject, team, host, outcome string
-	tools := 0
+	var subject, team, host, outcome, class, aadsts string
+	tools, nxdomain := 0, false
 	defer func() {
 		slog.Info("audit probe", "subject", audit.Sanitize(subject), "team", audit.Sanitize(team),
-			"upstream_host", audit.Sanitize(host), "outcome", outcome, "tools", tools,
-			"duration_ms", h.now().Sub(start).Milliseconds())
+			"upstream_host", audit.Sanitize(host), "outcome", outcome, "class", class, "aadsts", aadsts,
+			"nxdomain", nxdomain, "tools", tools, "duration_ms", h.now().Sub(start).Milliseconds())
 	}()
 	fail := func(status int, o, kind string) {
 		outcome = o
@@ -257,9 +268,21 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		slog.Warn("probe: token exchange failed", "app", audit.Sanitize(app), "error", xerr)
 		var missing *teamtoken.AccessMissingError
 		var targetApp *teamtoken.TargetAppError
-		if errors.As(xerr, &missing) || errors.As(xerr, &targetApp) {
+		switch {
+		case errors.As(xerr, &targetApp) && targetApp.Code == "AADSTS500011":
+			// Entra has no app cluster:team:app: the caller's own app is not in this cluster.
+			class, aadsts = kindNotInCluster, targetApp.Code
+			fail(http.StatusBadGateway, "token_no_such_app", kindNotInCluster)
+		case errors.As(xerr, &missing) || targetApp != nil:
+			class = kindAccess
+			if targetApp != nil {
+				aadsts = targetApp.Code
+			} else {
+				aadsts = "AADSTS65001"
+			}
 			fail(http.StatusBadGateway, "token_access_missing", kindAccess)
-		} else {
+		default:
+			class = kindUnavailable
 			fail(http.StatusBadGateway, "token_exchange_failed", kindUnavailable)
 		}
 		return
@@ -267,10 +290,17 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	list, err := h.fetchTools(ctx, target.String(), tok)
 	if err != nil {
 		slog.Warn("probe: upstream failed", "host", audit.Sanitize(host), "error", err)
-		// One answer for every target failure (#3078): until the target is pinned
-		// to the team's own pods, distinct kinds are a reachability oracle for
-		// other namespaces. The audit outcome keeps the detail.
-		_, o, _ := upstreamFailure(ctx, err)
+		// One answer for every target failure (#3078): distinct kinds are a
+		// reachability oracle. The exception is NXDOMAIN on the caller's own
+		// <app>.<team> name: it only says the team's app is not in this cluster.
+		var o string
+		_, o, class = upstreamFailure(ctx, err)
+		var dnsErr *net.DNSError
+		nxdomain = errors.As(err, &dnsErr) && dnsErr.IsNotFound
+		if nxdomain {
+			fail(http.StatusBadGateway, o, kindNotInCluster)
+			return
+		}
 		fail(http.StatusBadGateway, o, kindAccess)
 		return
 	}
@@ -280,36 +310,36 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]any{"tools": list})
 }
 
-// upstreamFailure maps a target failure to a status, audit outcome and kind.
+// upstreamFailure maps a target failure to a status, audit outcome and log class.
 func upstreamFailure(ctx context.Context, err error) (int, string, string) {
 	var se *statusError
 	var dnsErr *net.DNSError
 	switch {
 	case ctx.Err() != nil:
-		return http.StatusGatewayTimeout, "upstream_timeout", kindAccess
+		return http.StatusGatewayTimeout, "upstream_timeout", classUnreachable
 	case errors.Is(err, errTooLarge):
-		return http.StatusBadGateway, "upstream_too_large", kindTooLarge
+		return http.StatusBadGateway, "upstream_too_large", classBadResponse
 	case errors.As(err, &se):
 		switch {
 		case se.code == http.StatusUnauthorized:
-			return http.StatusBadGateway, "upstream_unauthorized", kindAuth
+			return http.StatusBadGateway, "upstream_unauthorized", kindAccess
 		case se.code == http.StatusForbidden:
 			return http.StatusBadGateway, "upstream_forbidden", kindAccess
 		case se.code == http.StatusNotFound:
-			return http.StatusBadGateway, "upstream_not_found", kindNoRoute
+			return http.StatusBadGateway, "upstream_not_found", classBadResponse
 		case se.code >= 500:
 			return http.StatusBadGateway, "upstream_unavailable", kindUnavailable
 		}
-		return http.StatusBadGateway, "upstream_error", kindInvalid
+		return http.StatusBadGateway, "upstream_error", classBadResponse
 	case errors.As(err, &dnsErr) && dnsErr.IsNotFound:
-		return http.StatusBadGateway, "upstream_no_such_app", kindNoRoute
+		return http.StatusBadGateway, "upstream_no_such_app", kindNotInCluster
 	}
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) {
 		// Refused or reset connection, or the dial guard.
-		return http.StatusBadGateway, "upstream_unreachable", kindAccess
+		return http.StatusBadGateway, "upstream_unreachable", classUnreachable
 	}
-	return http.StatusBadGateway, "upstream_error", kindInvalid
+	return http.StatusBadGateway, "upstream_error", classBadResponse
 }
 
 type tokenClaims struct {

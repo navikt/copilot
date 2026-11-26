@@ -32,7 +32,7 @@ export default async function RegisterPage({ searchParams }: Props) {
       nav={await navFor(teams, {}, team)}
       crumbs={team ? [{ label: team, href: `/fleet?team=${team}` }] : []}
       title="Registrer MCP-server"
-      description={`${team ? `For ${team}. ` : ""}Tar rundt fem minutter. Ingenting publiseres før team copilot har godkjent.`}
+      description={`${process.env.NAIS_CLUSTER_NAME ? `Fleet i ${process.env.NAIS_CLUSTER_NAME}. ` : ""}${team ? `For ${team}. ` : ""}Tar rundt fem minutter. Ingenting publiseres før team copilot har godkjent.`}
     >
       {"problem" in result ? (
         <FleetProblemAlert problem={result.problem} />

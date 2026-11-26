@@ -79,7 +79,7 @@ describe("discoverTools", () => {
     expect(JSON.parse(init.body)).toEqual({ team: "team-a", upstream_url: URL_ });
   });
 
-  it.each(["unavailable", "auth", "access", "noroute", "toolarge", "invalid"])(
+  it.each(["unavailable", "auth", "access", "noroute", "notincluster", "toolarge", "invalid"])(
     "passes the probe's error kind %s through",
     async (k) => {
       fetch.mockResolvedValueOnce(json({ error: k }, k === "unavailable" ? 503 : 502));
