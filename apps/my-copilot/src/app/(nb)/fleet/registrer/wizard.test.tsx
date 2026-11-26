@@ -78,7 +78,10 @@ describe("RegisterWizard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Hent verktøy" }));
     expect(await screen.findByText(/Fleet fikk ikke kontakt/)).toBeInTheDocument();
     expect(screen.getByText(/application: fleet-gateway/)).toBeInTheDocument();
-    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ namespace: "team-a", name: "kodeverk" });
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toMatchObject({
+      namespace: "team-a",
+      url: expect.stringMatching(/^http:\/\/.+\.team-a/),
+    });
   });
 
   it("shows a missing route as a warning, without the snippet, and allows typing tools", async () => {
@@ -95,6 +98,36 @@ describe("RegisterWizard", () => {
     expect(screen.getByText(/bare ha bokstaver, tall/)).toBeInTheDocument();
   });
 
+  it("links to the guidelines and mcp-compliance when the server is not an MCP server", async () => {
+    fetch.mockResolvedValueOnce(reply(502, { kind: "invalid", error: "MCP-serveren svarte ikke som en MCP-server." }));
+    render(<RegisterWizard {...props} />);
+    await toStep3();
+    fireEvent.click(screen.getByRole("button", { name: "Hent verktøy" }));
+    expect(await screen.findByText(/svarte ikke som en MCP-server/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /retningslinjene/ })).toHaveAttribute(
+      "href",
+      "/mcp/tilby-server/retningslinjer"
+    );
+    expect(screen.getByRole("link", { name: "mcp-compliance" })).toBeInTheDocument();
+    expect(screen.queryByText(/application: fleet-gateway/)).toBeNull();
+  });
+
+  it("hides «Hent verktøy» without the probe (prod, no FLEET_GATEWAY_URL)", async () => {
+    render(<RegisterWizard {...props} discoveryEnabled={false} />);
+    await toStep3();
+    expect(screen.queryByRole("button", { name: "Hent verktøy" })).toBeNull();
+  });
+
+  it("always offers typing the tools in by hand", async () => {
+    fetch.mockResolvedValueOnce(reply(503, { kind: "unavailable", error: "Prøv igjen om litt." }));
+    render(<RegisterWizard {...props} />);
+    await toStep3();
+    fireEvent.click(screen.getByRole("button", { name: "Hent verktøy" }));
+    expect(await screen.findByText(/Prøv igjen om litt/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Skriv inn verktøyene selv" }));
+    heading("Verktøy og risiko");
+  });
+
   it("pre-fills discovered tools, leaves destructive ones unticked, and needs a default level", async () => {
     fetch.mockResolvedValueOnce(
       reply(200, {
@@ -107,7 +140,7 @@ describe("RegisterWizard", () => {
     render(<RegisterWizard {...props} />);
     await toStep3();
     fireEvent.click(screen.getByRole("button", { name: "Hent verktøy" }));
-    expect(await screen.findByText(/fant 2 verktøy/)).toBeInTheDocument();
+    expect(await screen.findByText(/Fant 2 verktøy/)).toBeInTheDocument();
     next();
     expect(screen.getByRole("checkbox", { name: /hent_kode/ })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: /slett_kode/ })).not.toBeChecked();

@@ -176,6 +176,9 @@ spec:
     # two adjacent if-blocks broke templating in prod (#2738).
     - name: FLEET_CONTROL_URL
       value: "{{fleet_control_url}}"
+    # Empty hides «Hent verktøy» (fleet-gateway's probe, #2985). Unconditional, see above.
+    - name: FLEET_GATEWAY_URL
+      value: "{{fleet_gateway_url}}"
   liveness:
     path: "/health"
     port: 3000
@@ -204,6 +207,8 @@ spec:
           namespace: copilot
       {{/if}}
         - application: fleet-control
+          namespace: copilot
+        - application: fleet-gateway
           namespace: copilot
       external:
         - host: api.github.com

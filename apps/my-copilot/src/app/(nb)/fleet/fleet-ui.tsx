@@ -37,6 +37,7 @@ import { ExternalLinkIcon, PersonIcon } from "@navikt/aksel-icons";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { hasCondition, refKey } from "@/lib/fleet-names";
+import { RISK_LABEL, type Risk } from "@/lib/fleet-wizard";
 import type { AgentProfile, AuditEvent, FleetProblem, MCPServer, MCPServerSpec, ServerRef } from "@/lib/fleet-control";
 import { APPROVAL_RULE, APPROVER, CHANGE_RULE, ownVersionText, waitingText } from "@/lib/fleet-approval";
 
@@ -866,10 +867,11 @@ export function ServerDetail({
   agents = [],
   agentsFailed = false,
   grafanaUrl,
-  gatewayUrl,
+  discoveryEnabled = false,
   submitted = false,
 }: {
-  gatewayUrl?: string;
+  /** fleet-gateway's probe is configured: the edit form offers «Hent verktøy». */
+  discoveryEnabled?: boolean;
   server: MCPServer;
   events: AuditEvent[];
   submitted?: boolean;
@@ -936,7 +938,7 @@ export function ServerDetail({
       )}
       {server.status.route && hasCondition(server, "Published") && !hasCondition(server, "Revoked") ? (
         <VStack gap="space-16">
-          <TestCurl path={server.status.route!.path} gateway={gatewayUrl} />
+          <TestCurl path={server.status.route!.path} />
           <AccessPolicy app={(server.status.pending?.spec ?? server.spec)?.upstream?.app} />
         </VStack>
       ) : null}
@@ -958,7 +960,7 @@ export function ServerDetail({
       ) : (
         <WaitingForAccess server={server} agents={agents} />
       )}
-      <ServerActions server={server} me={me} owner={owner} part="edit" />
+      <ServerActions server={server} me={me} owner={owner} part="edit" discoveryEnabled={discoveryEnabled} />
       <ServerDocs spec={server.status.pending?.spec ?? server.spec} />
       {!(server.status.route && hasCondition(server, "Published") && !hasCondition(server, "Revoked")) && (
         <AccessPolicy app={(server.status.pending?.spec ?? server.spec)?.upstream?.app} />
@@ -994,8 +996,8 @@ export function ServerHeader({ server }: { server: MCPServer }) {
 }
 
 /** tools/list through fleet-gateway, for the owner team to try the published route. */
-function TestCurl({ path, gateway }: { path: string; gateway?: string }) {
-  const curl = `curl -X POST ${gateway ?? "https://<fleet-gateway>"}${path} \\
+function TestCurl({ path }: { path: string }) {
+  const curl = `curl -X POST https://<fleet-gateway>${path} \\
   -H "Authorization: Bearer $TOKEN" \\
   -H "Content-Type: application/json" \\
   -H "Accept: application/json, text/event-stream" \\
@@ -1393,6 +1395,7 @@ function ServerActions({
   owner,
   approver = false,
   part,
+  discoveryEnabled,
 }: {
   server: MCPServer;
   me?: string;
@@ -1400,6 +1403,7 @@ function ServerActions({
   owner: boolean;
   approver?: boolean;
   part: "approve" | "rest" | "edit";
+  discoveryEnabled?: boolean;
 }) {
   const approve = useFleetPost("approve");
   const revoke = useFleetPost("revoke");
@@ -1522,7 +1526,7 @@ function ServerActions({
             <ExpansionCard.Description>Endringen blir en ny versjon. {CHANGE_RULE}</ExpansionCard.Description>
           </ExpansionCard.Header>
           <ExpansionCard.Content>
-            <ServerForm server={server} />
+            <ServerForm server={server} discoveryEnabled={discoveryEnabled} />
           </ExpansionCard.Content>
         </ExpansionCard>
       )}
@@ -1565,6 +1569,108 @@ export function AccessPolicy({ app }: { app?: string }) {
   );
 }
 
+export type FoundTool = { name: string; description?: string; suggestedRisk: Risk; destructive: boolean };
+type Discovery =
+  { state: "idle" | "busy" } | { state: "ok"; count: number } | { state: "error"; kind: string; message: string };
+
+const RETRY = "Fleet kunne ikke hente verktøyene akkurat nå. Prøv igjen om litt.";
+
+/**
+ * «Hent verktøy» through fleet-gateway's probe, for the wizard and the edit
+ * form. The answer only pre-fills; the team decides. «Skriv inn verktøyene
+ * selv» is always there.
+ */
+export function ToolDiscovery({
+  namespace,
+  url,
+  app,
+  onTools,
+  onManual,
+}: {
+  namespace: string;
+  url: () => string;
+  app?: string;
+  onTools: (tools: FoundTool[]) => void;
+  onManual: () => void;
+}) {
+  const [d, setD] = useState<Discovery>({ state: "idle" });
+  async function discover() {
+    setD({ state: "busy" });
+    try {
+      const res = await fetch("/api/fleet/tools", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ namespace, url: url() }),
+      });
+      const out = (await res.json().catch(() => ({}))) as { tools?: FoundTool[]; error?: string; kind?: string };
+      if (!res.ok || !out.tools) {
+        setD({ state: "error", kind: out.kind ?? "unavailable", message: out.error ?? RETRY });
+        return;
+      }
+      onTools(out.tools);
+      setD({ state: "ok", count: out.tools.length });
+    } catch {
+      setD({ state: "error", kind: "unavailable", message: RETRY });
+    }
+  }
+  return (
+    <VStack gap="space-12" align="start">
+      <HStack gap="space-8">
+        <Button variant="secondary" size="small" loading={d.state === "busy"} onClick={discover} type="button">
+          Hent verktøy
+        </Button>
+        <Button variant="tertiary" size="small" onClick={onManual} type="button">
+          Skriv inn verktøyene selv
+        </Button>
+      </HStack>
+      <BodyShort size="small">
+        fleet-gateway kaller <code>tools/list</code> på appen som deg. Svaret fyller bare ut listen, du velger selv.
+      </BodyShort>
+      {d.state === "ok" && (
+        <Alert variant="success" size="small" role="status">
+          Fant {d.count} verktøy. Verktøy som kan endre data, er ikke krysset av.
+        </Alert>
+      )}
+      {d.state === "error" && (
+        <Alert variant={d.kind === "access" ? "error" : "warning"} size="small">
+          <VStack gap="space-12">
+            <BodyLong>{d.message}</BodyLong>
+            {d.kind === "access" && (
+              <>
+                <BodyLong>
+                  Legg dette til i <code>nais.yaml</code> for {app ? <code>{app}</code> : "appen"}, deploy på nytt og
+                  prøv igjen:
+                </BodyLong>
+                <Box background="neutral-soft" padding="space-12" borderRadius="8">
+                  <HStack gap="space-8" justify="space-between" align="start" wrap={false}>
+                    <pre className="overflow-x-auto">
+                      <code>{FLEET_GATEWAY_POLICY}</code>
+                    </pre>
+                    <CopyButton copyText={FLEET_GATEWAY_POLICY} text="Kopier" activeText="Kopiert" />
+                  </HStack>
+                </Box>
+              </>
+            )}
+            {d.kind === "invalid" && (
+              <BodyLong>
+                Se{" "}
+                <NextLink className={linkClass} href="/mcp/tilby-server/retningslinjer">
+                  retningslinjene for MCP-servere
+                </NextLink>
+                , og test serveren med{" "}
+                <a className={linkClass} href="https://github.com/navikt/copilot/tree/main/cli/mcp-compliance">
+                  mcp-compliance
+                </a>
+                .
+              </BodyLong>
+            )}
+          </VStack>
+        </Alert>
+      )}
+    </VStack>
+  );
+}
+
 export const categoryLabel = (c: string) => DATA_CATEGORIES.find((d) => d[0] === c)?.[1] ?? c;
 
 const DATA_CATEGORIES: [string, string, string][] = [
@@ -1582,8 +1688,19 @@ const DATA_CATEGORIES: [string, string, string][] = [
 ];
 
 /** Register a new MCP server, or with server: edit it, which submits a new version for approval. */
-export function ServerForm({ teams = [], server }: { teams?: string[]; server?: MCPServer }) {
+export function ServerForm({
+  teams = [],
+  server,
+  discoveryEnabled = false,
+}: {
+  teams?: string[];
+  server?: MCPServer;
+  discoveryEnabled?: boolean;
+}) {
   const post = useFleetPost(server ? "edit" : "register");
+  const urlRef = useRef<HTMLInputElement>(null);
+  const toolsRef = useRef<HTMLTextAreaElement>(null);
+  const [found, setFound] = useState<FoundTool[]>([]);
   const spec = server?.status.pending?.spec ?? server?.spec;
   const err = post.error?.fields;
   return (
@@ -1624,14 +1741,45 @@ export function ServerForm({ teams = [], server }: { teams?: string[]; server?: 
         <TextField
           label="Intern adresse"
           name="url"
+          ref={urlRef}
           defaultValue={spec?.upstream?.url}
           error={err?.url}
           description="For eksempel http://min-app.mitt-team/mcp eller http://min-app.mitt-team.svc.cluster.local/mcp"
           required
         />
+        {server && discoveryEnabled && (
+          <ToolDiscovery
+            namespace={server.metadata.namespace}
+            app={spec?.upstream?.app}
+            url={() => urlRef.current?.value.trim() ?? ""}
+            onTools={(tools) => {
+              // Destructive tools stay out of the field; the team adds them by hand if they belong.
+              if (toolsRef.current)
+                toolsRef.current.value = tools
+                  .filter((t) => !t.destructive)
+                  .map((t) => t.name)
+                  .join("\n");
+              setFound(tools);
+            }}
+            onManual={() => toolsRef.current?.focus()}
+          />
+        )}
+        {found.length > 0 && (
+          <VStack gap="space-4" as="ul" aria-label="Verktøyene MCP-serveren oppgir">
+            {found.map((t) => (
+              <li key={t.name}>
+                <BodyShort size="small">
+                  <code>{t.name}</code>: MCP-serveren oppgir {RISK_LABEL[t.suggestedRisk].toLowerCase()}
+                  {t.destructive && ". Kan endre data, ikke lagt inn i feltet"}
+                </BodyShort>
+              </li>
+            ))}
+          </VStack>
+        )}
         <Textarea
           label="Verktøy"
           name="tools"
+          ref={toolsRef}
           defaultValue={spec?.allowedTools?.join("\n")}
           error={err?.tools}
           description="Verktøyene som skal være tilgjengelige, ett per linje."

@@ -26,7 +26,7 @@ import ServerPage from "./mcp-servere/[namespace]/[name]/page";
 import AgentPage from "./agenter/[namespace]/[name]/page";
 import OldRoutePage from "./ruter/[namespace]/[name]/page";
 import CatalogPage from "./katalog/page";
-import { ServerInbox } from "./fleet-ui";
+import { ServerForm, ServerInbox } from "./fleet-ui";
 import type { MCPServer } from "@/lib/fleet-control";
 
 const API = "/apis/fleet.nav.no/v1alpha1";
@@ -848,5 +848,54 @@ describe("ServerInbox avatars", () => {
     detail(undefined);
     expect(screen.getByText("deg")).toBeInTheDocument();
     expect(screen.queryByText(/\(deg\)/)).toBeNull();
+  });
+});
+
+describe("ServerForm discovery (edit)", () => {
+  const server = {
+    metadata: { namespace: "team-a", name: "docs" },
+    spec: { upstream: { app: "docs-mcp", url: "http://docs-mcp.team-a/mcp" }, allowedTools: ["old"] },
+    status: {},
+  } as unknown as MCPServer;
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  it("hides «Hent verktøy» without the probe", () => {
+    render(<ServerForm server={server} />);
+    expect(screen.queryByRole("button", { name: "Hent verktøy" })).toBeNull();
+  });
+
+  it("fills the field with discovered tools, leaves destructive ones out and shows the hints", async () => {
+    const fetch = vi.fn(async () =>
+      Response.json({
+        tools: [
+          { name: "hent", suggestedRisk: "read", destructive: false },
+          { name: "slett", suggestedRisk: "write", destructive: true },
+        ],
+      })
+    );
+    vi.stubGlobal("fetch", fetch);
+    render(<ServerForm server={server} discoveryEnabled />);
+    fireEvent.click(screen.getByRole("button", { name: "Hent verktøy" }));
+    expect(await screen.findByText(/Fant 2 verktøy/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Verktøy")).toHaveValue("hent");
+    expect(screen.getByText(/Kan endre data, ikke lagt inn/)).toBeInTheDocument();
+    expect(JSON.parse((fetch.mock.calls[0] as unknown as [string, RequestInit])[1].body as string)).toEqual({
+      namespace: "team-a",
+      url: "http://docs-mcp.team-a/mcp",
+    });
+  });
+
+  it("shows the accessPolicy snippet on access", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ kind: "access", error: "Legg fleet-gateway til." }, { status: 502 }))
+    );
+    render(<ServerForm server={server} discoveryEnabled />);
+    fireEvent.click(screen.getByRole("button", { name: "Hent verktøy" }));
+    expect(await screen.findByText(/Legg fleet-gateway til/)).toBeInTheDocument();
+    expect(screen.getByText(/application: fleet-gateway/)).toBeInTheDocument();
   });
 });

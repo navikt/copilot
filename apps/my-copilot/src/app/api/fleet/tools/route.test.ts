@@ -31,32 +31,40 @@ describe("POST /api/fleet/tools", () => {
 
   it("passes the person's own token and answers the tools", async () => {
     discover.mockResolvedValueOnce([{ name: "a", suggestedRisk: "read", destructive: false }]);
-    const res = await post({ namespace: "team-a", name: "docs" });
+    const res = await post({ namespace: "team-a", url: "http://docs.team-a/mcp" });
     expect(res.status).toBe(200);
-    expect(discover).toHaveBeenCalledWith("t", "team-a", "docs");
+    expect(discover).toHaveBeenCalledWith("t", "team-a", "http://docs.team-a/mcp");
     await expect(res.json()).resolves.toEqual({ tools: [{ name: "a", suggestedRisk: "read", destructive: false }] });
   });
 
-  it("refuses without a login, from another origin, or with bad names, before any call", async () => {
+  it("refuses without a login, from another origin, or without team and address, before any call", async () => {
     auth.token = null;
-    expect((await post({ namespace: "team-a", name: "docs" })).status).toBe(401);
+    expect((await post({ namespace: "team-a", url: "http://docs.team-a/mcp" })).status).toBe(401);
     auth.token = "t";
     expect(
-      (await post({ namespace: "team-a", name: "docs" }, { origin: "https://evil", host: "my.nav.no" })).status
+      (
+        await post(
+          { namespace: "team-a", url: "http://docs.team-a/mcp" },
+          { origin: "https://evil", host: "my.nav.no" }
+        )
+      ).status
     ).toBe(403);
-    expect((await post({ namespace: "../x", name: "docs" })).status).toBe(400);
+    expect((await post({ namespace: "../x", url: "http://docs.team-a/mcp" })).status).toBe(400);
+    expect((await post({ namespace: "team-a", url: " " })).status).toBe(400);
     expect(discover).not.toHaveBeenCalled();
   });
 
   it.each([
-    ["access", 502, /accessPolicy/],
-    ["noroute", 404, /ingen rute/],
-    ["toolarge", 502, /for stort/],
-    ["invalid", 502, /Verktøynavn/],
-    ["unavailable", 503, /ikke slått på/],
+    ["access", 502, /accessPolicy\.inbound/],
+    ["auth", 502, /OBO-tokener fra fleet-gateway/],
+    ["noroute", 502, /teamets namespace/],
+    ["toolarge", 502, /beskrivelsene/],
+    ["invalid", 502, /som en MCP-server/],
+    ["unavailable", 503, /Prøv igjen/],
+    ["off", 503, /ikke slått på/],
   ] as const)("maps %s to %i with a next step", async (kind, status, msg) => {
     discover.mockRejectedValueOnce(new DiscoveryError(kind));
-    const res = await post({ namespace: "team-a", name: "docs" });
+    const res = await post({ namespace: "team-a", url: "http://docs.team-a/mcp" });
     expect(res.status).toBe(status);
     await expect(res.json()).resolves.toMatchObject({ kind, error: expect.stringMatching(msg) });
   });
