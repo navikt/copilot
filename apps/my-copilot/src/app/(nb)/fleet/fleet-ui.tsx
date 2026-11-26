@@ -280,7 +280,7 @@ export function TeamSections({ teams, approver }: { teams: TeamData[]; approver?
                                   {s.status.route.path}
                                 </Detail>
                               )}
-                              <Detail>{serverShortNext(s, approver)}</Detail>
+                              {serverShortNext(s, approver) && <Detail>{serverShortNext(s, approver)}</Detail>}
                             </VStack>
                           </Box>
                         ))}
@@ -293,12 +293,6 @@ export function TeamSections({ teams, approver }: { teams: TeamData[]; approver?
                         <Table.Row>
                           <Table.HeaderCell scope="col">MCP-server</Table.HeaderCell>
                           <Table.HeaderCell scope="col">Status</Table.HeaderCell>
-                          <Table.HeaderCell scope="col" className="whitespace-nowrap">
-                            Neste steg
-                          </Table.HeaderCell>
-                          <Table.HeaderCell scope="col" className="whitespace-nowrap">
-                            Publisert versjon
-                          </Table.HeaderCell>
                         </Table.Row>
                       </Table.Header>
                       <Table.Body>
@@ -319,10 +313,11 @@ export function TeamSections({ teams, approver }: { teams: TeamData[]; approver?
                               </VStack>
                             </Table.DataCell>
                             <Table.DataCell>
-                              <StatusTag s={serverStatus(s)} />
+                              <VStack gap="space-4" align="start">
+                                <StatusTag s={serverStatus(s)} />
+                                {serverShortNext(s, approver) && <Detail>{serverShortNext(s, approver)}</Detail>}
+                              </VStack>
                             </Table.DataCell>
-                            <Table.DataCell>{serverShortNext(s, approver)}</Table.DataCell>
-                            <Table.DataCell>{s.status.publishedGeneration ?? "–"}</Table.DataCell>
                           </Table.Row>
                         ))}
                       </Table.Body>

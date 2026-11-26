@@ -29,12 +29,12 @@ export const date = (iso: string) =>
 
 export const n = (v: number) => v.toLocaleString("nb-NO");
 
-/** One short next step per MCP server for the overview table. */
+/** One short follow-up per MCP server for the overview list, empty when nothing waits. */
 export function serverShortNext(s: MCPServer, approver = false): string {
   const p = s.status.pending;
   if (p) return approver ? "Godkjenn versjon " + p.generation : "Venter på " + APPROVER;
   if (hasCondition(s, "Revoked")) return "Send inn en ny versjon";
-  return "Ingen";
+  return "";
 }
 
 /** The MCP servers whose owner team has not granted access yet. A revoked grant keeps grantedAt and is not waiting. */
