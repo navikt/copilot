@@ -6,7 +6,7 @@ import { isName, isSameOrigin } from "@/lib/fleet-names";
 import { fail, failure } from "@/lib/fleet-errors";
 
 /**
- * Writes for /fleet: register, edit, approve and revoke an MCP server, and «gi tilgang» to an agent profile. A route
+ * Writes for /fleet: register, edit, approve, roll back and unpublish an MCP server, and «gi tilgang» to an agent profile. A route
  * handler, not a server action: an action id dies with each deploy (#1804).
  * fleet-control checks team membership and four eyes again with the OBO token.
  */
@@ -108,6 +108,15 @@ export async function POST(request: Request) {
         const reason = reasonOf(b);
         if (!reason) return fail("Skriv en begrunnelse på høyst 500 tegn.", 400);
         await fleetApi.revokeServer(ns, name, reason, b.block === true);
+        break;
+      }
+      case "rollback": {
+        const [from, to] = [Number(b.fromGeneration), Number(b.generation)];
+        if (!Number.isInteger(from) || !Number.isInteger(to))
+          return fail("Noe er galt med skjemaet. Last inn siden på nytt.", 400);
+        const reason = reasonOf(b);
+        if (!reason) return fail("Skriv en begrunnelse på høyst 500 tegn.", 400);
+        await fleetApi.rollbackServer(ns, name, from, to, reason);
         break;
       }
       case "grant": {

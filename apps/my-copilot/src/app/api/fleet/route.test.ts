@@ -74,6 +74,28 @@ describe("POST /api/fleet", () => {
     expect(JSON.parse(init.body)).toEqual({ generation: 3, contentHash: "h3" });
   });
 
+  it("rolls back with from, to and the reason, and maps fleet-control's refusal", async () => {
+    const body = { action: "rollback", namespace: "team-a", name: "docs", fromGeneration: "2", generation: "1" };
+    expect((await post({ ...body, reason: " " })).status).toBe(400);
+    expect(fetch).not.toHaveBeenCalled();
+    const res = await post({ ...body, reason: "feil i v2" });
+    await expect(res.json()).resolves.toEqual({ href: "/fleet/mcp-servere/team-a/docs" });
+    const [url, init] = fetch.mock.calls[0];
+    expect(url).toBe("http://fc/apis/fleet.nav.no/v1alpha1/namespaces/team-a/mcpservers/docs/rollback");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body)).toEqual({ fromGeneration: 2, toGeneration: 1, reason: "feil i v2" });
+    fetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ kind: "Status", reason: "RollbackTargetNotApproved", message: "x" }), {
+        status: 409,
+      })
+    );
+    const refused = await post({ ...body, reason: "feil i v2" });
+    expect(refused.status).toBe(409);
+    await expect(refused.json()).resolves.toMatchObject({
+      error: expect.stringMatching(/^Team copilot har ikke godkjent versjon 1\./),
+    });
+  });
+
   const spec = (over: Record<string, unknown> = {}) => ({
     dataCategory: "Intern",
     upstream: { app: "docs-app", url: "http://docs-app/mcp" },

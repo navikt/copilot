@@ -11,15 +11,15 @@ export function serverStatus(s: MCPServer): { label: string; variant: TagVariant
   // A revoked MCP server can get a new draft, and approving it publishes the server again.
   if (hasCondition(s, "Revoked"))
     return pending
-      ? { label: "Trukket tilbake, ny versjon venter", variant: "warning" }
-      : { label: "Trukket tilbake", variant: "neutral" };
+      ? { label: "Avpublisert, ny versjon venter", variant: "warning" }
+      : { label: "Avpublisert", variant: "neutral" };
   if (!hasCondition(s, "Published")) return { label: "Venter på godkjenning", variant: "warning" };
   if (pending) return { label: "Ny versjon venter", variant: "info" };
   return { label: "Publisert", variant: "success" };
 }
 
 export function agentStatus(p: AgentProfile): { label: string; variant: TagVariant } {
-  if (hasCondition(p, "Revoked")) return { label: "Trukket tilbake", variant: "neutral" };
+  if (hasCondition(p, "Revoked")) return { label: "Avpublisert", variant: "neutral" };
   if (hasCondition(p, "Expired")) return { label: "Utløpt", variant: "neutral" };
   if (hasCondition(p, "Published")) return { label: "I bruk", variant: "success" };
   return { label: "Venter på eierteamene", variant: "warning" };
@@ -48,7 +48,7 @@ export function serverNextStep(s: MCPServer): string {
   if (hasCondition(s, "Revoked"))
     return pending
       ? `Team copilot må godkjenne versjon ${pending} før MCP-serveren blir publisert igjen.`
-      : "Endre MCP-serveren og send inn en ny versjon. Når team copilot har godkjent den, blir MCP-serveren publisert igjen.";
+      : "Bruk «Publiser igjen» nederst på siden og send inn en ny versjon. Når team copilot har godkjent den, blir MCP-serveren publisert igjen.";
   if (!hasCondition(s, "Published")) return "Team copilot må godkjenne utkastet før MCP-serveren blir publisert.";
   if (pending) return `Team copilot må godkjenne versjon ${pending}. Til da gjelder versjon ${published}.`;
   return `Ingen. Versjon ${published} er publisert.`;

@@ -79,6 +79,8 @@ export default async function ServerPage({ params, searchParams }: Props) {
       action={
         "data" in result && !result.data.owner ? (
           <LinkButton href="#be-om-tilgang">Be eierteamet om tilgang</LinkButton>
+        ) : "data" in result && result.data.inTeam ? (
+          <LinkButton href={`/fleet/mcp-servere/${namespace}/${name}/endre`}>Endre</LinkButton>
         ) : undefined
       }
       description={
