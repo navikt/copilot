@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -523,5 +525,83 @@ func TestProbeReadsSSEAnswer(t *testing.T) {
 func TestNewRequiresConfig(t *testing.T) {
 	if _, err := New(Config{IntrospectURL: "http://texas", Issuer: testIssuer, Audience: testAud}); err == nil {
 		t.Fatal("New without azp, members and limiter must fail")
+	}
+}
+
+// A server that keeps the SSE stream open after its answer must not stall the probe.
+func TestProbeSSEStreamLeftOpen(t *testing.T) {
+	up := &fakeUpstream{}
+	up.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var msg struct {
+			ID     int    `json:"id"`
+			Method string `json:"method"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&msg)
+		if msg.Method == "notifications/initialized" {
+			w.WriteHeader(http.StatusAccepted)
+			return
+		}
+		result := `{}`
+		if msg.Method == "tools/list" {
+			result = twoTools
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		// An unrelated event first, then the answer, then the stream stays open.
+		_, _ = io.WriteString(w, "data: {\"jsonrpc\":\"2.0\",\"id\":99,\"result\":{}}\n\ndata: {\"jsonrpc\":\"2.0\",\"id\":"+itoa(msg.ID)+",\"result\":"+result+"}\n\n")
+		w.(http.Flusher).Flush()
+		<-r.Context().Done()
+	}))
+	t.Cleanup(up.Close)
+	h := newHandler(t, up, opts{})
+	h.timeout = 3 * time.Second
+	start := time.Now()
+	if rec := do(h, "tok", okBody); rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body)
+	}
+	if time.Since(start) > 2*time.Second {
+		t.Fatal("probe waited for the stream to end")
+	}
+}
+
+func TestProbeRefusesOversizedSSE(t *testing.T) {
+	up := &fakeUpstream{}
+	up.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = io.WriteString(w, "data: "+strings.Repeat("a", MaxResponseBytes+10)+"\n\n")
+	}))
+	t.Cleanup(up.Close)
+	if rec := do(newHandler(t, up, opts{}), "tok", okBody); rec.Code == http.StatusOK {
+		t.Fatalf("oversized SSE answer accepted: %s", rec.Body)
+	}
+}
+
+func TestProbeRefusesHugeResponseHeaders(t *testing.T) {
+	up := &fakeUpstream{}
+	inner := newUpstream(t, twoTools) // a valid server, only with oversized headers
+	up.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Big", strings.Repeat("a", 100<<10))
+		inner.Config.Handler.ServeHTTP(w, r)
+	}))
+	t.Cleanup(up.Close)
+	if rec := do(newHandler(t, up, opts{}), "tok", okBody); rec.Code == http.StatusOK {
+		t.Fatalf("100 KiB response headers accepted: %s", rec.Body)
+	}
+}
+
+// Console answering partial data plus errors is a failure (503), not membership.
+func TestConsoleTeamsGraphQLErrorsAreFailure(t *testing.T) {
+	console := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, `{"data":{"user":{"teams":{"nodes":[{"team":{"slug":"team-a"}}],"pageInfo":{"hasNextPage":false}}}},"errors":[{"message":"partial failure"}]}`)
+	}))
+	t.Cleanup(console.Close)
+	tokenPath := filepath.Join(t.TempDir(), "token")
+	if err := os.WriteFile(tokenPath, []byte("sa-token"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	m := NewConsoleTeams(tokenPath)
+	m.URL = console.URL
+	rec := do(newHandler(t, newUpstream(t, twoTools), opts{members: m}), "tok", okBody)
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status %d body %s, want 503", rec.Code, rec.Body)
 	}
 }

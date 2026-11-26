@@ -262,7 +262,8 @@ func (g *Gateway) routes() http.Handler {
 	mux.HandleFunc("POST /token", g.rateLimitMiddleware(metrics.EndpointToken, g.limiters[metrics.EndpointToken], g.tokenHandler))
 	mux.HandleFunc("POST /revoke", g.rateLimitMiddleware(metrics.EndpointRevoke, g.limiters[metrics.EndpointRevoke], g.revokeHandler))
 	if g.probe != nil {
-		mux.Handle("POST /probe/v1/tools", g.probe)
+		// Per-IP limit first: a garbage bearer must not cost a Texas call.
+		mux.HandleFunc("POST /probe/v1/tools", g.rateLimitMiddleware(metrics.EndpointProbe, g.limiters[metrics.EndpointProbe], g.probe.ServeHTTP))
 	}
 	if g.cfg.DCREnabled {
 		mux.HandleFunc("POST /register", g.rateLimitMiddleware(metrics.EndpointRegister, g.limiters[metrics.EndpointRegister], g.registerHandler))

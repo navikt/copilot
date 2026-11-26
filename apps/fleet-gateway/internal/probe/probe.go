@@ -31,6 +31,7 @@
 package probe
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -133,7 +134,7 @@ func newUpstreamClient(allow func(netip.Addr) bool) *http.Client {
 	}}
 	return &http.Client{
 		Timeout:       Timeout,
-		Transport:     &http.Transport{Proxy: nil, DialContext: d.DialContext, ForceAttemptHTTP2: true, TLSHandshakeTimeout: 5 * time.Second},
+		Transport:     &http.Transport{Proxy: nil, DialContext: d.DialContext, ForceAttemptHTTP2: true, TLSHandshakeTimeout: 5 * time.Second, MaxResponseHeaderBytes: 64 << 10},
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 	}
 }
@@ -459,15 +460,18 @@ func (h *Handler) call(ctx context.Context, target, token, session string, id in
 	if resp.StatusCode != http.StatusOK {
 		return nil, "", &statusError{resp.StatusCode}
 	}
-	raw, err := io.ReadAll(io.LimitReader(resp.Body, MaxResponseBytes+1))
+	var raw []byte
+	if strings.HasPrefix(resp.Header.Get("Content-Type"), "text/event-stream") {
+		// Stop at the answer: a server may keep the stream open after it.
+		raw, err = readSSE(resp.Body, id)
+	} else {
+		raw, err = io.ReadAll(io.LimitReader(resp.Body, MaxResponseBytes+1))
+		if err == nil && len(raw) > MaxResponseBytes {
+			err = errTooLarge
+		}
+	}
 	if err != nil {
 		return nil, "", err
-	}
-	if len(raw) > MaxResponseBytes {
-		return nil, "", errTooLarge
-	}
-	if strings.HasPrefix(resp.Header.Get("Content-Type"), "text/event-stream") {
-		raw = sseMessage(raw, id)
 	}
 	var msg struct {
 		ID     int             `json:"id"`
@@ -480,22 +484,35 @@ func (h *Handler) call(ctx context.Context, target, token, session string, id in
 	return msg.Result, resp.Header.Get("Mcp-Session-Id"), nil
 }
 
-// sseMessage returns the data of the first SSE event whose JSON id is id.
-func sseMessage(raw []byte, id int) []byte {
-	for _, event := range strings.Split(strings.ReplaceAll(string(raw), "\r\n", "\n"), "\n\n") {
-		var data []string
-		for _, line := range strings.Split(event, "\n") {
-			if v, ok := strings.CutPrefix(line, "data:"); ok {
-				data = append(data, strings.TrimPrefix(v, " "))
+// readSSE returns the data of the first SSE event whose JSON id is id, without
+// waiting for the stream to end. It reads at most MaxResponseBytes.
+func readSSE(r io.Reader, id int) ([]byte, error) {
+	lr := &io.LimitedReader{R: r, N: MaxResponseBytes + 1}
+	br := bufio.NewReader(lr)
+	var data []string
+	for {
+		line, err := br.ReadString('\n')
+		if lr.N <= 0 {
+			return nil, errTooLarge
+		}
+		line = strings.TrimRight(line, "\r\n")
+		if v, ok := strings.CutPrefix(line, "data:"); ok {
+			data = append(data, strings.TrimPrefix(v, " "))
+		}
+		if line == "" || err != nil { // blank line ends an event
+			var probe struct {
+				ID int `json:"id"`
 			}
+			joined := []byte(strings.Join(data, "\n"))
+			if json.Unmarshal(joined, &probe) == nil && probe.ID == id {
+				return joined, nil
+			}
+			data = nil
 		}
-		var probe struct {
-			ID int `json:"id"`
-		}
-		joined := []byte(strings.Join(data, "\n"))
-		if json.Unmarshal(joined, &probe) == nil && probe.ID == id {
-			return joined
+		if err == io.EOF {
+			return nil, nil
+		} else if err != nil {
+			return nil, err
 		}
 	}
-	return nil
 }

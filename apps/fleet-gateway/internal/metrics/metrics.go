@@ -90,6 +90,7 @@ const (
 	EndpointToken     = "token"
 	EndpointRevoke    = "revoke"
 	EndpointRegister  = "register"
+	EndpointProbe     = "probe"
 )
 
 // RateLimitedEndpoints lists every endpoint behind a rate limiter.
@@ -99,6 +100,7 @@ var RateLimitedEndpoints = []string{
 	EndpointToken,
 	EndpointRevoke,
 	EndpointRegister,
+	EndpointProbe,
 }
 
 // ObserveRateLimited counts one rejected request on endpoint.
