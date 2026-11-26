@@ -339,8 +339,8 @@ logger.info("Vedtak",    `}
               windowsNote="Kjør kommandoen i Linux-distroen din under WSL2, ikke i PowerShell. Sjekk at which -a copilot cplt ikke viser stier under /mnt/c: mangler et verktøy i Linux, bruker WSL2 Windows-varianten. Jobb fra ~/ og ikke fra /mnt/c."
             />
             <p className="text-center" style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.55)" }}>
-              Første gang du starter nav-pilot i en terminal, foreslår den opencode. Har du nav-pilot fra før, beholder
-              du klienten du har.{" "}
+              På en ny maskin velger nav-pilot opencode hvis den er installert, innlogget og testet, og ellers Copilot
+              CLI. Har du nav-pilot fra før, beholder du klienten du har.{" "}
               <NextLink href="/nav-pilot/klienter" style={{ color: "rgba(255,255,255,0.75)" }}>
                 Les om klientene
               </NextLink>

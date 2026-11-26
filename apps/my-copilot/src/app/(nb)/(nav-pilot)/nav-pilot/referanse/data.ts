@@ -235,6 +235,19 @@ export const CLI_COMMANDS = [
     command: "nav-pilot mcp disable <navn>",
     description: "Slå av serveren, og slutt å slippe gjennom hostene som bare den trengte",
   },
+  {
+    command: "nav-pilot mcp prune",
+    description:
+      "Fjern serverne nav-pilot la til som ikke lenger står i Navs MCP-register. Servere du la til selv, blir stående. Spør først, --dry-run viser hva som fjernes",
+  },
+  {
+    command: "nav-pilot plugins",
+    description: "Vis repoets egne OpenCode-plugins og hook-gates, og svar på nytt om de skal lastes",
+  },
+  {
+    command: "nav-pilot budget",
+    description: "Vis lenken til siden der du ser og øker Copilot-budsjettet ditt. --open åpner den",
+  },
   { command: "nav-pilot install <name>", description: "Installer én komponent (agent, skill osv.)" },
   {
     command: "nav-pilot install <name> --type <type>",
@@ -307,7 +320,8 @@ export const CLI_COMMANDS = [
   { command: "nav-pilot version", description: "Vis versjonen" },
   {
     command: "nav-pilot alpha local <command>",
-    description: "Lokal modell (alfa): init, start, status, models, use, restart, stop, ask, on, off, purge",
+    description:
+      "Lokal modell (alfa): init, setup, start, status, doctor, models, use, restart, stop, ask, on, off, purge",
   },
   {
     command: 'nav-pilot alpha decide "<spørsmål>" --options a,b',

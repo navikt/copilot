@@ -306,8 +306,7 @@ async function Clients({ token }: { token: string }) {
       <BodyShort>
         Forespørsler og sesjoner per verktøy de siste 28 dagene. Kjente navn vises med lesbar tekst. Under «Vis tallene»
         står navnene slik GitHub oppgir dem, for eksempel <code>vscode</code>, <code>copilot_cli</code> og{" "}
-        <code>opencode</code>. GitHub har tall per verktøy fra 23. oktober 2026, så fram til 20. november dekker summen
-        færre enn 28 dager.
+        <code>opencode</code>. GitHub har tall per verktøy fra 23. oktober 2026.
       </BodyShort>
       <ClientPanels clients={clients} />
     </>
