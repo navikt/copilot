@@ -1,4 +1,4 @@
-package main
+package github
 
 import (
 	"bytes"
@@ -23,8 +23,8 @@ import (
 	"github.com/navikt/copilot/apps/copilot-api/internal/cache"
 )
 
-// GitHubClient wraps GitHub API operations
-type GitHubClient struct {
+// Client is a GitHub App client for the org.
+type Client struct {
 	httpClient     *http.Client
 	org            string
 	appID          string
@@ -37,19 +37,19 @@ type GitHubClient struct {
 	memberCache    *cache.Cache // lower-cased login→active org member (bool)
 }
 
-func newGitHubClient(config *Config) (*GitHubClient, error) {
-	if config.GitHubAppID == "" || config.GitHubAppPrivateKey == "" || config.GitHubInstallationID == "" {
+// New returns a client authenticated as the GitHub App installation.
+func New(org, appID, privateKey, installationID string) (*Client, error) {
+	if appID == "" || privateKey == "" || installationID == "" {
 		return nil, errors.New("GitHub App configuration incomplete")
 	}
 
-	// Parse private key
-	privateKeyPEM := normalizePrivateKeyPEM(config.GitHubAppPrivateKey)
+	privateKeyPEM := normalizePrivateKeyPEM(privateKey)
 	block, _ := pem.Decode([]byte(privateKeyPEM))
 	if block == nil {
 		return nil, errors.New("failed to parse PEM block containing the key")
 	}
 
-	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
 		// Try PKCS8 format
 		parsedKey, err2 := x509.ParsePKCS8PrivateKey(block.Bytes)
@@ -57,18 +57,18 @@ func newGitHubClient(config *Config) (*GitHubClient, error) {
 			return nil, fmt.Errorf("failed to parse private key: %w (PKCS1: %v)", err2, err)
 		}
 		var ok bool
-		privateKey, ok = parsedKey.(*rsa.PrivateKey)
+		key, ok = parsedKey.(*rsa.PrivateKey)
 		if !ok {
 			return nil, errors.New("private key is not RSA")
 		}
 	}
 
-	return &GitHubClient{
+	return &Client{
 		httpClient:     &http.Client{Timeout: 30 * time.Second},
-		org:            config.GitHubOrg,
-		appID:          config.GitHubAppID,
-		privateKey:     privateKey,
-		installationID: config.GitHubInstallationID,
+		org:            org,
+		appID:          appID,
+		privateKey:     key,
+		installationID: installationID,
 		samlCache:      cache.New(10 * time.Minute),
 		memberCache:    cache.New(time.Minute),
 	}, nil
@@ -83,7 +83,7 @@ func normalizePrivateKeyPEM(key string) string {
 }
 
 // generateJWT creates a GitHub App JWT
-func (g *GitHubClient) generateJWT() (string, error) {
+func (g *Client) generateJWT() (string, error) {
 	now := time.Now()
 	claims := jwt.RegisteredClaims{
 		IssuedAt:  jwt.NewNumericDate(now.Add(-60 * time.Second)),
@@ -95,8 +95,8 @@ func (g *GitHubClient) generateJWT() (string, error) {
 	return token.SignedString(g.privateKey)
 }
 
-// getInstallationToken gets an installation access token
-func (g *GitHubClient) getInstallationToken(ctx context.Context) (string, error) {
+// InstallationToken gets an installation access token
+func (g *Client) InstallationToken(ctx context.Context) (string, error) {
 	g.tokenMu.Lock()
 	defer g.tokenMu.Unlock()
 
@@ -163,8 +163,8 @@ type CopilotBilling struct {
 }
 
 // setAuthHeaders sets the required auth headers for GitHub API requests
-func (g *GitHubClient) setAuthHeaders(req *http.Request) error {
-	token, err := g.getInstallationToken(req.Context())
+func (g *Client) setAuthHeaders(req *http.Request) error {
+	token, err := g.InstallationToken(req.Context())
 	if err != nil {
 		return fmt.Errorf("get installation token: %w", err)
 	}
@@ -175,8 +175,8 @@ func (g *GitHubClient) setAuthHeaders(req *http.Request) error {
 	return nil
 }
 
-func (g *GitHubClient) getCopilotBilling(ctx context.Context) (*CopilotBilling, error) {
-	token, err := g.getInstallationToken(ctx)
+func (g *Client) GetCopilotBilling(ctx context.Context) (*CopilotBilling, error) {
+	token, err := g.InstallationToken(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get installation token: %w", err)
 	}
@@ -210,35 +210,6 @@ func (g *GitHubClient) getCopilotBilling(ctx context.Context) (*CopilotBilling, 
 	return &billing, nil
 }
 
-// collectGitHubMetrics fetches GitHub billing data and updates metrics
-func collectGitHubMetrics(client *GitHubClient) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	billing, err := client.getCopilotBilling(ctx)
-	if err != nil {
-		slog.Error("Failed to collect GitHub metrics", "error", err)
-		return
-	}
-
-	metricsCollector.mu.Lock()
-	defer metricsCollector.mu.Unlock()
-
-	metricsCollector.githubSeatsTotal = int64(billing.SeatBreakdown.Total)
-	metricsCollector.githubSeatsActive = int64(billing.SeatBreakdown.ActiveThisCycle)
-	metricsCollector.githubSeatsInactive = int64(billing.SeatBreakdown.InactiveThisCycle)
-	metricsCollector.githubSeatsAdded = int64(billing.SeatBreakdown.AddedThisCycle)
-	metricsCollector.githubSeatsPending = int64(billing.SeatBreakdown.PendingInvitation)
-	metricsCollector.githubSeatsCancelling = int64(billing.SeatBreakdown.PendingCancellation)
-	metricsCollector.lastCollectionTimestamp = time.Now().Unix()
-
-	slog.Info("GitHub metrics collected",
-		"total", billing.SeatBreakdown.Total,
-		"active", billing.SeatBreakdown.ActiveThisCycle,
-		"inactive", billing.SeatBreakdown.InactiveThisCycle,
-	)
-}
-
 // AssignResult represents the result of assigning a seat
 type AssignResult struct {
 	SeatsCreated int `json:"seats_created"`
@@ -259,8 +230,8 @@ type CopilotSeat struct {
 	PlanType                string  `json:"plan_type,omitempty"`
 }
 
-// getCopilotSeat fetches a user's Copilot seat data
-func (g *GitHubClient) getCopilotSeat(ctx context.Context, username string) (*CopilotSeat, error) {
+// GetCopilotSeat fetches a user's Copilot seat data
+func (g *Client) GetCopilotSeat(ctx context.Context, username string) (*CopilotSeat, error) {
 	url := fmt.Sprintf("https://api.github.com/orgs/%s/members/%s/copilot", g.org, username)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
@@ -295,8 +266,8 @@ func (g *GitHubClient) getCopilotSeat(ctx context.Context, username string) (*Co
 	return &seat, nil
 }
 
-// assignUserToCopilot assigns a Copilot seat to a user
-func (g *GitHubClient) assignUserToCopilot(ctx context.Context, username string) (*AssignResult, error) {
+// AssignUserToCopilot assigns a Copilot seat to a user
+func (g *Client) AssignUserToCopilot(ctx context.Context, username string) (*AssignResult, error) {
 	url := fmt.Sprintf("https://api.github.com/orgs/%s/copilot/billing/selected_users", g.org)
 
 	body := map[string]interface{}{
@@ -336,8 +307,8 @@ func (g *GitHubClient) assignUserToCopilot(ctx context.Context, username string)
 	return &AssignResult{SeatsCreated: result.SeatsCreated}, nil
 }
 
-// unassignUserFromCopilot removes a Copilot seat from a user
-func (g *GitHubClient) unassignUserFromCopilot(ctx context.Context, username string) (*UnassignResult, error) {
+// UnassignUserFromCopilot removes a Copilot seat from a user
+func (g *Client) UnassignUserFromCopilot(ctx context.Context, username string) (*UnassignResult, error) {
 	url := fmt.Sprintf("https://api.github.com/orgs/%s/copilot/billing/selected_users", g.org)
 
 	body := map[string]interface{}{
@@ -379,7 +350,7 @@ func (g *GitHubClient) unassignUserFromCopilot(ctx context.Context, username str
 
 // GetUsernameBySamlIdentity looks up a GitHub username by SAML identity using GraphQL.
 // Results are cached for 10 minutes to avoid repeated GraphQL calls for the same identity.
-func (g *GitHubClient) GetUsernameBySamlIdentity(ctx context.Context, identity string) (string, error) {
+func (g *Client) GetUsernameBySamlIdentity(ctx context.Context, identity string) (string, error) {
 	cacheKey := "saml_" + strings.ToLower(identity)
 	if cached, ok := g.samlCache.Get(cacheKey); ok {
 		return cached.(string), nil
@@ -539,9 +510,9 @@ func parseTimePeriod(period string) (BillingTimePeriod, error) {
 	return tp, nil
 }
 
-// getPremiumRequestUsage fetches premium request usage for an organization
-func (g *GitHubClient) getPremiumRequestUsage(ctx context.Context, org string, year, month int) (*PremiumRequestUsage, error) {
-	token, err := g.getInstallationToken(ctx)
+// GetPremiumRequestUsage fetches premium request usage for an organization
+func (g *Client) GetPremiumRequestUsage(ctx context.Context, org string, year, month int) (*PremiumRequestUsage, error) {
+	token, err := g.InstallationToken(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get installation token: %w", err)
 	}
@@ -632,17 +603,17 @@ type Contributor struct {
 	AvatarURL string `json:"avatarUrl"`
 }
 
-// errOwnerNotAllowed is returned when a contributors lookup names an owner
+// ErrOwnerNotAllowed is returned when a contributors lookup names an owner
 // other than the configured org: the installation token must not be spent on
 // repositories outside it.
-var errOwnerNotAllowed = errors.New("owner is not the configured organization")
+var ErrOwnerNotAllowed = errors.New("owner is not the configured organization")
 
-// getRepositoryContributors fetches contributors for repository paths via REST API
-func (g *GitHubClient) getRepositoryContributors(ctx context.Context, owner, repo string, paths []string) ([]Contributor, error) {
+// GetRepositoryContributors fetches contributors for repository paths via REST API
+func (g *Client) GetRepositoryContributors(ctx context.Context, owner, repo string, paths []string) ([]Contributor, error) {
 	if !strings.EqualFold(owner, g.org) {
-		return nil, errOwnerNotAllowed
+		return nil, ErrOwnerNotAllowed
 	}
-	token, err := g.getInstallationToken(ctx)
+	token, err := g.InstallationToken(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get installation token: %w", err)
 	}
@@ -717,15 +688,15 @@ func (g *GitHubClient) getRepositoryContributors(ctx context.Context, owner, rep
 	return contributors, nil
 }
 
-// errNoSAMLIdentity means the GitHub account has no SAML SSO identity in the
+// ErrNoSAMLIdentity means the GitHub account has no SAML SSO identity in the
 // org, so no Nav e-mail can be found for it.
-var errNoSAMLIdentity = errors.New("no SAML identity linked to this GitHub account")
+var ErrNoSAMLIdentity = errors.New("no SAML identity linked to this GitHub account")
 
-// getSamlNameIDByLogin returns the nameId (the Nav e-mail) of login's SAML
+// GetSamlNameIDByLogin returns the nameId (the Nav e-mail) of login's SAML
 // SSO identity in the org, for current members only. It is the reverse of
 // GetUsernameBySamlIdentity. The answer is personal data, used only by
 // copilot-survey for its dedup hash, so it is neither cached nor logged.
-func (g *GitHubClient) getSamlNameIDByLogin(ctx context.Context, login string) (string, error) {
+func (g *Client) GetSamlNameIDByLogin(ctx context.Context, login string) (string, error) {
 	query := `query($org: String!, $login: String!) {
 		organization(login: $org) { samlIdentityProvider { externalIdentities(first: 1, login: $login, membersOnly: true) {
 			nodes { samlIdentity { nameId } user { login } } } } } }`
@@ -780,15 +751,15 @@ func (g *GitHubClient) getSamlNameIDByLogin(ctx context.Context, login string) (
 			return n.SAMLIdentity.NameID, nil
 		}
 	}
-	return "", errNoSAMLIdentity
+	return "", ErrNoSAMLIdentity
 }
 
-// isActiveOrgMember reports whether login is an active member of the org:
+// IsActiveOrgMember reports whether login is an active member of the org:
 // state "active", so a pending invitation is not enough. It uses the App's
 // installation token (the App needs Members: read), so copilot-cli's user
 // tokens need no permissions. Answers are cached for a minute; errors are
 // not cached.
-func (g *GitHubClient) isActiveOrgMember(ctx context.Context, login string) (bool, error) {
+func (g *Client) IsActiveOrgMember(ctx context.Context, login string) (bool, error) {
 	key := strings.ToLower(login)
 	if g.memberCache != nil {
 		if v, ok := g.memberCache.Get(key); ok {

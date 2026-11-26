@@ -26,6 +26,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/github"
 )
 
 // Personal budget and self-service raises. Design: copilot-intern
@@ -163,7 +165,7 @@ func migrateBudget(ctx context.Context, pool *pgxpool.Pool) error {
 }
 
 type seatLookup interface {
-	getCopilotSeat(ctx context.Context, username string) (*CopilotSeat, error)
+	GetCopilotSeat(ctx context.Context, username string) (*github.CopilotSeat, error)
 }
 
 type budgetRaiseHandlers struct {
@@ -654,7 +656,7 @@ func (h *budgetRaiseHandlers) raise(w http.ResponseWriter, r *http.Request, acto
 
 	// F12: active licence. A failed lookup is 503, never a guess. A seat with a
 	// pending_cancellation_date is still active until that date, so it counts.
-	seat, err := h.seats.getCopilotSeat(ctx, target)
+	seat, err := h.seats.GetCopilotSeat(ctx, target)
 	if err != nil {
 		slog.Error("Copilot seat lookup failed for budget raise", "error", err)
 		respondError(w, "budget_writes_unavailable", "Could not verify Copilot licence", http.StatusServiceUnavailable)
