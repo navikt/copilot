@@ -44,6 +44,14 @@ func TestUpstreamURLShortFormIsClusterLocal(t *testing.T) {
 			t.Errorf("%s (ns %s) = %s, want %s", c.raw, c.ns, u, c.want)
 		}
 	}
+	if _, err := validateUpstreamURL("http://Mcp-Dolly.copilot/", "copilot"); err != nil {
+		t.Errorf("ASCII uppercase host rejected: %v", err)
+	}
+	for _, h := range []string{"mcp-dol\u212Ay.copilot", "m\u00e9.copilot", "mcp.copilot\u212A"} {
+		if _, err := validateUpstreamURL("http://"+h+"/", "copilot"); err == nil {
+			t.Errorf("non-ASCII host %q accepted", h)
+		}
+	}
 	if _, err := validateUpstreamURL("http://xn--nv-fia.copilot/mcp", "copilot"); err == nil {
 		t.Error("punycode host accepted")
 	}
