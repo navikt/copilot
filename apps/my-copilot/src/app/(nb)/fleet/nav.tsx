@@ -6,6 +6,13 @@ import { usePathname } from "next/navigation";
 import { TEAM_COOKIE } from "@/lib/fleet-names";
 import { BodyShort, Box, Button, Detail, Hide, HStack, Link, Select, Tag, VStack } from "@navikt/ds-react";
 
+/** A Button that is a link, for server components (they cannot pass NextLink themselves). */
+export const LinkButton = ({ href, children }: { href: string; children: ReactNode }) => (
+  <Button as={NextLink} href={href}>
+    {children}
+  </Button>
+);
+
 export type Crumb = { label: string; href?: string };
 
 /** Client side, since a server component cannot pass NextLink to Link. */

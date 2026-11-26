@@ -718,7 +718,6 @@ export function ServerDetail({
   return (
     <VStack gap="space-24">
       {submitted && server.status.pending && <SubmittedAlert server={server} />}
-      <ServerHeader server={server} />
       <BodyLong>Neste steg: {serverNextStep(server)}</BodyLong>
       <ServerActions server={server} me={me} owner={owner} part="approve" />
       {server.status.pending?.spec && (
@@ -776,19 +775,19 @@ export function ServerDetail({
 }
 
 /** Name line under the hero: status, route and the facts a reader looks for first. */
-function ServerHeader({ server }: { server: MCPServer }) {
+export const ServerStatusTag = ({ server }: { server: MCPServer }) => <StatusTag s={serverStatus(server)} />;
+export const AgentStatusTag = ({ profile }: { profile: AgentProfile }) => <StatusTag s={agentStatus(profile)} />;
+
+export function ServerHeader({ server }: { server: MCPServer }) {
   const spec = server.status.pending?.spec ?? server.spec;
   const tools = spec?.allowedTools?.length ?? 0;
   return (
     <VStack gap="space-8">
-      <HStack gap="space-8" align="center">
-        <StatusTag s={serverStatus(server)} />
-        {server.status.route && (
-          <Detail as="code" className="[overflow-wrap:anywhere]">
-            {server.status.route.path}
-          </Detail>
-        )}
-      </HStack>
+      {server.status.route && (
+        <Detail as="code" className="[overflow-wrap:anywhere]">
+          {server.status.route.path}
+        </Detail>
+      )}
       <HStack gap="space-16" wrap>
         <BodyShort size="small">Eierteam: {server.metadata.namespace}</BodyShort>
         <BodyShort size="small">{tools === 1 ? "1 verktøy" : `${tools} verktøy`}</BodyShort>
@@ -1336,10 +1335,6 @@ export function AgentDetailView({ profile: p, events }: { profile: AgentProfile;
   return (
     <VStack gap="space-16">
       <VStack gap="space-8">
-        <HStack gap="space-8" align="center">
-          <StatusTag s={agentStatus(p)} />
-          <BodyShort size="small">Agentprofil i {p.metadata.namespace}</BodyShort>
-        </HStack>
         <BodyLong>
           En agentprofil sier hvilke MCP-servere en KI-agent i teamet får bruke. Teamet er konsumenten, og eierteamet
           til hver MCP-server gir tilgang.

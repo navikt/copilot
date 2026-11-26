@@ -238,6 +238,31 @@ export function NoTeam() {
   );
 }
 
+/** Status, route and facts under the H1 of another team's MCP server. */
+export function EntryHeader({ entry }: { entry: CatalogEntry }) {
+  const tools = entry.spec.allowedTools ?? [];
+  const owner = entry.metadata.namespace;
+  return (
+    <VStack gap="space-8">
+      <HStack gap="space-8" align="center">
+        <Tag size="small" variant="success">
+          Publisert
+        </Tag>
+        {entry.status.route && (
+          <Detail as="code" className="[overflow-wrap:anywhere]">
+            {entry.status.route.path}
+          </Detail>
+        )}
+      </HStack>
+      <HStack gap="space-16" wrap align="center">
+        <BodyShort size="small">Eierteam: {owner}</BodyShort>
+        <BodyShort size="small">{tools.length === 1 ? "1 verktøy" : `${tools.length} verktøy`}</BodyShort>
+        <CategoryTag category={entry.spec.dataCategory} />
+      </HStack>
+    </VStack>
+  );
+}
+
 /** What another team sees of an MCP server: the catalogue entry, no drafts, history or actions. */
 export function ServerReadOnly({
   entry,
@@ -255,23 +280,6 @@ export function ServerReadOnly({
   const mine = consumers.filter((c) => myTeams.includes(c.namespace));
   return (
     <VStack gap="space-24">
-      <VStack gap="space-8">
-        <HStack gap="space-8" align="center">
-          <Tag size="small" variant="success">
-            Publisert
-          </Tag>
-          {entry.status.route && (
-            <Detail as="code" className="[overflow-wrap:anywhere]">
-              {entry.status.route.path}
-            </Detail>
-          )}
-        </HStack>
-        <HStack gap="space-16" wrap align="center">
-          <BodyShort size="small">Eierteam: {owner}</BodyShort>
-          <BodyShort size="small">{tools.length === 1 ? "1 verktøy" : `${tools.length} verktøy`}</BodyShort>
-          <CategoryTag category={entry.spec.dataCategory} />
-        </HStack>
-      </VStack>
       <Alert variant="info">
         {mine.length > 0
           ? `Teamet ditt har tilgang gjennom ${mine.map((c) => c.name).join(", ")}. `

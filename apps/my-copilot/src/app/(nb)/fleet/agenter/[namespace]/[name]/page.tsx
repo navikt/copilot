@@ -3,7 +3,7 @@ import { isName } from "@/lib/fleet-names";
 import { notFound } from "next/navigation";
 import { FleetControlError, fleetApi, fleetLoad, requireFleet } from "@/lib/fleet-control";
 import { FleetFrame, fleetRobots } from "../../../frame";
-import { AgentDetailView, FleetProblemAlert } from "../../../fleet-ui";
+import { AgentDetailView, AgentStatusTag, FleetProblemAlert } from "../../../fleet-ui";
 
 export const metadata: Metadata = { title: "Agentprofil", robots: fleetRobots };
 
@@ -27,7 +27,15 @@ export default async function AgentPage({ params }: Props) {
   });
 
   return (
-    <FleetFrame title={name} description={`Agentprofilen til ${namespace}`}>
+    <FleetFrame
+      title={name}
+      description={`Agentprofil i ${namespace}`}
+      crumbs={[
+        { label: namespace, href: `/fleet?team=${namespace}` },
+        { label: "Agentprofiler", href: `/fleet/agenter?team=${namespace}` },
+      ]}
+      titleTag={"data" in result ? <AgentStatusTag profile={result.data.profile} /> : undefined}
+    >
       {"problem" in result ? (
         <FleetProblemAlert problem={result.problem} />
       ) : (

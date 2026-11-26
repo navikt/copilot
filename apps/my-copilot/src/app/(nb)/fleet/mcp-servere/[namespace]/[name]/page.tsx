@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import { isName } from "@/lib/fleet-names";
 import { notFound } from "next/navigation";
 import { FleetControlError, fleetApi, fleetLoad, requireFleet } from "@/lib/fleet-control";
+import { Tag } from "@navikt/ds-react";
 import { FleetFrame, fleetRobots } from "../../../frame";
-import { FleetProblemAlert, ServerDetail } from "../../../fleet-ui";
-import { ServerReadOnly } from "../../../catalog";
+import { LinkButton } from "../../../nav";
+import { FleetProblemAlert, ServerDetail, ServerHeader, ServerStatusTag } from "../../../fleet-ui";
+import { EntryHeader, ServerReadOnly } from "../../../catalog";
 import { fleetGrafanaUrl } from "@/lib/fleet-grafana";
 
 export const metadata: Metadata = { title: "MCP-server", robots: fleetRobots };
@@ -42,6 +44,7 @@ export default async function ServerPage({ params, searchParams }: Props) {
       server,
       events: history.items,
       me: me.name,
+      teams: me.teams,
       // The platform team also sees the server; only the owner team gets the edit form.
       inTeam: me.teams.includes(namespace),
       agents: pending?.items ?? [],
@@ -50,7 +53,46 @@ export default async function ServerPage({ params, searchParams }: Props) {
   });
 
   return (
-    <FleetFrame title={name} description={`MCP-serveren til ${namespace}`}>
+    <FleetFrame
+      title={name}
+      crumbs={
+        "data" in result && !result.data.owner
+          ? [{ label: "Katalog", href: "/fleet/katalog" }]
+          : [{ label: namespace, href: `/fleet?team=${namespace}` }]
+      }
+      titleTag={
+        "data" in result ? (
+          result.data.owner ? (
+            <ServerStatusTag server={result.data.server} />
+          ) : (
+            <Tag size="small" variant="success">
+              Publisert
+            </Tag>
+          )
+        ) : undefined
+      }
+      action={
+        "data" in result && !result.data.owner ? (
+          <LinkButton href="#be-om-tilgang">Be eierteamet om tilgang</LinkButton>
+        ) : undefined
+      }
+      description={
+        "data" in result ? (
+          result.data.owner ? (
+            <ServerHeader server={result.data.server} />
+          ) : (
+            <EntryHeader entry={result.data.entry} />
+          )
+        ) : (
+          `MCP-serveren til ${namespace}`
+        )
+      }
+      nav={
+        "data" in result && result.data.owner && result.data.inTeam
+          ? { team: namespace, teams: result.data.teams }
+          : undefined
+      }
+    >
       {"problem" in result ? (
         <FleetProblemAlert problem={result.problem} />
       ) : !result.data.owner ? (
