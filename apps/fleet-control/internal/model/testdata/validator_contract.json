@@ -33,7 +33,7 @@
     {"url": "https://example.com", "ns": "team", "valid": false},
     {"url": "http://xn--app-xxa.team", "ns": "team", "app": "xn--app-xxa", "valid": false},
     {"url": "http://äpp.team", "ns": "team", "app": "äpp", "valid": false},
-    {"url": "http://K.team", "ns": "team", "app": "k", "valid": false, "gateway": true, "reason": "Kelvin sign: fleet-control rejects non-ASCII hosts before lowercasing; the gateway lowercases it to k and accepts. Stricter control is safe, but the gateway would dial k.team"},
+    {"url": "http://K.team", "ns": "team", "app": "k", "valid": false},
     {"url": "http://app.team/mcp?x=1", "ns": "team", "valid": false},
     {"url": "http://app.team/mcp#frag", "ns": "team", "valid": false},
     {"url": "http://app.team/mcp?", "ns": "team", "valid": false, "gateway": true, "reason": "an empty query leaves RawQuery empty; the gateway cannot see it, fleet-control rejects it via ForceQuery"},
