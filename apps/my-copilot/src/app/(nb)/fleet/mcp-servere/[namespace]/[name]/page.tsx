@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { isName } from "@/lib/fleet-names";
+import { fullName, getUser } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { FleetControlError, fleetApi, fleetLoad, requireFleet } from "@/lib/fleet-control";
 import { Tag } from "@navikt/ds-react";
@@ -111,6 +112,7 @@ export default async function ServerPage({ params, searchParams }: Props) {
           server={result.data.server}
           events={result.data.events}
           me={result.data.me}
+          myName={fullName(await getUser(false))}
           owner={result.data.inTeam}
           agents={result.data.agents}
           agentsFailed={result.data.agentsFailed}

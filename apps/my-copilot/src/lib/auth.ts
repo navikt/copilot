@@ -119,3 +119,7 @@ export async function requireAdmin(): Promise<User> {
 export function seatGroups(user: User): string[] {
   return user.groups.filter((g) => g !== process.env.COPILOT_ADMIN_GROUP_ID);
 }
+
+/** "First Last" from the login token, or undefined when the token has no name. */
+export const fullName = (user: User | null): string | undefined =>
+  [user?.firstName, user?.lastName].filter(Boolean).join(" ") || undefined;

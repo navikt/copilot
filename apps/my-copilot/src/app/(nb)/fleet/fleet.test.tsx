@@ -26,6 +26,8 @@ import ServerPage from "./mcp-servere/[namespace]/[name]/page";
 import AgentPage from "./agenter/[namespace]/[name]/page";
 import OldRoutePage from "./ruter/[namespace]/[name]/page";
 import CatalogPage from "./katalog/page";
+import { ServerInbox } from "./fleet-ui";
+import type { MCPServer } from "@/lib/fleet-control";
 
 const API = "/apis/fleet.nav.no/v1alpha1";
 const T = "2026-11-20T10:00:00Z";
@@ -184,13 +186,13 @@ describe("/fleet", () => {
     // Table and phone list both render; CSS picks one.
     expect(screen.getAllByText("Ny versjon venter")).toHaveLength(2);
     // team-a has an MCP server and no agent profiles: no empty section.
-    expect(screen.queryByText("team-a har ingen agentprofiler ennå.")).not.toBeInTheDocument();
+    expect(screen.queryByText("team-a har ingen agentprofiler ennå")).not.toBeInTheDocument();
   });
 
   it("lists the team's agent profiles on their own page, and says so when there are none", async () => {
     const { default: AgentsPage } = await import("./agenter/page");
     render(await AgentsPage(sp("team-a")));
-    expect(screen.getByText("team-a har ingen agentprofiler ennå.")).toBeInTheDocument();
+    expect(screen.getByText("team-a har ingen agentprofiler ennå")).toBeInTheDocument();
   });
 
   it("sends a person with no teams to the catalogue, which explains how to start", async () => {
@@ -346,7 +348,11 @@ describe("/fleet", () => {
     stub({ [`${API}/namespaces/team-a/mcpservers/docs`]: own });
     render(await ServerPage(params("team-a", "docs")));
     expect(screen.queryByRole("button", { name: "Godkjenn versjon 3" })).toBeNull();
-    expect(screen.getByText("Du sendte inn versjon 3 selv. En annen på team-a må godkjenne den.")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /^Du sendte inn versjon 3 selv\. En annen på team-a må godkjenne den, så du får ikke knappen Godkjenn\. Vil du endre noe/
+      )
+    ).toBeInTheDocument();
   });
 
   it("gives a next step when the team has no access", async () => {
@@ -701,5 +707,29 @@ describe("/fleet", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("ServerInbox avatars", () => {
+  const by = (who: string) => {
+    const s = server() as unknown as MCPServer;
+    s.status.pending!.submittedBy = { name: who };
+    return s;
+  };
+  it("shows up to three initials from the signed-in person's name, never the NAVident letter", () => {
+    const { container } = render(
+      <ServerInbox servers={[by("Z990001")]} me="Z990001" myName="Hans Kristian Flaatten" />
+    );
+    expect(screen.getByText("Sendt inn av Hans Kristian Flaatten (deg)")).toBeInTheDocument();
+    expect(container.textContent).toContain("HKF");
+  });
+  it("shows a person icon for someone else, since fleet-control only has the NAVident", () => {
+    const { container } = render(
+      <ServerInbox servers={[by("F123456")]} me="Z990001" myName="Hans Kristian Flaatten" />
+    );
+    expect(screen.getByText("Sendt inn av F123456")).toBeInTheDocument();
+    const avatar = container.querySelector("[aria-hidden]")!;
+    expect(avatar.querySelector("svg")).not.toBeNull();
+    expect(avatar.textContent).toBe("");
   });
 });
