@@ -187,6 +187,12 @@ func Validate(routes []Route) ([]Route, error) {
 	return out, nil
 }
 
+// ValidateRoutePath checks a route path is /mcp/<namespace>/<name> with safe segments.
+func ValidateRoutePath(route string) error {
+	_, err := validatePilotRoutePath(route)
+	return err
+}
+
 // validatePilotRoutePath checks /mcp/<namespace>/<name> and returns the namespace.
 func validatePilotRoutePath(route string) (string, error) {
 	if !strings.HasPrefix(route, "/mcp/") {

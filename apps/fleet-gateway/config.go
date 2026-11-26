@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"maps"
 	"net/http"
 	"os"
 	"slices"
@@ -80,6 +79,9 @@ type Config struct {
 	RoutesByPath        map[string]routing.Route
 	GatewayDisabled     bool
 	DisabledRoutes      map[string]bool
+	// MalformedDisabledRoutes are GATEWAY_DISABLED_ROUTES entries that were ignored;
+	// main logs them once the JSON logger is installed.
+	MalformedDisabledRoutes []string
 	// RiskEnforcement is report (default: count would_deny, refuse nothing) or enforce (#2964).
 	RiskEnforcement         string
 	TeamTokenStrategy       string
@@ -192,7 +194,7 @@ func loadConfigFromEnv() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	disabledRoutes := parseDisabledRoutes(os.Getenv("GATEWAY_DISABLED_ROUTES"))
+	disabledRoutes, malformedDisabledRoutes := parseDisabledRoutes(os.Getenv("GATEWAY_DISABLED_ROUTES"))
 
 	// The user's Entra access token must be issued to fleet-gateway itself:
 	// Texas OBO requires the assertion's aud to be the exchanging app, and
@@ -214,6 +216,7 @@ func loadConfigFromEnv() (*Config, error) {
 		RoutesByPath:            routesByPath,
 		GatewayDisabled:         gatewayDisabled,
 		DisabledRoutes:          disabledRoutes,
+		MalformedDisabledRoutes: malformedDisabledRoutes,
 		TeamTokenStrategy:       strategy,
 		TexasExchangeEndpoint:   strings.TrimSpace(os.Getenv("NAIS_TOKEN_EXCHANGE_ENDPOINT")),
 		TexasIntrospectEndpoint: strings.TrimSpace(os.Getenv("NAIS_TOKEN_INTROSPECTION_ENDPOINT")),
@@ -612,22 +615,20 @@ func defaultEntraScope(strategy, rtStorage, rtKeys, clientID string) string {
 }
 
 // parseDisabledRoutes reads GATEWAY_DISABLED_ROUTES: comma-separated route paths
-// (/mcp/<namespace>/<name>). A malformed entry is logged and skipped rather than
-// failing startup, so a typo cannot block the deploy that disables a route.
-// Well-formed paths are kept even if no route has them yet: fleet-control
-// routes arrive after startup.
-func parseDisabledRoutes(raw string) map[string]bool {
+// (/mcp/<namespace>/<name>). A malformed entry is returned for the caller to log
+// and skipped rather than failing startup, so a typo cannot block the deploy that
+// disables a route. Well-formed paths are kept even if no route has them yet:
+// fleet-control routes arrive after startup.
+func parseDisabledRoutes(raw string) (map[string]bool, []string) {
 	out := make(map[string]bool)
+	var malformed []string
 	for entry := range config.CSVSet(raw) {
-		parts := strings.Split(entry, "/")
-		if len(parts) != 4 || parts[0] != "" || parts[1] != "mcp" || parts[2] == "" || parts[3] == "" {
-			slog.Warn("GATEWAY_DISABLED_ROUTES: ignoring malformed entry, want /mcp/<namespace>/<name>", "entry", entry)
+		if routing.ValidateRoutePath(entry) != nil {
+			malformed = append(malformed, entry)
 			continue
 		}
 		out[entry] = true
 	}
-	if len(out) > 0 {
-		slog.Warn("routes disabled by GATEWAY_DISABLED_ROUTES", "routes", slices.Sorted(maps.Keys(out)))
-	}
-	return out
+	slices.Sort(malformed)
+	return out, malformed
 }
