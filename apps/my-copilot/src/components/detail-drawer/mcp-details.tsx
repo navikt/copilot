@@ -82,16 +82,23 @@ function McpToolList({
 
 // Only github.com URLs get /tree/main/<subfolder>; unsafe subfolders fall back to the repo root.
 export function repoLink(repo?: { url: string; subfolder?: string }): string | undefined {
-  if (!repo?.url.startsWith("https://")) return undefined;
-  if (!repo.subfolder || !repo.url.startsWith("https://github.com/")) return repo.url;
+  const url = safeHttpsUrl(repo?.url);
+  if (!repo || !url) return undefined;
+  if (!repo.subfolder || !url.startsWith("https://github.com/")) return url;
   const segs = repo.subfolder.split("/");
-  if (segs.some((s) => !s || s === "." || s === ".." || /[?#\\]/.test(s))) return repo.url;
-  return `${repo.url.replace(/\/+$/, "")}/tree/main/${segs.map(encodeURIComponent).join("/")}`;
+  if (segs.some((s) => !s || s === "." || s === ".." || /[?#\\]/.test(s))) return url;
+  return `${url.replace(/\/+$/, "")}/tree/main/${segs.map(encodeURIComponent).join("/")}`;
 }
 
-// Same https-only rule as repoLink: a javascript: or http: value never becomes a link.
+// https only, parsed: no javascript:/data:/http:, no protocol-relative, no userinfo, no malformed URLs.
 export function safeHttpsUrl(url?: string): string | undefined {
-  return url?.startsWith("https://") ? url : undefined;
+  if (!url) return undefined;
+  try {
+    const u = new URL(url);
+    return u.protocol === "https:" && !u.username && !u.password ? url : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export function McpDetails({ item }: { item: EnrichedCustomization }) {
