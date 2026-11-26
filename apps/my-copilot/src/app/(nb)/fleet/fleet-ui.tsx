@@ -372,8 +372,8 @@ export function ServerInbox({
           const href = `/fleet/mcp-servere/${refKey(s.metadata)}`;
           const ago = submittedAgo(s);
           const expiry = expiryText(p.expiresAt);
-          // The UI only hides the button; fleet-control still decides (four eyes, platform team).
-          const canApprove = !!approver && !mine && !!p.contentHash;
+          // The UI only hides the button; fleet-control still decides. Team copilot may approve its own version.
+          const canApprove = !!approver && !!p.contentHash;
           return (
             <Box
               as="li"
@@ -415,7 +415,7 @@ export function ServerInbox({
                     </BodyShort>
                   </HStack>
                   <BodyShort size="small">
-                    <strong>{mine ? "Venter på:" : "Hvem kan godkjenne:"}</strong> {APPROVER}
+                    <strong>{mine && !approver ? "Venter på:" : "Hvem kan godkjenne:"}</strong> {APPROVER}
                     {expiry && <> · {expiry}</>}
                   </BodyShort>
                 </VStack>
@@ -428,7 +428,7 @@ export function ServerInbox({
                   <Button
                     as={NextLink}
                     href={`${href}#hva-endres`}
-                    variant={canApprove || mine || !approver ? "secondary" : "primary"}
+                    variant={canApprove || !approver ? "secondary" : "primary"}
                     className="w-full md:w-auto"
                   >
                     Se endringen

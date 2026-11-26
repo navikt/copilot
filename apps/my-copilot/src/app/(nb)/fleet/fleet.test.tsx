@@ -894,6 +894,15 @@ describe("ServerInbox avatars", () => {
     expect(screen.getByText(/^Sendt inn av Hans Kristian Flaatten \(deg\) for \d+ dager siden$/)).toBeInTheDocument();
     expect(container.textContent).toContain("HKF");
   });
+  it("shows «Godkjenn» on an approver's own version, not on a non-approver's", () => {
+    render(<ServerInbox servers={[by("Z990001")]} me="Z990001" approver />);
+    expect(screen.getByRole("button", { name: "Godkjenn" })).toBeInTheDocument();
+    expect(screen.getByText("Hvem kan godkjenne:")).toBeInTheDocument();
+    cleanup();
+    render(<ServerInbox servers={[by("Z990001")]} me="Z990001" />);
+    expect(screen.queryByRole("button", { name: "Godkjenn" })).toBeNull();
+    expect(screen.getByText("Venter på:")).toBeInTheDocument();
+  });
   it("shows a person icon for someone else, since fleet-control only has the NAVident", () => {
     const { container } = render(
       <ServerInbox servers={[by("F123456")]} me="Z990001" myName="Hans Kristian Flaatten" />
