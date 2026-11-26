@@ -69,10 +69,10 @@ Bruk: `@accessibility-agent Sjekk skjemaet i denne filen for UU-feil`
 
 ## To nye prompts
 
-| Prompt                                                          | Hva den gjør                                                                                          |
-| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| [**#spring-boot-endpoint**](/verktoy?item=spring-boot-endpoint) | Scaffolder Controller, Service, Repository, Flyway-migrasjon og integrasjonstest med MockOAuth2Server |
-| [**#nextjs-api-route**](/verktoy?item=nextjs-api-route)         | Scaffolder Next.js App Router API-route med validering, feilhåndtering og test                        |
+| Prompt                    | Hva den gjør                                                                                          |
+| ------------------------- | ----------------------------------------------------------------------------------------------------- |
+| **#spring-boot-endpoint** | Scaffolder Controller, Service, Repository, Flyway-migrasjon og integrasjonstest med MockOAuth2Server |
+| **#nextjs-api-route**     | Scaffolder Next.js App Router API-route med validering, feilhåndtering og test                        |
 
 ## Utvidelser av eksisterende tilpasninger
 
