@@ -13,10 +13,9 @@ type Props = { searchParams: Promise<{ team?: string }> };
 
 export default async function RegisterPage({ searchParams }: Props) {
   requireFleet();
-  const { team: wanted } = await searchParams;
-  const navFor = teamNavLoader(wanted && isName(wanted) ? wanted : undefined);
-  const result = await fleetLoad(() => fleetApi.whoami());
   const { team: asked } = await searchParams;
+  const navFor = teamNavLoader(asked && isName(asked) ? asked : undefined);
+  const result = await fleetLoad(() => fleetApi.whoami());
   const teams = "data" in result ? result.data.teams : [];
   const team = asked && isName(asked) && teams.includes(asked) ? asked : teams[0];
   // A failed app list is not a stop: the wizard asks for the app name instead.

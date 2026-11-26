@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { cookies } from "next/headers";
-import { TEAM_COOKIE } from "@/lib/fleet-names";
+import { TEAM_COOKIE, isName } from "@/lib/fleet-names";
 import { fleetApi } from "@/lib/fleet-control";
 import { BodyLong, Box, Heading, HStack, Stack, VStack } from "@navikt/ds-react";
 import { Breadcrumbs, FleetNav, type FleetNavProps } from "./nav";
@@ -12,13 +12,17 @@ export const BADGE_TIMEOUT_MS = 2000;
 
 /** Versions waiting in the team, as on the overview; undefined on error or after BADGE_TIMEOUT_MS. */
 function pendingBadge(team: string): Promise<number | undefined> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
   return Promise.race([
-    fleetApi.servers(team).then(
-      (l) => l.items.filter((s) => s.status.pending).length,
-      () => undefined
-    ),
-    new Promise<undefined>((r) => setTimeout(() => r(undefined), BADGE_TIMEOUT_MS)),
-  ]);
+    // Inside then(), so a throw while building the request is a rejection too.
+    Promise.resolve()
+      .then(() => fleetApi.servers(team))
+      .then(
+        (l) => l.items.filter((s) => s.status.pending).length,
+        () => undefined
+      ),
+    new Promise<undefined>((r) => (timer = setTimeout(() => r(undefined), BADGE_TIMEOUT_MS))),
+  ]).finally(() => clearTimeout(timer));
 }
 
 /**
@@ -27,9 +31,12 @@ function pendingBadge(team: string): Promise<number | undefined> {
  */
 export function teamNavLoader(prefer?: string) {
   const start = cookies().then((c) => {
-    const last = c.get(TEAM_COOKIE)?.value;
-    // Both likely teams: the page's own (for example the MCP server's) and the remembered one.
-    const badges = new Map([prefer, last].filter((t): t is string => !!t).map((t) => [t, pendingBadge(t)]));
+    // The cookie is user input: only a valid team name is used.
+    const cookie = c.get(TEAM_COOKIE)?.value;
+    const last = cookie && isName(cookie) ? cookie : undefined;
+    // Both likely teams, once each: the page's own (for example the MCP server's) and the remembered one.
+    const likely = new Set([prefer, last].filter((t): t is string => !!t && isName(t)));
+    const badges = new Map([...likely].map((t) => [t, pendingBadge(t)]));
     return { last, badges };
   });
   /** pick: the team the page itself settled on, when it has one. */

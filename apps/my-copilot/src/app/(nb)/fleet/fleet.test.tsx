@@ -665,4 +665,26 @@ describe("/fleet", () => {
       vi.useRealTimers();
     }
   });
+
+  it("ignores a malformed team cookie for the badge, and still renders", async () => {
+    cookieJar.set("fleet-team", "../Ikke gyldig/%2F");
+    const { container } = render(await ServerPage(params("team-b", "saker")));
+    expect(screen.getByRole("heading", { name: "Konsumenter" })).toBeInTheDocument();
+    const urls = vi.mocked(fetch).mock.calls.map((c) => String(c[0]));
+    expect(urls.some((u) => u.includes("Ikke") || u.includes(".."))).toBe(false);
+    // The nav falls back to the person's own team.
+    expect(container.querySelector('nav[aria-label="Fleet"]')).toHaveTextContent("team-a");
+  });
+
+  it("starts the badge request before the page's own fetches finish", async () => {
+    cookieJar.set("fleet-team", "team-a");
+    render(await ServerPage(params("team-a", "docs")));
+    const urls = vi.mocked(fetch).mock.calls.map((c) => String(c[0]).replace("http://fc", ""));
+    const badge = urls.indexOf(`${API}/namespaces/team-a/mcpservers`);
+    expect(badge).toBeGreaterThanOrEqual(0);
+    // whoami runs only after the MCP server itself has loaded; the badge request is already out.
+    expect(badge).toBeLessThan(urls.indexOf(`${API}/whoami`));
+    // Cookie team and page team are the same: one request, not two.
+    expect(urls.filter((u) => u === `${API}/namespaces/team-a/mcpservers`)).toHaveLength(1);
+  });
 });
