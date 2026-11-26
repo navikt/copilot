@@ -391,11 +391,13 @@ describe("/fleet", () => {
       "href",
       "https://console.nav.cloud.nais.io/team/team-b"
     );
-    expect(screen.getByRole("heading", { name: "Team med tilgang" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Konsumenter" })).toBeInTheDocument();
+    // ServerRead: the read-only notice says who decides, and tools are listed with descriptions.
+    expect(screen.getByText(/Utkast, historikk og handlinger ser bare eierteamet/)).toBeInTheDocument();
     const consumers = screen.getByRole("table", { name: "Agentprofiler med tilgang" });
     expect(consumers).toHaveTextContent("team-a");
     expect(consumers).toHaveTextContent("studio");
-    expect(screen.getByText("Teamet ditt har tilgang gjennom studio.")).toBeInTheDocument();
+    expect(screen.getAllByText(/Teamet ditt har tilgang gjennom studio\./).length).toBeGreaterThan(0);
     const urls = vi.mocked(fetch).mock.calls.map((c) => String(c[0]));
     expect(urls).toContain(`http://fc${API}/namespaces/team-b/mcpservercatalogentries/saker`);
   });

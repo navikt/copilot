@@ -21,7 +21,7 @@ import {
 import { ExternalLinkIcon } from "@navikt/aksel-icons";
 import type { CatalogEntry } from "@/lib/fleet-control";
 import { isName, refKey } from "@/lib/fleet-names";
-import { FleetTable, KortFortalt } from "./fleet-ui";
+import { FleetTable } from "./fleet-ui";
 
 const NAIS_CONSOLE = "https://console.nav.cloud.nais.io/";
 
@@ -215,42 +215,57 @@ export function ServerReadOnly({
   const mine = consumers.filter((c) => myTeams.includes(c.namespace));
   return (
     <VStack gap="space-24">
-      <KortFortalt>
-        <BodyLong>
-          Denne MCP-serveren eies av <strong>{owner}</strong>. Eierteamet bestemmer hvem som får tilgang. Bare
-          eierteamet ser utkast, historikk og handlinger.
-        </BodyLong>
-      </KortFortalt>
-      <dl>
-        <VStack gap="space-8">
-          <HStack gap="space-8">
-            <dt>Status:</dt>
-            <dd>
-              <Tag size="small" variant="success">
-                Publisert
-              </Tag>
-            </dd>
-          </HStack>
-          <HStack gap="space-8">
-            <dt>Eierteam:</dt>
-            <dd>{owner}</dd>
-          </HStack>
-          <HStack gap="space-8">
-            <dt>Datakategori:</dt>
-            <dd>
-              <CategoryTag category={entry.spec.dataCategory} />
-            </dd>
-          </HStack>
+      <VStack gap="space-8">
+        <HStack gap="space-8" align="center">
+          <Tag size="small" variant="success">
+            Publisert
+          </Tag>
           {entry.status.route && (
-            <HStack gap="space-8">
-              <dt>Rute:</dt>
-              <dd>
-                <code>{entry.status.route.path}</code>
-              </dd>
-            </HStack>
+            <Detail as="code" className="[overflow-wrap:anywhere]">
+              {entry.status.route.path}
+            </Detail>
           )}
-        </VStack>
-      </dl>
+        </HStack>
+        <HStack gap="space-16" wrap align="center">
+          <BodyShort size="small">Eierteam: {owner}</BodyShort>
+          <BodyShort size="small">{tools.length === 1 ? "1 verktøy" : `${tools.length} verktøy`}</BodyShort>
+          <CategoryTag category={entry.spec.dataCategory} />
+        </HStack>
+      </VStack>
+      <Alert variant="info">
+        {mine.length > 0
+          ? `Teamet ditt har tilgang gjennom ${mine.map((c) => c.name).join(", ")}. `
+          : myTeams.length > 0
+            ? `Teamet ditt (${myTeams.join(", ")}) er ikke konsument av denne MCP-serveren. `
+            : ""}
+        Eierteamet bestemmer hvem som får tilgang. Utkast, historikk og handlinger ser bare eierteamet.
+      </Alert>
+      <VStack gap="space-8">
+        <Heading level="2" size="medium">
+          Verktøy
+        </Heading>
+        {tools.length === 0 ? (
+          <BodyShort>Eierteamet har ikke oppgitt verktøy.</BodyShort>
+        ) : (
+          <Box background="default" borderWidth="1" borderColor="neutral-subtle" borderRadius="12">
+            <VStack as="ul" aria-label="Verktøy">
+              {tools.map((t, i) => (
+                <Box
+                  as="li"
+                  key={t}
+                  paddingBlock="space-12"
+                  paddingInline="space-20"
+                  borderWidth={i ? "1 0 0 0" : "0"}
+                  borderColor="neutral-subtle"
+                >
+                  <code className="[overflow-wrap:anywhere]">{t}</code>
+                  {docs.get(t) && <BodyShort size="small">{docs.get(t)}</BodyShort>}
+                </Box>
+              ))}
+            </VStack>
+          </Box>
+        )}
+      </VStack>
       {grafanaUrl && (
         <BodyShort>
           <Link href={grafanaUrl} target="_blank" rel="noopener noreferrer">
@@ -283,32 +298,19 @@ export function ServerReadOnly({
       </section>
       <VStack gap="space-8">
         <Heading level="2" size="small">
-          Verktøy
-        </Heading>
-        {tools.length === 0 ? (
-          <BodyShort>Eierteamet har ikke oppgitt verktøy.</BodyShort>
-        ) : (
-          <List size="small">
-            {tools.map((t) => (
-              <List.Item key={t}>
-                <code>{t}</code>
-                {docs.get(t) && <>: {docs.get(t)}</>}
-              </List.Item>
-            ))}
-          </List>
-        )}
-      </VStack>
-      <VStack gap="space-8">
-        <Heading level="2" size="small">
-          Team med tilgang
+          Konsumenter
         </Heading>
         {consumers.length === 0 ? (
           <BodyShort>Ingen agentprofiler har tilgang ennå.</BodyShort>
         ) : (
           <>
-            {mine.length > 0 && (
-              <BodyShort>Teamet ditt har tilgang gjennom {mine.map((c) => c.name).join(", ")}.</BodyShort>
-            )}
+            <BodyShort>
+              {mine.length > 0
+                ? `Teamet ditt har tilgang gjennom ${mine.map((c) => c.name).join(", ")}.`
+                : "Teamet ditt har ikke tilgang."}{" "}
+              {new Set(consumers.filter((c) => !myTeams.includes(c.namespace)).map((c) => c.namespace)).size} andre team
+              har tilgang.
+            </BodyShort>
             <FleetTable aria-label="Agentprofiler med tilgang">
               <Table.Header>
                 <Table.Row>
