@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/url"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -85,10 +86,26 @@ func diffPaths(have map[string]string, wantRoutes map[string]bool) (missingEntry
 	return
 }
 
+func prodRoutesFromFleetControl(t *testing.T) bool {
+	t.Helper()
+	raw, err := os.ReadFile(".nais/prod-gcp.yaml")
+	if err != nil {
+		t.Fatalf("read prod nais vars: %v", err)
+	}
+	return regexp.MustCompile(`(?m)^routes_source:\s*fleet-control\s*$`).Match(raw)
+}
+
 func TestRegistryMatchesProdRoutes(t *testing.T) {
 	missingEntry, missingRoute := diffPaths(registryGatewayPaths(t), enabledProdRoutes(t))
 	for _, r := range missingEntry {
 		t.Errorf("enabled prod route %s has no registry entry in apps/mcp-registry/allowlist.json", r)
+	}
+	// Prod loads routes from fleet-control and teams self-register there, so such
+	// routes never appear in pilot-routes.prod.yaml. mcp-registry reading from
+	// fleet-control (#2765) replaces this check; it tightens again if prod goes
+	// back to git.
+	if prodRoutesFromFleetControl(t) {
+		missingRoute = nil
 	}
 	for _, p := range missingRoute {
 		t.Errorf("registry gateway path %s has no enabled route in pilot-routes.prod.yaml", p)
