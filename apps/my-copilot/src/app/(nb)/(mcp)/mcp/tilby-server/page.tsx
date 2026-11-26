@@ -125,6 +125,13 @@ const CHECKLIST = [
   "Ruten er testet i dev før prod",
 ];
 
+const COMPLIANCE_ACTION = `- run: ./start-server.sh &   # your own start step
+- run: curl -fsS --retry 30 --retry-delay 1 --retry-connrefused http://127.0.0.1:8080/health
+- uses: navikt/copilot/cli/mcp-compliance@cli/mcp-compliance/v0.2.2
+  with:
+    url: http://127.0.0.1:8080/mcp
+    token: \${{ secrets.MCP_TEST_TOKEN }}   # test token, never production`;
+
 export default function FleetGatewayForTeamPage() {
   return (
     <DocPage
@@ -167,6 +174,7 @@ export default function FleetGatewayForTeamPage() {
               Slipp inn fleet-gateway i <code className={code}>accessPolicy.inbound</code>.
             </li>
             <li>Sjekk tokenet med Texas, og sjekk teamets gruppe i tokenet.</li>
+            <li>Kjør samsvarstesten mcp-compliance mot serveren.</li>
             <li>Be om en rute i dev, og deretter i prod.</li>
             <li>Test fra OpenCode, og gå gjennom sjekklisten.</li>
           </ol>
@@ -186,7 +194,11 @@ export default function FleetGatewayForTeamPage() {
         <LinkableHeading id="forutsetninger" size="medium" level="2">
           Forutsetninger
         </LinkableHeading>
-        <ReadMore header="Detaljer: Forutsetninger" size="small">
+        <BodyLong>
+          Serveren må snakke MCP 2026-07-28 over streamable HTTP og kjøre på Nais med Entra ID slått på. Teamet
+          bestemmer selv hvilke verktøy serveren har og hvem som får bruke dem.
+        </BodyLong>
+        <ReadMore header="Les mer om forutsetningene" size="small">
           <VStack gap="space-12">
             <BodyLong>
               Skriver dere serveren selv? Les{" "}
@@ -230,7 +242,11 @@ export default function FleetGatewayForTeamPage() {
         <LinkableHeading id="krav-til-serveren" size="medium" level="2">
           Krav til serveren
         </LinkableHeading>
-        <ReadMore header="Detaljer: Krav til serveren" size="small">
+        <BodyLong>
+          Serveren må støtte MCP-revisjon 2026-07-28: svare på <code className={code}>server/discover</code>, og svare
+          400 med riktig feilkode når headerne ikke stemmer med forespørselen eller protokollversjonen ikke støttes.
+        </BodyLong>
+        <ReadMore header="Les mer om kravene" size="small">
           <VStack gap="space-12">
             <BodyLong>
               Serveren må støtte MCP-revisjon{" "}
@@ -295,7 +311,11 @@ export default function FleetGatewayForTeamPage() {
         <LinkableHeading id="autorisasjon" size="medium" level="2">
           Hvem får bruke serveren
         </LinkableHeading>
-        <ReadMore header="Detaljer: Hvem får bruke serveren" size="small">
+        <BodyLong>
+          Gatewayen sjekker ikke hvem som får bruke serveren, så det må dere gjøre selv. Før opp teamets gruppe i
+          <code className={code}>claims.groups</code>, og svar 403 når gruppen mangler i tokenet.
+        </BodyLong>
+        <ReadMore header="Les mer om tilgangsstyring" size="small">
           <VStack gap="space-12">
             <BodyLong>
               Gatewayen autentiserer brukeren og sjekker at verktøyet står i <code className={code}>tools</code>. Den
@@ -398,6 +418,53 @@ export default function FleetGatewayForTeamPage() {
               ),
             },
             {
+              title: "Test serveren før dere ber om en rute",
+              content: (
+                <VStack gap="space-8">
+                  <BodyLong>
+                    Kjør samsvarstesten mcp-compliance mot serveren lokalt og i CI. Rett alt som gir FAIL før dere ber
+                    om en rute.
+                  </BodyLong>
+                  <CodeBlock filename="Terminal">
+                    {"brew install navikt/tap/mcp-compliance\nmcp-compliance -url http://localhost:8080/mcp"}
+                  </CodeBlock>
+                  <ReadMore header="Les mer om installasjon, CI og resultatet" size="small">
+                    <VStack gap="space-8">
+                      <BodyLong>
+                        Med Go 1.26 eller nyere kan dere installere med{" "}
+                        <code className={code}>go install github.com/navikt/copilot/cli/mcp-compliance@latest</code>.
+                        Testen snakker bare HTTP, så den virker for servere i alle språk. Tokenene leses fra{" "}
+                        <code className={code}>MCP_COMPLIANCE_TOKEN</code> og{" "}
+                        <code className={code}>MCP_COMPLIANCE_APP_TOKEN</code>. Bruk aldri et prod-token.
+                      </BodyLong>
+                      <BodyLong>
+                        I CI bruker dere GitHub Action-en. Den laster ned binærfilen, sjekker den mot{" "}
+                        <code className={code}>SHA256SUMS</code> og feiler jobben ved FAIL. Start serveren i et
+                        tidligere steg.
+                      </BodyLong>
+                      <CodeBlock filename=".github/workflows/ci.yaml">{COMPLIANCE_ACTION}</CodeBlock>
+                      <Bullets>
+                        <li>PASS: sjekken gikk gjennom.</li>
+                        <li>FAIL: serveren bryter en regel. Rett feilen. Testen avslutter med kode 1.</li>
+                        <li>
+                          WARN: verdt en titt, for eksempel en 401 uten <code className={code}>invalid_token</code>{" "}
+                          eller en beskrivelse som sier «you must». Kjøringen feiler ikke.
+                        </li>
+                        <li>SKIP: sjekken hadde ikke noe å kjøre mot, for eksempel når app-tokenet ikke er satt.</li>
+                      </Bullets>
+                      <BodyLong>
+                        Alle flagg, sjekker og hva testen ikke dekker står i{" "}
+                        <NextLink href="/mcp/referanse#mcp-compliance" className={linkClass}>
+                          referansen
+                        </NextLink>
+                        .
+                      </BodyLong>
+                    </VStack>
+                  </ReadMore>
+                </VStack>
+              ),
+            },
+            {
               title: "Be om en rute",
               content: (
                 <VStack gap="space-8">
@@ -461,7 +528,11 @@ export default function FleetGatewayForTeamPage() {
         <LinkableHeading id="feil" size="medium" level="2">
           Vanlige feil
         </LinkableHeading>
-        <ReadMore header="Detaljer: Vanlige feil" size="small">
+        <BodyLong>
+          De fleste feil skyldes at fleet-gateway mangler i inbound-regelen (502), eller at tokensjekken i appen feiler
+          (401 eller 403).
+        </BodyLong>
+        <ReadMore header="Se feilkodene og årsakene" size="small">
           <VStack gap="space-12">
             <Table size="small">
               <TableHeader>
@@ -505,7 +576,11 @@ export default function FleetGatewayForTeamPage() {
         <LinkableHeading id="ikke-gjor" size="medium" level="2">
           Dette må dere ikke gjøre
         </LinkableHeading>
-        <ReadMore header="Detaljer: Dette må dere ikke gjøre" size="small">
+        <BodyLong>
+          Ikke logg tokenet, ikke godta det uten å sjekke det med Texas, og ikke send det videre. Slipp bare inn
+          fleet-gateway.
+        </BodyLong>
+        <ReadMore header="Se hele listen" size="small">
           <VStack gap="space-12">
             <Bullets>
               <li>Logge tokenet, helt eller delvis.</li>
@@ -524,7 +599,11 @@ export default function FleetGatewayForTeamPage() {
         <LinkableHeading id="drift" size="medium" level="2">
           Test, drift og avvikling
         </LinkableHeading>
-        <ReadMore header="Detaljer: Test, drift og avvikling" size="small">
+        <BodyLong>
+          Test i prod på samme måte som i dev. Gatewayen har grenser per kall og logger hvert kall. Dere stenger eller
+          fjerner en rute med en PR.
+        </BodyLong>
+        <ReadMore header="Les om grenser, drift og avvikling" size="small">
           <VStack gap="space-12">
             <Bullets>
               <li>Test i prod på samme måte som i dev, med prod-adressen.</li>
