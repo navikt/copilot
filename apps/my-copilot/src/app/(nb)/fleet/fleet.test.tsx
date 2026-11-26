@@ -168,23 +168,23 @@ describe("/fleet", () => {
     expect(screen.getByText("MCP-server team-a/docs")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "team-a" })).toBeInTheDocument();
     expect(screen.queryByRole("tab")).not.toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Registrer/ })).toHaveLength(1);
-    expect(screen.getByRole("link", { name: "Registrer MCP-server" })).toHaveAttribute("href", "/fleet/registrer");
-    // Aksel's Button as a link keeps role="button".
-    expect(screen.getByRole("button", { name: "Registrer MCP-server" })).toHaveAttribute(
-      "href",
-      "/fleet/registrer?team=team-a"
-    );
+    // The header button and the side navigation's button; Aksel's Button as a link keeps role="button".
+    expect(screen.getAllByRole("button", { name: "Registrer MCP-server" }).map((b) => b.getAttribute("href"))).toEqual([
+      "/fleet/registrer?team=team-a",
+      "/fleet/registrer?team=team-a",
+    ]);
+    expect(screen.getByRole("navigation", { name: "Brødsmuler" })).toHaveTextContent("Fleet");
     expect(screen.getByRole("navigation", { name: "Fleet" })).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: "docs" })[0]).toHaveAttribute("href", "/fleet/mcp-servere/team-a/docs");
-    expect(screen.getByText("Ny versjon venter")).toBeInTheDocument();
+    // Table and phone list both render; CSS picks one.
+    expect(screen.getAllByText("Ny versjon venter")).toHaveLength(2);
     // team-a has an MCP server and no agent profiles: no empty section.
     expect(screen.queryByText("team-a har ingen agentprofiler ennå.")).not.toBeInTheDocument();
   });
 
-  it("still says so when a team has nothing at all", async () => {
-    stub({ [`${API}/namespaces/team-a/mcpservers`]: { items: [] } });
-    render(await FleetPage(sp()));
+  it("lists the team's agent profiles on their own page, and says so when there are none", async () => {
+    const { default: AgentsPage } = await import("./agenter/page");
+    render(await AgentsPage(sp("team-a")));
     expect(screen.getByText("team-a har ingen agentprofiler ennå.")).toBeInTheDocument();
   });
 
@@ -390,7 +390,7 @@ describe("/fleet", () => {
     expect(screen.getByText("/mcp/team-b/saker")).toBeInTheDocument();
     expect(screen.getByText("hent_sak")).toBeInTheDocument();
     expect(screen.getByText(/Henter én sak\./)).toBeInTheDocument();
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Godkjenn|Trekk tilbake|Endre/ })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Be eierteamet om tilgang" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Nais Console" })).toHaveAttribute(
       "href",

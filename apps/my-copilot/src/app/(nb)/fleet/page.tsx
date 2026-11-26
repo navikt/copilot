@@ -70,12 +70,14 @@ export default async function FleetPage({ searchParams }: Props) {
           ? "MCP-servere teamet eier, og det som venter på dere."
           : "Du er med i flere team. Fleet viser alltid ett team om gangen. Vi husker valget ditt til neste gang."
       }
+      crumbs={picked ? [] : false}
+      action={picked ? <RegisterButton team={picked.team} /> : undefined}
       nav={
         picked
           ? {
               team: picked.team,
               teams: teams.map((t) => t.team),
-              pending: pending.length,
+              pending: pending.length + picked.servers.filter((s) => s.status.pending).length,
               hasAgents: picked.agents.length > 0,
             }
           : undefined
@@ -83,9 +85,6 @@ export default async function FleetPage({ searchParams }: Props) {
     >
       {picked ? (
         <>
-          <HStack justify="end">
-            <RegisterButton team={picked.team} />
-          </HStack>
           <TeamStats servers={picked.servers} me={me} />
           {(pending.length > 0 || picked.servers.some((s) => s.status.pending)) && (
             <VStack gap="space-12">

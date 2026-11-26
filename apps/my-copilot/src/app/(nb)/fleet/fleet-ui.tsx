@@ -87,7 +87,7 @@ const date = (iso: string) =>
 const n = (v: number) => v.toLocaleString("nb-NO");
 
 const StatusTag = ({ s }: { s: { label: string; variant: TagVariant } }) => (
-  <Tag size="small" variant={s.variant}>
+  <Tag size="small" variant={s.variant} className="whitespace-nowrap">
     {s.label}
   </Tag>
 );
@@ -236,6 +236,9 @@ export function TeamStats({ servers, me }: { servers: MCPServer[]; me?: string }
         help={`av ${servers.length} ${servers.length === 1 ? "registrert" : "registrerte"}`}
       />
       <Stat label="Venter på godkjenning" value={pending.length} help={`${forMe} venter på deg`} />
+      {/* shortcut: Fleet has no calls or users per team yet (#2753); the cards stay so the layout matches. */}
+      <Stat label="Kall siste 7 dager" value="–" help="Kommer" />
+      <Stat label="Unike brukere, 7 dager" value="–" help="Kommer" />
     </HGrid>
   );
 }
@@ -250,6 +253,7 @@ export function ServerInbox({ servers, me }: { servers: MCPServer[]; me?: string
         {waiting.map((s, i) => {
           const p = s.status.pending!;
           const mine = !!me && p.submittedBy?.name === me;
+          const href = `/fleet/mcp-servere/${refKey(s.metadata)}`;
           return (
             <Box
               as="li"
@@ -263,42 +267,63 @@ export function ServerInbox({ servers, me }: { servers: MCPServer[]; me?: string
                 gap="space-16"
                 justify="space-between"
                 align={{ md: "center" }}
+                wrap={false}
               >
-                <VStack gap="space-8">
+                <VStack gap="space-8" className="min-w-0">
                   <HStack gap="space-8" align="center">
-                    <Tag size="small" variant="warning">
+                    <Tag size="small" variant="warning" className="whitespace-nowrap">
                       Venter på godkjenning
                     </Tag>
-                    <Link
-                      as={NextLink}
-                      href={`/fleet/mcp-servere/${refKey(s.metadata)}`}
-                      className="[overflow-wrap:anywhere]"
-                    >
+                    <Link as={NextLink} href={href} className="[overflow-wrap:anywhere]">
                       <strong>{s.metadata.name}</strong>
                     </Link>
                     <BodyShort size="small">versjon {p.generation}</BodyShort>
                   </HStack>
+                  <HStack gap="space-8" align="center">
+                    <Initials name={mine ? (me ?? "") : (p.submittedBy?.name ?? "?")} />
+                    <BodyShort size="small">
+                      {mine
+                        ? "Sendt inn av deg"
+                        : p.submittedBy
+                          ? `Sendt inn av ${p.submittedBy.name}`
+                          : "Ingen person sendte inn"}
+                    </BodyShort>
+                  </HStack>
                   <BodyShort size="small">
-                    {mine
-                      ? "Sendt inn av deg."
-                      : p.submittedBy
-                        ? `Sendt inn av ${p.submittedBy.name}.`
-                        : "Ingen person sendte inn."}{" "}
-                    {mine ? "Venter på en annen i teamet." : "Du kan godkjenne."}
+                    <strong>{mine ? "Venter på en annen i teamet:" : "Hvem kan godkjenne:"}</strong>{" "}
+                    {mine ? `alle andre i ${s.metadata.namespace}` : `du og de andre i ${s.metadata.namespace}`}
                   </BodyShort>
                 </VStack>
-                <Button
-                  as={NextLink}
-                  href={`/fleet/mcp-servere/${refKey(s.metadata)}`}
-                  variant={mine ? "secondary" : "primary"}
-                >
-                  Se endringen
-                </Button>
+                <div className="shrink-0">
+                  <Button as={NextLink} href={href} variant={mine ? "secondary" : "primary"}>
+                    Se endringen
+                  </Button>
+                </div>
               </Stack>
             </Box>
           );
         })}
       </VStack>
+    </Box>
+  );
+}
+
+/** Initials in a circle, as in the sketches. Decorative: the name is always written next to it. */
+function Initials({ name }: { name: string }) {
+  const text = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase())
+    .join("");
+  return (
+    <Box
+      aria-hidden
+      background="accent-soft"
+      borderRadius="full"
+      className="inline-flex h-7 w-7 shrink-0 items-center justify-center text-xs font-semibold"
+    >
+      {text}
     </Box>
   );
 }
@@ -327,84 +352,119 @@ export function TeamSections({ teams, me }: { teams: TeamData[]; me?: string }) 
               {t.servers.length === 0 ? (
                 <EmptyTeam team={t.team} />
               ) : (
-                <FleetTable aria-label={`MCP-serverne til ${t.team}`}>
-                  <Table.Header>
-                    <Table.Row>
-                      <Table.HeaderCell scope="col">MCP-server</Table.HeaderCell>
-                      <Table.HeaderCell scope="col">Status</Table.HeaderCell>
-                      <Table.HeaderCell scope="col">Neste steg</Table.HeaderCell>
-                      <Table.HeaderCell scope="col">Publisert versjon</Table.HeaderCell>
-                    </Table.Row>
-                  </Table.Header>
-                  <Table.Body>
-                    {t.servers.map((s) => (
-                      <Table.Row key={s.metadata.name}>
-                        <Table.DataCell>
-                          <VStack gap="space-4">
-                            <NextLink className={linkClass} href={`/fleet/mcp-servere/${refKey(s.metadata)}`}>
-                              <strong>{s.metadata.name}</strong>
-                            </NextLink>
-                            {s.status.route && <Detail as="code">{s.status.route.path}</Detail>}
-                            <Detail>
-                              {(s.spec?.allowedTools?.length ?? 0) === 1
-                                ? "1 verktøy"
-                                : `${s.spec?.allowedTools?.length ?? 0} verktøy`}
-                              {s.spec?.dataCategory && ` · ${categoryLabel(s.spec.dataCategory)}`}
-                            </Detail>
-                          </VStack>
-                        </Table.DataCell>
-                        <Table.DataCell>
-                          <StatusTag s={serverStatus(s)} />
-                        </Table.DataCell>
-                        <Table.DataCell>{serverShortNext(s, me)}</Table.DataCell>
-                        <Table.DataCell>{s.status.publishedGeneration ?? "–"}</Table.DataCell>
-                      </Table.Row>
-                    ))}
-                  </Table.Body>
-                </FleetTable>
+                <>
+                  <Show below="md">
+                    <Box background="default" borderWidth="1" borderColor="neutral-subtle" borderRadius="12">
+                      <VStack as="ul" aria-label={`MCP-serverne til ${t.team}`}>
+                        {t.servers.map((s, i) => (
+                          <Box
+                            as="li"
+                            key={s.metadata.name}
+                            padding="space-16"
+                            borderWidth={i ? "1 0 0 0" : "0"}
+                            borderColor="neutral-subtle"
+                          >
+                            <HStack justify="space-between" align="start" gap="space-8" wrap={false}>
+                              <VStack gap="space-4" className="min-w-0">
+                                <NextLink
+                                  className={`${linkClass} [overflow-wrap:anywhere]`}
+                                  href={`/fleet/mcp-servere/${refKey(s.metadata)}`}
+                                >
+                                  <strong>{s.metadata.name}</strong>
+                                </NextLink>
+                                {s.status.route && (
+                                  <Detail as="code" className="[overflow-wrap:anywhere]">
+                                    {s.status.route.path}
+                                  </Detail>
+                                )}
+                                <Detail>{serverShortNext(s, me)}</Detail>
+                              </VStack>
+                              <StatusTag s={serverStatus(s)} />
+                            </HStack>
+                          </Box>
+                        ))}
+                      </VStack>
+                    </Box>
+                  </Show>
+                  <Hide below="md">
+                    <FleetTable aria-label={`MCP-serverne til ${t.team}`}>
+                      <Table.Header>
+                        <Table.Row>
+                          <Table.HeaderCell scope="col">MCP-server</Table.HeaderCell>
+                          <Table.HeaderCell scope="col">Status</Table.HeaderCell>
+                          <Table.HeaderCell scope="col">Neste steg</Table.HeaderCell>
+                          <Table.HeaderCell scope="col">Publisert versjon</Table.HeaderCell>
+                        </Table.Row>
+                      </Table.Header>
+                      <Table.Body>
+                        {t.servers.map((s) => (
+                          <Table.Row key={s.metadata.name}>
+                            <Table.DataCell>
+                              <VStack gap="space-4">
+                                <NextLink className={linkClass} href={`/fleet/mcp-servere/${refKey(s.metadata)}`}>
+                                  <strong>{s.metadata.name}</strong>
+                                </NextLink>
+                                {s.status.route && <Detail as="code">{s.status.route.path}</Detail>}
+                                <Detail>
+                                  {(s.spec?.allowedTools?.length ?? 0) === 1
+                                    ? "1 verktøy"
+                                    : `${s.spec?.allowedTools?.length ?? 0} verktøy`}
+                                  {s.spec?.dataCategory && ` · ${categoryLabel(s.spec.dataCategory)}`}
+                                </Detail>
+                              </VStack>
+                            </Table.DataCell>
+                            <Table.DataCell>
+                              <StatusTag s={serverStatus(s)} />
+                            </Table.DataCell>
+                            <Table.DataCell>{serverShortNext(s, me)}</Table.DataCell>
+                            <Table.DataCell>{s.status.publishedGeneration ?? "–"}</Table.DataCell>
+                          </Table.Row>
+                        ))}
+                      </Table.Body>
+                    </FleetTable>
+                  </Hide>
+                </>
               )}
             </VStack>
-            {/* A team with MCP servers and no agent profiles needs no empty section. */}
-            {(t.agents.length > 0 || t.servers.length === 0) && (
-              <VStack gap="space-8">
-                <Heading id="agentprofiler" level="2" size="medium">
-                  Agentprofiler
-                </Heading>
-                {t.agents.length === 0 ? (
-                  <BodyShort>{t.team} har ingen agentprofiler ennå.</BodyShort>
-                ) : (
-                  <FleetTable aria-label={`Agentprofilene til ${t.team}`}>
-                    <Table.Header>
-                      <Table.Row>
-                        <Table.HeaderCell scope="col">Navn</Table.HeaderCell>
-                        <Table.HeaderCell scope="col">Status</Table.HeaderCell>
-                        <Table.HeaderCell scope="col">MCP-servere</Table.HeaderCell>
-                      </Table.Row>
-                    </Table.Header>
-                    <Table.Body>
-                      {t.agents.map((a) => (
-                        <Table.Row key={a.metadata.name}>
-                          <Table.DataCell>
-                            <NextLink className={linkClass} href={`/fleet/agenter/${refKey(a.metadata)}`}>
-                              {a.metadata.name}
-                            </NextLink>
-                          </Table.DataCell>
-                          <Table.DataCell>
-                            <StatusTag s={agentStatus(a)} />
-                          </Table.DataCell>
-                          <Table.DataCell>
-                            {(a.spec.grants ?? []).map((g) => refKey(g.serverRef)).join(", ")}
-                          </Table.DataCell>
-                        </Table.Row>
-                      ))}
-                    </Table.Body>
-                  </FleetTable>
-                )}
-              </VStack>
-            )}
           </VStack>
         </section>
       ))}
+    </VStack>
+  );
+}
+
+/** The team's agent profiles, on /fleet/agenter. */
+export function AgentTable({ t }: { t: TeamData }) {
+  return (
+    <VStack gap="space-8">
+      {t.agents.length === 0 ? (
+        <BodyShort>{t.team} har ingen agentprofiler ennå.</BodyShort>
+      ) : (
+        <FleetTable aria-label={`Agentprofilene til ${t.team}`}>
+          <Table.Header>
+            <Table.Row>
+              <Table.HeaderCell scope="col">Navn</Table.HeaderCell>
+              <Table.HeaderCell scope="col">Status</Table.HeaderCell>
+              <Table.HeaderCell scope="col">MCP-servere</Table.HeaderCell>
+            </Table.Row>
+          </Table.Header>
+          <Table.Body>
+            {t.agents.map((a) => (
+              <Table.Row key={a.metadata.name}>
+                <Table.DataCell>
+                  <NextLink className={linkClass} href={`/fleet/agenter/${refKey(a.metadata)}`}>
+                    {a.metadata.name}
+                  </NextLink>
+                </Table.DataCell>
+                <Table.DataCell>
+                  <StatusTag s={agentStatus(a)} />
+                </Table.DataCell>
+                <Table.DataCell>{(a.spec.grants ?? []).map((g) => refKey(g.serverRef)).join(", ")}</Table.DataCell>
+              </Table.Row>
+            ))}
+          </Table.Body>
+        </FleetTable>
+      )}
     </VStack>
   );
 }
