@@ -193,7 +193,13 @@ describe("/fleet", () => {
   it("lists the team's agent profiles on their own page, and says so when there are none", async () => {
     const { default: AgentsPage } = await import("./agenter/page");
     render(await AgentsPage(sp("team-a")));
-    expect(screen.getByText("team-a har ingen agentprofiler ennå")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "team-a har ingen agentprofiler ennå" })).toBeInTheDocument();
+    expect(screen.getByText("Kommer")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /Eierteamet til MCP-serveren godkjenner/ })).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: "Registrer MCP-server" }).map((b) => b.getAttribute("href"))
+    ).toContain("/fleet/registrer?team=team-a");
+    expect(screen.getByRole("button", { name: "Les om MCP i Nav" })).toHaveAttribute("href", "/mcp");
   });
 
   it("sends a person with no teams to the catalogue, which explains how to start", async () => {

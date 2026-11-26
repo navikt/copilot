@@ -2,33 +2,113 @@
 
 import NextLink from "next/link";
 import { type ReactNode } from "react";
-import { Alert, BodyLong, BodyShort, Detail, Hide, Link, Heading, Show, Table, Tag, VStack } from "@navikt/ds-react";
+import {
+  Alert,
+  BodyLong,
+  BodyShort,
+  Button,
+  Detail,
+  Heading,
+  Hide,
+  HStack,
+  ReadMore,
+  Show,
+  Table,
+  Tag,
+  VStack,
+} from "@navikt/ds-react";
 import { refKey } from "@/lib/fleet-names";
 import type { AgentProfile, AuditEvent, ServerRef } from "@/lib/fleet-control";
 import { CardList, Detaljer, FleetTable, Historikk, StatusTag, type TeamData, linkClass } from "./fleet-ui";
 import { agentNextStep, agentStatus, date, n } from "./fleet-status";
 
-/** No agent profiles yet: what they are, and that the agent runtime is not ready (#2686). */
-function AgentEmptyState({ team }: { team: string }) {
+/** App, profile and MCP server, with the owner team's approval on the last step. Text in the SVG scales with it. */
+function AgentFlow() {
+  const box = (x: number, label: string, strong?: boolean) => (
+    <g>
+      <rect
+        x={x}
+        y={8}
+        width={150}
+        height={48}
+        rx={8}
+        fill={strong ? "var(--ax-bg-accent-moderate)" : "var(--ax-bg-neutral-soft)"}
+        stroke={strong ? "var(--ax-border-accent)" : "var(--ax-border-neutral-subtle)"}
+      />
+      <text x={x + 75} y={37} textAnchor="middle" fontSize={15} fontWeight={600} fill="var(--ax-text-neutral)">
+        {label}
+      </text>
+    </g>
+  );
+  const arrow = (x: number) => (
+    <path d={`M${x} 32h36m-7-6 7 6-7 6`} fill="none" stroke="var(--ax-text-neutral-subtle)" strokeWidth={2} />
+  );
   return (
-    <VStack gap="space-8" className="max-w-prose">
-      <Heading level="2" size="small">
-        {team} har ingen agentprofiler ennå
-      </Heading>
-      <BodyLong>
-        En agentprofil sier hvilken app som får bruke hvilke verktøy på hvilke MCP-servere, på vegne av en innlogget
-        bruker. Eierteamet til hver MCP-server bestemmer om profilen får tilgang.
-      </BodyLong>
-      <BodyLong>
+    <svg
+      viewBox="0 0 530 92"
+      role="img"
+      aria-labelledby="agentflyt-tittel"
+      className="block h-auto w-full max-w-[530px]"
+    >
+      <title id="agentflyt-tittel">
+        En app bruker en agentprofil for å kalle verktøy på en MCP-server. Eierteamet til MCP-serveren godkjenner.
+      </title>
+      {box(0, "App")}
+      {arrow(157)}
+      {box(190, "Agentprofil", true)}
+      {arrow(347)}
+      {box(380, "MCP-server")}
+      <text x={455} y={80} textAnchor="middle" fontSize={13} fill="var(--ax-text-neutral-subtle)">
+        Eierteamet godkjenner
+      </text>
+    </svg>
+  );
+}
+
+/** No agent profiles yet: what they are, and that the agent runtime is not ready (#2686). */
+export function AgentEmptyState({ team }: { team: string }) {
+  return (
+    <VStack gap="space-24" className="max-w-prose">
+      <VStack gap="space-8" align="start">
+        <Tag size="small" variant="info">
+          Kommer
+        </Tag>
+        <Heading level="2" size="medium">
+          {team} har ingen agentprofiler ennå
+        </Heading>
+        <BodyLong>
+          <strong>Kort fortalt:</strong> En agentprofil sier hvilken app som får bruke hvilke verktøy på hvilke
+          MCP-servere, på vegne av en innlogget bruker. Fleet kan ikke kjøre agenter ennå.
+        </BodyLong>
+      </VStack>
+      <AgentFlow />
+      <VStack gap="space-8">
+        <Heading level="3" size="small">
+          Hvorfor det betyr noe
+        </Heading>
+        <BodyLong>
+          Eierteamet til hver MCP-server bestemmer om profilen får tilgang. Ingen agent får bruke et verktøy før teamet
+          som eier det, har sagt ja.
+        </BodyLong>
+      </VStack>
+      <VStack gap="space-8">
+        <Heading level="3" size="small">
+          Gjør dette nå
+        </Heading>
+        <BodyLong>Registrer MCP-serverne teamet har, så agentene kan bruke dem når de kommer.</BodyLong>
+        <HStack gap="space-8">
+          <Button as={NextLink} href={`/fleet/registrer?team=${team}`} size="small">
+            Registrer MCP-server
+          </Button>
+          <Button as={NextLink} href="/mcp" size="small" variant="secondary">
+            Les om MCP i Nav
+          </Button>
+        </HStack>
+      </VStack>
+      <ReadMore header="Hva mangler før agentprofiler kan brukes?" size="small">
         Profilene skal brukes av KI-agenter som kjører i Fleet. Den delen er ikke i produksjon ennå, så foreløpig er det
         ingenting å sette opp her.
-      </BodyLong>
-      <BodyLong>
-        Det dere kan gjøre nå, er å registrere MCP-serverne teamet har, slik at agentene kan bruke dem når de kommer.{" "}
-        <Link as={NextLink} href={`/fleet/registrer?team=${team}`}>
-          Registrer en MCP-server
-        </Link>
-      </BodyLong>
+      </ReadMore>
     </VStack>
   );
 }
