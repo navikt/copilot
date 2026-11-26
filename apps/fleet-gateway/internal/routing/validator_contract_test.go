@@ -59,7 +59,7 @@ func TestValidatorContract(t *testing.T) {
 		}
 	}
 	for _, tc := range c.Upstreams {
-		if _, err := validateUpstreamURL(tc.URL, tc.NS); (err == nil) != tc.want() {
+		if _, err := ValidateUpstreamURL(tc.URL, tc.NS); (err == nil) != tc.want() {
 			t.Errorf("upstream %q ns %q: valid=%v, contract says %v", tc.URL, tc.NS, err == nil, tc.want())
 		}
 	}
