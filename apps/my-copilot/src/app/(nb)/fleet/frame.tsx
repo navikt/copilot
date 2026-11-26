@@ -7,21 +7,43 @@ import { Breadcrumbs, FleetNav, type FleetNavProps } from "./nav";
 
 export const fleetRobots = { index: false, follow: false };
 
-/** The side navigation for a page outside one team's overview: the remembered team, else the first. */
-export async function teamNav(
-  teams: string[],
-  prefer?: string,
-  extra: Partial<FleetNavProps> = {}
-): Promise<FleetNavProps | undefined> {
-  const last = (await cookies()).get(TEAM_COOKIE)?.value;
-  const team = [prefer, last].find((t) => t && teams.includes(t)) ?? teams[0];
-  if (!team) return undefined;
-  // Same count as on the overview; a failed lookup only drops the badge.
-  const pending = await fleetApi.servers(team).then(
-    (l) => l.items.filter((s) => s.status.pending).length,
-    () => 0
-  );
-  return { team, teams, pending, ...extra };
+/** The badge call may take this long; after that the page renders without the count. */
+export const BADGE_TIMEOUT_MS = 2000;
+
+/** Versions waiting in the team, as on the overview; undefined on error or after BADGE_TIMEOUT_MS. */
+function pendingBadge(team: string): Promise<number | undefined> {
+  return Promise.race([
+    fleetApi.servers(team).then(
+      (l) => l.items.filter((s) => s.status.pending).length,
+      () => undefined
+    ),
+    new Promise<undefined>((r) => setTimeout(() => r(undefined), BADGE_TIMEOUT_MS)),
+  ]);
+}
+
+/**
+ * The side navigation for a page outside one team's overview: the remembered team, else the first.
+ * Call it before the page's own fetches: the badge call for the likely team starts at once and runs alongside them.
+ */
+export function teamNavLoader(prefer?: string) {
+  const start = cookies().then((c) => {
+    const last = c.get(TEAM_COOKIE)?.value;
+    // Both likely teams: the page's own (for example the MCP server's) and the remembered one.
+    const badges = new Map([prefer, last].filter((t): t is string => !!t).map((t) => [t, pendingBadge(t)]));
+    return { last, badges };
+  });
+  /** pick: the team the page itself settled on, when it has one. */
+  return async (
+    teams: string[],
+    extra: Partial<FleetNavProps> = {},
+    pick?: string
+  ): Promise<FleetNavProps | undefined> => {
+    const { last, badges } = await start;
+    const team = [pick, prefer, last].find((t) => t && teams.includes(t)) ?? teams[0];
+    if (!team) return undefined;
+    const pending = await (badges.get(team) ?? pendingBadge(team));
+    return { team, teams, pending, ...extra };
+  };
 }
 
 import type { Crumb } from "./nav";

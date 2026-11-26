@@ -91,7 +91,7 @@ export function FleetNav({ team, teams = [], pending = 0, inCatalog = false }: F
         {
           label: "MCP-servere",
           href: `${base}#mcp-servere`,
-          current: path.startsWith("/fleet/mcp-servere"),
+          current: !inCatalog && path.startsWith("/fleet/mcp-servere"),
           team: true,
         },
         {

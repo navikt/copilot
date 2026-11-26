@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { vi } from "vitest";
 
 const cookieJar = new Map<string, string>();
+const nav = vi.hoisted(() => ({ path: "/fleet" }));
 vi.mock("next/headers", () => ({
   headers: vi.fn(),
   cookies: vi.fn(async () => ({ get: (k: string) => (cookieJar.has(k) ? { value: cookieJar.get(k) } : undefined) })),
@@ -16,7 +17,7 @@ vi.mock("next/navigation", () => ({
   permanentRedirect: vi.fn((to: string) => {
     throw new Error(`NEXT_PERMANENT_REDIRECT ${to}`);
   }),
-  usePathname: () => "/fleet",
+  usePathname: () => nav.path,
   useRouter: () => ({ refresh: vi.fn(), replace: vi.fn(), push: vi.fn() }),
 }));
 
@@ -115,6 +116,7 @@ const params = (namespace: string, name: string) => ({ params: Promise.resolve({
 
 describe("/fleet", () => {
   beforeEach(() => {
+    nav.path = "/fleet";
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
     vi.stubEnv("NODE_ENV", "development");
@@ -620,12 +622,14 @@ describe("/fleet", () => {
   });
 
   it("marks Katalog, not MCP-servere, on another team's server, and keeps the approval count on every page", async () => {
+    nav.path = "/fleet/mcp-servere/team-b/saker";
     const { container } = render(await ServerPage(params("team-b", "saker")));
-    const current = [...container.querySelectorAll('nav[aria-label="Fleet"] [aria-current="page"]')].map((e) =>
-      e.textContent?.trim()
-    );
-    expect(current).toContain("Katalog");
-    expect(current).not.toContain("MCP-servere");
+    // Desktop menu and phone link list each mark exactly one item, and it is Katalog.
+    for (const list of container.querySelectorAll('nav[aria-label="Fleet"] ul')) {
+      const current = [...list.querySelectorAll('[aria-current="page"]')].map((e) => e.textContent?.trim());
+      if (current.length) expect(current).toEqual(["Katalog"]);
+    }
+    expect(container.querySelectorAll('nav[aria-label="Fleet"] [aria-current="page"]')).toHaveLength(2);
     expect(container.querySelector('nav[aria-label="Fleet"] [aria-label$="venter"]')).not.toBeNull();
   });
 
@@ -639,5 +643,26 @@ describe("/fleet", () => {
     expect(at("Test MCP-endpointet")).toBeLessThan(at("Nødtiltak"));
     expect(at("Nødtiltak")).toBeLessThan(at("Detaljer"));
     expect(at("Historikk")).toBeLessThan(at("Endre MCP-serveren"));
+  });
+
+  it("renders without the badge when the badge call is slow, after the short timeout", async () => {
+    const { BADGE_TIMEOUT_MS } = await import("./frame");
+    const fast = vi.mocked(fetch).getMockImplementation()!;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, init?: RequestInit) =>
+        url.endsWith("/namespaces/team-a/mcpservers") ? new Promise<Response>(() => {}) : fast(url, init)
+      )
+    );
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const page = ServerPage(params("team-b", "saker"));
+      await vi.advanceTimersByTimeAsync(BADGE_TIMEOUT_MS + 10);
+      const { container } = render(await page);
+      expect(container.querySelector('nav[aria-label="Fleet"] [aria-label$="venter"]')).toBeNull();
+      expect(screen.getByRole("heading", { name: "Konsumenter" })).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

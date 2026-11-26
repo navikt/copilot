@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { BodyLong } from "@navikt/ds-react";
 import { fleetApi, fleetLoad, requireFleet } from "@/lib/fleet-control";
 import { TEAM_COOKIE, isName } from "@/lib/fleet-names";
-import { FleetFrame, fleetRobots, teamNav } from "../frame";
+import { FleetFrame, fleetRobots, teamNavLoader } from "../frame";
 import { AgentTable, FleetProblemAlert, PendingInbox } from "../fleet-ui";
 
 export const metadata: Metadata = { title: "Agentprofiler – Fleet", robots: fleetRobots };
@@ -14,6 +14,7 @@ type Props = { searchParams: Promise<{ team?: string }> };
 export default async function AgentsPage({ searchParams }: Props) {
   requireFleet();
   const asked = (await searchParams).team ?? (await cookies()).get(TEAM_COOKIE)?.value;
+  const navFor = teamNavLoader(asked && isName(asked) ? asked : undefined);
   const result = await fleetLoad(async () => {
     const me = await fleetApi.whoami();
     const team = asked && isName(asked) && me.teams.includes(asked) ? asked : me.teams[0];
@@ -35,7 +36,7 @@ export default async function AgentsPage({ searchParams }: Props) {
       title="Agentprofiler"
       description="Hvilke MCP-servere KI-agentene i teamet får bruke."
       crumbs={team ? [{ label: team, href: `/fleet?team=${team}` }] : []}
-      nav={team ? await teamNav(teams, team) : undefined}
+      nav={team ? await navFor(teams, {}, team) : undefined}
     >
       {team ? (
         <>
