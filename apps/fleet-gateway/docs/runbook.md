@@ -213,6 +213,8 @@ Prod reads routes from `pilot-routes.prod.yaml` today. This section moves it to 
 
 fleet-control seeds itself; no separate tool. The image carries `pilot-routes.prod.yaml` and `allowlist.json` (`apps/fleet-control/Dockerfile`), and `SEED_ROUTES_FILE` points at `pilot-routes.{{env}}.yaml`. `seedFromEnv` imports only when the database has no servers, so it never overwrites. `seed_test.go` parses both the dev and the prod file. After the first prod deploy, freeze `pilot-routes.prod.yaml`: route changes go through fleet-control. A change to the file after seeding does not reach the database.
 
+Decision (#2760): prod seeded once from the file on 2026-11-25 (4 servers) and is not seeded again. `pilot-routes.prod.yaml` is frozen from the switch on. New and changed routes go through fleet-control's write API with approval; only approved and published routes reach the snapshot. `TestProdRoutesFileFrozenAfterSwitch` (`routes_freeze_test.go`) fails CI when the file changes while `.nais/prod-gcp.yaml` has `routes_source: fleet-control`. The gateway still reads the file for one value: the primary resource, which a snapshot may not drop. A rollback that reverts `routes_source` in the same PR is allowed to edit the file.
+
 ### Shadow mode: compare before switching
 
 With `ROUTES_SOURCE=git` and `ROUTES_SHADOW_SOURCE=fleet-control` the gateway also polls fleet-control every 30 s. It validates the snapshot by the same rules as a real switch, never serves it, and compares it with the Git table. Upstreams compare in their `.svc.cluster.local` form (#2856); the comparison covers route, team, target, upstream, `enabled`, tools and `passAllTools`.
@@ -220,6 +222,17 @@ With `ROUTES_SOURCE=git` and `ROUTES_SHADOW_SOURCE=fleet-control` the gateway al
 - `fleet_gateway_routes_shadow_diff`: the number of routes that differ. No series until the first shadow snapshot.
 - `fleet_gateway_routes_shadow_failures_total`: failed or rejected shadow fetches. A failure never changes what the gateway serves.
 - Log line `fleet-control shadow diff` with the differing route paths, at the first snapshot and whenever the set changes.
+
+Evidence for the switch PR. CI cannot reach prod, so the proof is in Mimir and the pod logs. Every prod pod compares fleet-control's validated snapshot with `pilot-routes.prod.yaml` every 30 s:
+
+```promql
+# 0 on every pod for the whole watch window; any other value or a gap resets the clock
+max_over_time(fleet_gateway_routes_shadow_diff{namespace="copilot", k8s_cluster_name="prod-gcp"}[24h])
+# must be 0: a failed or rejected shadow fetch compares nothing
+increase(fleet_gateway_routes_shadow_failures_total{namespace="copilot", k8s_cluster_name="prod-gcp"}[24h])
+```
+
+Log line: `fleet-control shadow diff` with `differing_routes=0` and the `generation`. It is written at the first snapshot and whenever the set changes, so one line per pod after the last deploy means no change since. A line naming routes lists `<route>: only in snapshot` for a route fleet-control would serve that the file lacks; that is a stop, not a detail.
 
 Enable it with `routes_shadow_source: fleet-control`, and `fleet_control_audience` in the environment file. The values must not be combined with `routes_source: fleet-control`; the gateway refuses to start.
 
@@ -242,6 +255,19 @@ Dev runs on fleet-control. Rehearse shadow mode, the switch and the rollback the
 5. Switch PR: replace `routes_shadow_source` with `routes_source: fleet-control`; the audience stays. Merge and watch the deploy job. Merged: ____ Rollout complete: ____
 6. Verify: `/ready` 200 on every pod, snapshot age under 120 s, no `fleet-control routes not updated` in the logs, and the post-deploy smoke on each prod route (PRM 200, then one tool call). Done: ____
 
+### When fleet-control is down (after the switch)
+
+From `fleet_control.go` and `main.go`; tests in `fleet_control_test.go` and `route_snapshot_store_test.go`.
+
+- **At startup, fleet-control down:** the pod loads the last snapshot it stored in Postgres, with the full live validation except the age bound, so it may be old. `fleet_gateway_routes_from_stored_snapshot` is 1 and the age gauge counts from the snapshot's `checked_at`, so `FleetGatewayRouteSnapshotStale` fires. No valid stored snapshot (none, corrupt, hash mismatch): no routes, `/mcp/*` 503 `temporarily_unavailable`, `/ready` 503 `no_route_snapshot`. The Git file's routes are never served in this mode (`TestStoredSnapshotServesWhenFleetControlDown`, `TestNoLiveNoStoredFailsClosed`, `TestRouteSyncNoSnapshotAtStartupFailsClosed`).
+- **At runtime, fleet-control down:** each failed poll keeps the current table and logs `fleet-control routes not updated, keeping current table`. There is no expiry: the last good snapshot serves until a new one is accepted. Staleness only alerts (`FleetGatewayRouteSyncFailing` after 15 min, `FleetGatewayRouteSnapshotStale`). A route revoked in fleet-control meanwhile keeps serving; use the global kill switch if that matters.
+- **Rejected snapshot** (over `maxSnapshotBytes`, bad JSON, `schema_version` not 1, `checked_at` missing or more than 10 min from now, invalid route, primary resource dropped): treated like an outage, the current table stays and nothing is stored.
+- **A route the file does not have:** served once it is in an accepted snapshot. The gate is fleet-control's approval and publish step, not the gateway.
+
+### Close one route after the switch
+
+The per-route kill switch above edits `pilot-routes.prod.yaml`, which no longer affects prod. Until fleet-control has a per-route disable path, use the global switch (`GATEWAY_DISABLED`) for an urgent stop.
+
 ### Roll back to the Git file (under 5 min)
 
 ```sh
@@ -249,7 +275,7 @@ nais app set env fleet-gateway ROUTES_SOURCE=git -t copilot -e prod-gcp
 kubectl --context prod-gcp -n copilot rollout status deploy/fleet-gateway
 ```
 
-The global kill-switch drill took 56 s in prod with the same command, so expect about 1 min. The setting does not survive the next deploy: revert the PR from step 5 at once. While the file is the source, routes registered or changed in fleet-control after seeding are not served; they stay in fleet-control and come back at the next switch. Before switching again, run the diff and decide per difference whether the file or fleet-control is right.
+The global kill-switch drill took 56 s in prod with the same command, so expect about 1 min. The setting does not survive the next deploy: revert the PR from step 5 at once. The revert restores `routes_shadow_source: fleet-control`, so shadow mode resumes and shows how far fleet-control and the file have drifted. While the file is the source, routes registered or changed in fleet-control after seeding are not served; they stay in fleet-control and come back at the next switch. Before switching again, run the diff and decide per difference whether the file or fleet-control is right.
 
 ## SLO
 
