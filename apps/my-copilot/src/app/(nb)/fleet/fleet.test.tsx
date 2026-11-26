@@ -668,7 +668,11 @@ describe("/fleet", () => {
 
   it("ignores a malformed team cookie for the badge, and still renders", async () => {
     cookieJar.set("fleet-team", "../Ikke gyldig/%2F");
+    const { fleetApi } = await import("@/lib/fleet-control");
+    const servers = vi.spyOn(fleetApi, "servers");
     const { container } = render(await ServerPage(params("team-b", "saker")));
+    expect(servers.mock.calls.map((c) => c[0])).not.toContain("../Ikke gyldig/%2F");
+    servers.mockRestore();
     expect(screen.getByRole("heading", { name: "Konsumenter" })).toBeInTheDocument();
     const urls = vi.mocked(fetch).mock.calls.map((c) => String(c[0]));
     expect(urls.some((u) => u.includes("Ikke") || u.includes(".."))).toBe(false);
@@ -686,5 +690,16 @@ describe("/fleet", () => {
     expect(badge).toBeLessThan(urls.indexOf(`${API}/whoami`));
     // Cookie team and page team are the same: one request, not two.
     expect(urls.filter((u) => u === `${API}/namespaces/team-a/mcpservers`)).toHaveLength(1);
+  });
+
+  it("clears the badge timeout once the badge call has settled", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      render(await ServerPage(params("team-b", "saker")));
+      // Every request answered at once; no 2 s timer may be left behind.
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
