@@ -129,7 +129,7 @@
       "version": "1.0.0",
       "status": "active",
       "publishedAt": "2026-11-19T00:00:00Z",
-      "websiteUrl": "https://ki-utvikling.nav.no/mcp/fleet-gateway",
+      "websiteUrl": "https://navikt.github.io/felleskodeverk/",
       "repository": {
         "url": "https://github.com/navikt/copilot",
         "source": "github",
@@ -154,7 +154,7 @@
       "version": "1.0.0",
       "status": "active",
       "publishedAt": "2026-11-19T00:00:00Z",
-      "websiteUrl": "https://ki-utvikling.nav.no/mcp/fleet-gateway",
+      "websiteUrl": "https://dolly-dokumentasjon.ansatt.nav.no",
       "repository": {
         "url": "https://github.com/navikt/copilot",
         "source": "github",
@@ -180,7 +180,7 @@
       "version": "1.0.0",
       "status": "active",
       "publishedAt": "2026-11-21T00:00:00Z",
-      "websiteUrl": "https://ki-utvikling.nav.no/mcp/fleet-gateway",
+      "websiteUrl": "https://navikt.github.io/team-catalog/",
       "repository": {
         "url": "https://github.com/navikt/copilot",
         "source": "github",

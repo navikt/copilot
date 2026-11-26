@@ -82,12 +82,22 @@ function McpToolList({ tools, toolRisk }: { tools: string[]; toolRisk?: Record<s
   );
 }
 
+// Only github.com URLs get /tree/main/<subfolder>; unsafe subfolders fall back to the repo root.
+export function repoLink(repo?: { url: string; subfolder?: string }): string | undefined {
+  if (!repo?.url.startsWith("https://")) return undefined;
+  if (!repo.subfolder || !repo.url.startsWith("https://github.com/")) return repo.url;
+  const segs = repo.subfolder.split("/");
+  if (segs.some((s) => !s || s === "." || s === ".." || /[?#\\]/.test(s))) return repo.url;
+  return `${repo.url.replace(/\/+$/, "")}/tree/main/${segs.map(encodeURIComponent).join("/")}`;
+}
+
 export function McpDetails({ item }: { item: EnrichedCustomization }) {
   if (item.type !== "mcp") return null;
 
   const enable = enableCommand(item.serverId);
   const hasLaunchRecipe = item.remotes.length > 0 || (item.packages?.length ?? 0) > 0;
   const tools = item.tools ?? [];
+  const repoHref = repoLink(item.repository);
   const offByDefault = tools.filter((tool) => ["external", "host-exec"].includes(riskOf(item.toolRisk, tool)));
   const hostExec = tools.filter((tool) => riskOf(item.toolRisk, tool) === "host-exec");
   const isGitHub = item.remotes.some(
@@ -335,7 +345,7 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
         </Box>
       )}
 
-      {(item.websiteUrl || item.repository) && (
+      {(item.websiteUrl || repoHref) && (
         <VStack gap="space-8">
           <Heading size="xsmall" level="4">
             Lenker
@@ -352,15 +362,15 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
                 Dokumentasjon
               </a>
             )}
-            {item.repository && (
+            {repoHref && (
               <a
-                href={item.repository.url}
+                href={repoHref}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={`inline-flex items-center gap-1 text-sm ${linkClass}`}
               >
                 <ExternalLinkIcon fontSize="1rem" aria-hidden />
-                Kildekode ({item.repository.source})
+                Kildekode ({item.repository?.source})
               </a>
             )}
           </VStack>

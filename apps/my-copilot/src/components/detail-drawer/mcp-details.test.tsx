@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { EnrichedCustomization } from "@/lib/enrich-customizations";
-import { McpDetails } from "./mcp-details";
+import { McpDetails, repoLink } from "./mcp-details";
 import { riskCounts, serverPagePath } from "./mcp-meta";
 
 describe("McpDetails", () => {
@@ -57,6 +57,40 @@ describe("McpDetails", () => {
     } finally {
       consoleError.mockRestore();
     }
+  });
+
+  it("links Kildekode to the server's own subfolder", () => {
+    const item = {
+      id: "mcp-io.github.navikt/dolly",
+      name: "dolly",
+      description: "d",
+      type: "mcp",
+      serverId: "io.github.navikt/dolly",
+      domain: "testing",
+      filePath: "",
+      repoPath: "",
+      rawGitHubUrl: "",
+      installUrl: null,
+      insidersInstallUrl: null,
+      version: "1.0.0",
+      remotes: [],
+      websiteUrl: "https://dolly-dokumentasjon.ansatt.nav.no",
+      repository: { url: "https://github.com/navikt/copilot", source: "github", subfolder: "apps/mcp-dolly" },
+    } as unknown as EnrichedCustomization;
+    render(<McpDetails item={item} />);
+    expect(screen.getByRole("link", { name: /Kildekode/ }).getAttribute("href")).toBe(
+      "https://github.com/navikt/copilot/tree/main/apps/mcp-dolly"
+    );
+  });
+
+  it("repoLink only builds a tree URL for safe github subfolders", () => {
+    const gh = "https://github.com/navikt/copilot";
+    expect(repoLink({ url: gh })).toBe(gh);
+    expect(repoLink({ url: gh, subfolder: "apps/mcp-dolly" })).toBe(`${gh}/tree/main/apps/mcp-dolly`);
+    expect(repoLink({ url: gh, subfolder: "../x" })).toBe(gh);
+    expect(repoLink({ url: gh, subfolder: "a/b?x#y" })).toBe(gh);
+    expect(repoLink({ url: "https://gitlab.com/a/b", subfolder: "x" })).toBe("https://gitlab.com/a/b");
+    expect(repoLink({ url: "javascript:alert(1)", subfolder: "x" })).toBeUndefined();
   });
 
   it("shows nav-pilot mcp enable with the full registry name in the default tab", () => {
