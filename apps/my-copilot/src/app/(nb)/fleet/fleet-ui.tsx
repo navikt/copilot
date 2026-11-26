@@ -641,8 +641,10 @@ export function ServerDetail({
   agents = [],
   agentsFailed = false,
   grafanaUrl,
+  gatewayUrl,
   submitted = false,
 }: {
+  gatewayUrl?: string;
   server: MCPServer;
   events: AuditEvent[];
   submitted?: boolean;
@@ -654,29 +656,25 @@ export function ServerDetail({
   grafanaUrl?: string;
 }) {
   return (
-    <VStack gap="space-16">
+    <VStack gap="space-24">
       {submitted && server.status.pending && <SubmittedAlert server={server} />}
-      <KortFortalt>
-        <div>
-          <StatusTag s={serverStatus(server)} />
-        </div>
-        <BodyLong>Neste steg: {serverNextStep(server)}</BodyLong>
-      </KortFortalt>
-      <Detaljer
-        rows={[
-          ["Team", server.metadata.namespace],
-          ["Navn", server.metadata.name],
-          ["Rute", server.status.route?.path ?? "–"],
-          ["Publisert versjon", server.status.publishedGeneration ?? "–"],
-          ["Versjon som venter på godkjenning", server.status.pending?.generation ?? "–"],
-        ]}
-      />
-      {grafanaUrl && (
-        <BodyShort>
-          <Link href={grafanaUrl} target="_blank" rel="noopener noreferrer">
-            Se bruk i Grafana <ExternalLinkIcon fontSize="1rem" title="åpnes i ny fane" />
-          </Link>
-        </BodyShort>
+      <ServerHeader server={server} />
+      <BodyLong>Neste steg: {serverNextStep(server)}</BodyLong>
+      <ServerActions server={server} me={me} owner={owner} part="approve" />
+      {server.status.pending?.spec && (
+        <VStack gap="space-8">
+          <HStack justify="space-between" align="end" gap="space-8">
+            <Heading level="2" size="medium">
+              Hva endres
+            </Heading>
+            {server.status.publishedGeneration && (
+              <BodyShort size="small">
+                Publisert versjon {server.status.publishedGeneration} mot versjon {server.status.pending.generation}
+              </BodyShort>
+            )}
+          </HStack>
+          <Versjoner server={server} next={server.status.pending.spec} />
+        </VStack>
       )}
       {agentsFailed ? (
         <Alert variant="warning" size="small">
@@ -685,11 +683,87 @@ export function ServerDetail({
       ) : (
         <WaitingForAccess server={server} agents={agents} />
       )}
+      {grafanaUrl && (
+        <VStack gap="space-8">
+          <Heading level="2" size="medium">
+            Bruk siste 7 dager
+          </Heading>
+          <BodyShort>
+            <Link href={grafanaUrl} target="_blank" rel="noopener noreferrer">
+              Se kall og brukere i Grafana <ExternalLinkIcon fontSize="1rem" title="åpnes i ny fane" />
+            </Link>
+          </BodyShort>
+        </VStack>
+      )}
+      {server.status.route && hasCondition(server, "Published") && !hasCondition(server, "Revoked") && (
+        <TestCurl path={server.status.route.path} gateway={gatewayUrl} />
+      )}
       <AccessPolicy app={(server.status.pending?.spec ?? server.spec)?.upstream?.app} />
       <ServerDocs spec={server.status.pending?.spec ?? server.spec} />
-      {server.status.pending?.spec && <Versjoner server={server} next={server.status.pending.spec} />}
-      <ServerActions server={server} me={me} owner={owner} />
+      <ServerActions server={server} me={me} owner={owner} part="rest" />
+      <Detaljer
+        rows={[
+          ["Team", server.metadata.namespace],
+          ["Navn", server.metadata.name],
+          ["Adresse i fleet-gateway", server.status.route?.path ?? "–"],
+          ["Publisert versjon", server.status.publishedGeneration ?? "–"],
+          ["Versjon som venter på godkjenning", server.status.pending?.generation ?? "–"],
+        ]}
+      />
       <Historikk events={events} />
+    </VStack>
+  );
+}
+
+/** Name line under the hero: status, route and the facts a reader looks for first. */
+function ServerHeader({ server }: { server: MCPServer }) {
+  const spec = server.status.pending?.spec ?? server.spec;
+  const tools = spec?.allowedTools?.length ?? 0;
+  return (
+    <VStack gap="space-8">
+      <HStack gap="space-8" align="center">
+        <StatusTag s={serverStatus(server)} />
+        {server.status.route && (
+          <Detail as="code" className="[overflow-wrap:anywhere]">
+            {server.status.route.path}
+          </Detail>
+        )}
+      </HStack>
+      <HStack gap="space-16" wrap>
+        <BodyShort size="small">Eierteam: {server.metadata.namespace}</BodyShort>
+        <BodyShort size="small">{tools === 1 ? "1 verktøy" : `${tools} verktøy`}</BodyShort>
+        {spec?.dataCategory && <BodyShort size="small">{categoryLabel(spec.dataCategory)}</BodyShort>}
+        {server.status.publishedGeneration && (
+          <BodyShort size="small">Publisert versjon {server.status.publishedGeneration}</BodyShort>
+        )}
+      </HStack>
+    </VStack>
+  );
+}
+
+/** tools/list through fleet-gateway, for the owner team to try the published route. */
+function TestCurl({ path, gateway }: { path: string; gateway?: string }) {
+  const curl = `curl -X POST ${gateway ?? "https://<fleet-gateway>"}${path} \\
+  -H "Authorization: Bearer $TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -H "Accept: application/json, text/event-stream" \\
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'`;
+  return (
+    <VStack gap="space-8">
+      <Heading level="2" size="medium">
+        Test MCP-endpointet
+      </Heading>
+      <Box background="neutral-soft" padding="space-12" borderRadius="8">
+        <VStack gap="space-8">
+          <HStack justify="space-between" align="center">
+            <BodyShort size="small">Liste verktøyene (tools/list)</BodyShort>
+            <CopyButton copyText={curl} text="Kopier" activeText="Kopiert" />
+          </HStack>
+          <pre className="overflow-x-auto">
+            <code>{curl}</code>
+          </pre>
+        </VStack>
+      </Box>
     </VStack>
   );
 }
@@ -934,7 +1008,17 @@ function ConfirmForm({
   );
 }
 
-function ServerActions({ server, me, owner }: { server: MCPServer; me?: string; owner: boolean }) {
+function ServerActions({
+  server,
+  me,
+  owner,
+  part,
+}: {
+  server: MCPServer;
+  me?: string;
+  owner: boolean;
+  part: "approve" | "rest";
+}) {
   const approve = useFleetPost("approve");
   const revoke = useFleetPost("revoke");
   const live = hasCondition(server, "Published") && !hasCondition(server, "Revoked");
@@ -948,27 +1032,46 @@ function ServerActions({ server, me, owner }: { server: MCPServer; me?: string; 
       <input type="hidden" name="name" value={name} />
     </>
   );
+  if (part === "approve")
+    return pending?.contentHash ? (
+      <Box background="default" borderWidth="1" borderColor="warning" borderRadius="12" padding="space-20">
+        <VStack gap="space-12" align="start">
+          <Heading level="2" size="medium">
+            Versjon {pending.generation} venter
+          </Heading>
+          <BodyShort>
+            To personer i eierteamet: én sender inn, en annen godkjenner.
+            {pending.submittedBy && !ownVersion && ` Sendt inn av ${pending.submittedBy.name}.`}
+          </BodyShort>
+          {ownVersion ? (
+            <BodyShort>
+              Du sendte inn versjon {pending.generation} selv. En annen på {namespace} må godkjenne den.
+            </BodyShort>
+          ) : (
+            <form onSubmit={approve.onSubmit}>
+              <VStack gap="space-8" align="start">
+                {ids}
+                <input type="hidden" name="generation" value={pending.generation} />
+                <input type="hidden" name="contentHash" value={pending.contentHash} />
+                <ActionError error={approve.error} />
+                <Button loading={approve.busy}>Godkjenn versjon {pending.generation}</Button>
+              </VStack>
+            </form>
+          )}
+        </VStack>
+      </Box>
+    ) : null;
   return (
     <VStack gap="space-24">
-      {pending?.contentHash && ownVersion && (
-        <BodyShort>
-          Du sendte inn versjon {pending.generation} selv. En annen på {namespace} må godkjenne den.
-        </BodyShort>
-      )}
-      {pending?.contentHash && !ownVersion && (
-        <form onSubmit={approve.onSubmit}>
-          <VStack gap="space-8" align="start">
-            <Heading level="2" size="small">
-              Godkjenn versjon {pending.generation}
-            </Heading>
-            <BodyShort>Du kan ikke godkjenne en versjon du sendte inn selv.</BodyShort>
-            {ids}
-            <input type="hidden" name="generation" value={pending.generation} />
-            <input type="hidden" name="contentHash" value={pending.contentHash} />
-            <ActionError error={approve.error} />
-            <Button loading={approve.busy}>Godkjenn og publiser</Button>
-          </VStack>
-        </form>
+      {live && (
+        <VStack gap="space-4">
+          <Heading level="2" size="medium">
+            Nødtiltak
+          </Heading>
+          <BodyShort size="small">
+            Kan brukes av eierteamet og plattformteamet. Virker med en gang, uten godkjenning.
+          </BodyShort>
+        </VStack>
       )}
       {live && (
         <ConfirmForm
@@ -978,15 +1081,14 @@ function ServerActions({ server, me, owner }: { server: MCPServer; me?: string; 
           confirm="Trekk tilbake"
           busy={revoke.busy}
         >
-          <Heading level="2" size="small">
+          <Heading level="3" size="small">
             Trekk tilbake
           </Heading>
-          <BodyShort>Ingen kan bruke MCP-serveren etterpå. Du trenger ikke godkjenning fra andre.</BodyShort>
+          <BodyShort>Adressen slutter å svare. Agentene som bruker MCP-serveren, får feil.</BodyShort>
           {ids}
           <Textarea label="Begrunnelse" name="reason" maxLength={500} required />
           <Checkbox name="block">
-            Sperr denne versjonen for alltid. Den kan aldri sendes inn eller publiseres igjen, heller ikke ved
-            tilbakerulling.
+            Sperr denne versjonen for alltid. Den kan aldri sendes inn eller publiseres igjen.
           </Checkbox>
           <ActionError error={revoke.error} />
         </ConfirmForm>

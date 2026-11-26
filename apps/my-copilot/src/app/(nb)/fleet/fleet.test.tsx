@@ -282,7 +282,11 @@ describe("/fleet", () => {
   it("shows an MCP server with its route, who acts next and its history", async () => {
     render(await ServerPage(params("team-a", "docs")));
     expect(screen.getByText(/må godkjenne versjon 3/)).toBeInTheDocument();
-    expect(screen.getByText("/mcp/team-a/docs")).toBeInTheDocument();
+    expect(screen.getAllByText("/mcp/team-a/docs").length).toBeGreaterThan(0);
+    // Server: the curl test for the published route, and Nødtiltak for revocation.
+    expect(screen.getByRole("heading", { name: "Test MCP-endpointet" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Nødtiltak" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Versjon 3 venter" })).toBeInTheDocument();
     expect(screen.getByText("Historikk")).toBeInTheDocument();
   });
 
@@ -315,7 +319,7 @@ describe("/fleet", () => {
 
   it("offers approval with the pending version, and revocation only while not revoked", async () => {
     render(await ServerPage(params("team-a", "docs")));
-    expect(screen.getByRole("button", { name: "Godkjenn og publiser" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Godkjenn versjon 3" })).toBeInTheDocument();
     expect(document.querySelector('input[name="contentHash"]')).toHaveValue("h3");
     expect(screen.getByRole("button", { name: "Trekk tilbake" })).toBeInTheDocument();
     expect(screen.getByRole("table", { name: /versjonen som venter/ })).toBeInTheDocument();
@@ -329,7 +333,7 @@ describe("/fleet", () => {
     Object.assign(own.status.pending, { submittedBy: { kind: "User", name: "A123456" } });
     stub({ [`${API}/namespaces/team-a/mcpservers/docs`]: own });
     render(await ServerPage(params("team-a", "docs")));
-    expect(screen.queryByRole("button", { name: "Godkjenn og publiser" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Godkjenn versjon 3" })).toBeNull();
     expect(screen.getByText("Du sendte inn versjon 3 selv. En annen på team-a må godkjenne den.")).toBeInTheDocument();
   });
 
