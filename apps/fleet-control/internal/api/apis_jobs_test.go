@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 )
 
 const appClientID = "55555555-5555-4555-8555-555555555555"
@@ -195,4 +196,39 @@ func TestRealPostgresAgentJobClientMismatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	e.want(401, "POST", nsBase+"team-a/agentjobs", delegated("B444444"), jobJSON("team-a", "first", ""))
+}
+
+// The status reads expiry by DB time, as enforcement does (#3077).
+func TestRealPostgresProfileStatusExpiredByDBTime(t *testing.T) {
+	e := newApisEnv(t)
+	liveProfile(t, e.db, "team-a", "studio", appClientID, "Read")
+	ready := func() Condition {
+		return condOf(decodeProfile(t, e.want(200, "GET", nsBase+"team-a/agentprofiles/studio", person("A111111"), "")).Status.Conditions, "Ready")
+	}
+	if c := ready(); c.Reason == "Expired" {
+		t.Fatalf("live profile shows %+v", c)
+	}
+	if _, err := e.db.pool.Exec(context.Background(), `UPDATE agent_profile_generations SET expires_at = now() - interval '1 second'`); err != nil {
+		t.Fatal(err)
+	}
+	if c := ready(); c.Reason != "Expired" {
+		t.Errorf("expired profile shows %+v, want Expired", c)
+	}
+	// A DB clock a day ahead of the pod: only the DB-time path calls an hour-away expiry Expired.
+	ctx := context.Background()
+	if _, err := e.db.pool.Exec(ctx, `UPDATE agent_profile_generations SET expires_at = now() + interval '1 hour'`); err != nil {
+		t.Fatal(err)
+	}
+	row, err := scanProfileRow(e.db.pool.QueryRow(ctx, `SELECT `+profileRowCols+` FROM agent_profile_resources r WHERE r.name = 'studio'`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	row.Now = row.Now.Add(24 * time.Hour)
+	obj, err := e.db.buildProfile(ctx, row)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c := condOf(obj.Status.Conditions, "Ready"); c.Reason != "Expired" {
+		t.Errorf("status ignores the DB clock: %+v, want Expired", c)
+	}
 }
