@@ -792,7 +792,6 @@ func cmdConfigGet(key string, jsonOutput bool) error {
 	return nil
 }
 
-// resolvedFieldStr returns the string representation of a resolved field.
 func resolvedFieldStr(r ResolvedConfig, key string) string {
 	switch key {
 	case "version":

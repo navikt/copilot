@@ -1499,7 +1499,6 @@ func cmdSyncAuto(repoDir, ref, sourceRepo string, apply, jsonOutput bool) error 
 	return firstErr
 }
 
-// syncFile represents a file to check during sync.
 type syncFile struct {
 	localPath  string // relative path in target repo (e.g. ".github/agents/nais.agent.md")
 	sourcePath string // relative path in source repo (same unless remapped)

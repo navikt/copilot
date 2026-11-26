@@ -321,7 +321,6 @@ type envStamp struct {
 func uvPath() string   { return filepath.Join(dataDir(), "bin", "uv") }
 func venvPath() string { return filepath.Join(dataDir(), "venv") }
 
-// venvBin is the path to an executable inside the managed venv.
 func venvBin(name string) string { return filepath.Join(venvPath(), "bin", name) }
 
 func stampPath() string { return filepath.Join(dataDir(), "env.json") }
